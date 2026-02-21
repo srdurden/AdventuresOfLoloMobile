@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>Lolo Touch Rooms</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #101421; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; touch-action: manipulation; }
+    #app { position: fixed; inset: 0; display: grid; grid-template-rows: 1fr auto; padding: env(safe-area-inset-top) 10px env(safe-area-inset-bottom); gap: 8px; }
+    #boardWrap { position: relative; border-radius: 14px; background: linear-gradient(180deg,#1c2540,#11172a); overflow: hidden; }
+    #gameCanvas { width: 100%; height: 100%; display: block; }
+    #hud { position: absolute; top: 8px; left: 10px; right: 10px; display: flex; justify-content: space-between; align-items: center; pointer-events: none; font-weight: 700; text-shadow: 0 1px 2px #000; }
+    #hud .pill { background: #0007; padding: 4px 8px; border-radius: 999px; font-size: 13px; }
+    #controls { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; padding: 4px 0 2px; }
+    button { border: 0; border-radius: 12px; min-height: 54px; color: #fff; background: #33436d; font-weight: 700; font-size: 16px; }
+    button:active { transform: translateY(1px); background: #3f5185; }
+    .overlay { position: absolute; inset: 0; background: #0009; display: none; align-items: center; justify-content: center; z-index: 10; }
+    .overlay.show { display: flex; }
+    .card { background: #1a223b; border: 1px solid #ffffff22; border-radius: 14px; padding: 16px; width: min(92%,420px); color: #fff; text-align: center; }
+    .grid-levels { display: grid; grid-template-columns: repeat(5,1fr); gap: 8px; margin-top: 10px; max-height: 55vh; overflow: auto; }
+    .lv { min-height: 42px; font-size: 14px; }
+    .lv.lock { opacity: .4; }
+    .small { font-size: 12px; opacity: .8; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="boardWrap">
+      <canvas id="gameCanvas"></canvas>
+      <div id="hud">
+        <div class="pill" id="hudLevel">Nivel 1</div>
+        <div class="pill" id="hudHearts">❤ 0</div>
+        <div class="pill" id="hudKey">🔒 Sin llave</div>
+      </div>
+      <div id="pauseOverlay" class="overlay"><div class="card"><h2>Pausa</h2><p>Toca “Pausa” para continuar.</p></div></div>
+      <div id="winOverlay" class="overlay"><div class="card"><h2>¡Nivel completado!</h2><button id="nextBtn">Siguiente</button></div></div>
+      <div id="levelsOverlay" class="overlay"><div class="card"><h3>Selector de niveles</h3><p class="small">Desbloqueo progresivo guardado localmente.</p><div class="grid-levels" id="levelsGrid"></div><button id="closeLevels">Cerrar</button></div></div>
+    </div>
+    <div id="controls">
+      <button id="undoBtn">Deshacer</button>
+      <button id="resetBtn">Reiniciar</button>
+      <button id="pauseBtn">Pausa</button>
+      <button id="levelsBtn">Niveles</button>
+    </div>
+  </div>
+
+<script>
+/* Mini-plan de arquitectura:
+1) LEVELS data-driven (30 mapas 11x13), parser de tiles + entidades.
+2) Estado central GameState mutable + snapshot inicial por nivel.
+3) Motor determinista con fixed timestep (10 ticks/s).
+4) Enemigos patrol por ticks y medusas con línea de visión + temporizador.
+5) Colisiones completas jugador/enemigos en ambos sentidos.
+6) Movimiento táctil Opción A: adyacente inmediato / lejano preview+confirm.
+7) Auto-camino por BFS (sin empuje), cancelable con cualquier tap.
+8) Reglas Lolo: corazones -> cofre abre -> llave -> puerta.
+9) Switch/Gate globales, política: gate no se cierra si un ocupante está encima.
+10) Undo por snapshots (límite 200) restaurando TODO el estado.
+11) UI móvil: HUD + barra inferior + overlays pausa/victoria/selector.
+12) Persistencia localStorage (máximo desbloqueado + último nivel). */
+
+const LEVELS_RAW = [
+`###########\n#P..H....D#\n#.........#\n#....C....#\n#.........#\n#....H....#\n#.........#\n#.........#\n#.........#\n#.........#\n#.........#\n#.........#\n###########`,
+`###########\n#P..#..H.D#\n#...#.....#\n#...#..####\n#...#.....#\n#...###...#\n#.....#...#\n###...#...#\n#....C#...#\n#.....#...#\n#..H..#...#\n#.........#\n###########`,
+`###########\n#P....#..D#\n###.#.#.###\n#...#.#...#\n#.###.###.#\n#...H.....#\n#.#####.#.#\n#.....#.#.#\n#.###.#.#.#\n#.#...#...#\n#.#.#####.#\n#...C..H..#\n###########`,
+`###########\n#P....#..D#\n#.###.#.###\n#...#.#...#\n###.#.###.#\n#...#...H.#\n#.#####.#.#\n#.....#.#.#\n#.###.#.#.#\n#.#...#...#\n#.#.#####.#\n#H..C.....#\n###########`,
+`###########\n#P..H#...D#\n#.##.#.####\n#....#....#\n####.###..#\n#....#..H.#\n#.####.##.#\n#....#....#\n#..###.####\n#..H.#....#\n####.#.##.#\n#....C....#\n###########`,
+`###########\n#P..B....D#\n#...#..####\n#.H.#.....#\n#...#.###.#\n###.#...#.#\n#...#B..#.#\n#.#####.#.#\n#.....#.#.#\n#.###.#.#.#\n#...#...H.#\n#....C....#\n###########`,
+`###########\n#P..B..H.D#\n#.###.#####\n#.....#...#\n#.###.#B#.#\n#...#.#.#.#\n###.#.#.#.#\n#...#...#.#\n#.#####.#.#\n#.....#.#.#\n#.H...#...#\n#....C....#\n###########`,
+`###########\n#P..B....D#\n#.###.#####\n#..H..#...#\n#.###.#B#.#\n#...#.#.#.#\n#.B.#.#.#.#\n#...#...#.#\n#.#####.#.#\n#.....#.#.#\n#..H..#...#\n#....C....#\n###########`,
+`###########\n#P..B....D#\n#.###.###.#\n#...#...#.#\n###.#.#.#.#\n#...#.#.#.#\n#.B.#.#.#.#\n#...#...#.#\n#.###.###.#\n#...#...#.#\n#..H#H..#.#\n#....C....#\n###########`,
+`###########\n#P..B....D#\n#.###.###.#\n#...#...#.#\n#.B.#.#.#.#\n#...#.#.#.#\n###.#.#.#.#\n#...#...#.#\n#.###.###.#\n#...#...#.#\n#..H..H.#.#\n#....C....#\n###########`,
+`###########\n#P..B..~.D#\n#...#..~###\n#.H.#..~..#\n#...#..~..#\n###.#..~..#\n#...#..~..#\n#.#####~..#\n#.....#~..#\n#.###.#~..#\n#...#...H.#\n#....C....#\n###########`,
+`###########\n#P..B~~~~D#\n#...#~~~~##\n#.H.#~~H..#\n#...#~~~~.#\n###.#~~~~.#\n#...#..B..#\n#.#####.###\n#.....#...#\n#.###.###.#\n#...#.....#\n#....C....#\n###########`,
+`###########\n#P.B~~~~~D#\n#..#~~~~~##\n#H.#~~H..##\n#..#~~~~..#\n##.#~~~~..#\n#..#..B...#\n#..#####.##\n#.....#...#\n#.###.###.#\n#...#.....#\n#....C....#\n###########`,
+`###########\n#P..B..~.D#\n#######~###\n#H....#~..#\n#.###.#~#.#\n#...#.#~#.#\n###.#.#~#.#\n#...#.#~#.#\n#.###.#~#.#\n#.....#~..#\n#..B..#..H#\n#....C....#\n###########`,
+`###########\n#P.B~~~~~D#\n#..#~~~~~##\n#H.#~~H..##\n#..#~~~~..#\n##.#~~~~..#\n#..#..B...#\n#..#..B...#\n#..#~~~~..#\n#..#~~~~..#\n#..#..H...#\n#....C....#\n###########`,
+`###########\n#P..H....D#\n#...####..#\n#...#..>..#\n#...#.....#\n#...#..H..#\n#...#####.#\n#.....C...#\n#.........#\n#.........#\n#.........#\n#.........#\n###########`,
+`###########\n#P..H....D#\n#..#####..#\n#..#...#..#\n#..#.^.#..#\n#..#...#..#\n#..###B#..#\n#....B.#..#\n#..H...#..#\n#..#####..#\n#.....C...#\n#.........#\n###########`,
+`###########\n#P...#...D#\n#.H..#..H.#\n#.###.###.#\n#...>.....#\n###.###.###\n#.....B...#\n#.###.###.#\n#...v.....#\n#.###.###.#\n#.....C...#\n#.........#\n###########`,
+`###########\n#P..H..#D.#\n#.###..#..#\n#...#..#..#\n#.>.#..#..#\n#...#..#..#\n#.###..#..#\n#..B...#..#\n#..#..H#..#\n#..#..###.#\n#..#..C...#\n#.........#\n###########`,
+`###########\n#P..H....D#\n#.#######.#\n#.....B...#\n#.#####.###\n#...v.....#\n###.#####.#\n#.....B...#\n#.#####.###\n#...^..H..#\n#.#######.#\n#....C....#\n###########`,
+`###########\n#P..H..G.D#\n#.#####G###\n#.....#G..#\n###S###G..#\n#.....#G..#\n#.#####G###\n#....H...C#\n#.........#\n#.........#\n#.........#\n#.........#\n###########`,
+`###########\n#P..H..G.D#\n#.#####G###\n#..S..#G..#\n#.....#G..#\n#..B..#G..#\n###.###G..#\n#..S..#G..#\n#.....#G..#\n#.#####G###\n#....H...C#\n#.........#\n###########`,
+`###########\n#P..H..G.D#\n#.#####G###\n#.....#G..#\n#..>..#G..#\n#.....#G..#\n###S###G..#\n#.....#G..#\n#..H..#G..#\n#.#####G###\n#.....C...#\n#.........#\n###########`,
+`###########\n#P..H~~G.D#\n#.###~~G###\n#..B.~~G..#\n#....~~G..#\n###S###G..#\n#....~~G..#\n#..B.~~G..#\n#..H.~~G..#\n#.###~~G###\n#....C....#\n#.........#\n###########`,
+`###########\n#P..H..G.D#\n#.###.###.#\n#..S..G...#\n#.###.###.#\n#.....B...#\n#.###.###.#\n#...G..S..#\n#.###.###.#\n#...H..G..#\n#.###.###.#\n#....C....#\n###########`,
+`###########\n#P..H....D#\n#.###.###.#\n#...#M#...#\n#...#.#...#\n#...#.#...#\n#...#.#...#\n#...#.#...#\n#...#.#H..#\n#.###.###.#\n#.....C...#\n#.........#\n###########`,
+`###########\n#P..H..G.D#\n#.###.###.#\n#..M#S#M..#\n#...#G#...#\n#...#G#...#\n#..B#G#B..#\n#...#G#...#\n#...#G#...#\n#..H#S#H..#\n#.###.###.#\n#.....C...#\n###########`,
+`###########\n#P.BH~~..D#\n#..##~~##.#\n#..M...#..#\n#..###.#..#\n#..#S#G#..#\n#..#.#G#..#\n#..#B#G#..#\n#..#.#G#..#\n#..#S#G#H.#\n#..###.#..#\n#....C....#\n###########`,
+`###########\n#P..H..G.D#\n#.###.###.#\n#..v..#M..#\n#.###.#.###\n#..B~~#...#\n#..S~~G..H#\n#..#~~G####\n#..#..G...#\n#..#..G.^.#\n#..###.####\n#....C....#\n###########`,
+`###########\n#P..H..G.D#\n#.###.###.#\n#..M#...#M#\n#.###.###.#\n#..v..B..^#\n#.###S###.#\n#..B.~.~B.#\n#.###G###.#\n#..H..>..H#\n#.###.###.#\n#....C....#\n###########`
+];
+const LEVELS = LEVELS_RAW.map((raw, i) => ({ id: i+1, name: `L${String(i+1).padStart(2,'0')}`, grid: raw.split('\n') }));
+
+const W=11,H=13,ALLOWED=new Set(['#','.','P','H','C','D','B','~','S','G','>','<','^','v','M']);
+function selfCheckLevels(){
+  let ok=true;
+  for(const lv of LEVELS){
+    if(lv.grid.length!==H){ console.error(`Nivel ${lv.name} filas inválidas`); ok=false; }
+    let p=0,c=0,d=0;
+    for(const row of lv.grid){
+      if(row.length!==W){ console.error(`Nivel ${lv.name} columnas inválidas`); ok=false; }
+      for(const ch of row){ if(!ALLOWED.has(ch)){ console.error(`Nivel ${lv.name} char inválido`,ch); ok=false; } }
+      p += [...row].filter(x=>x==='P').length;
+      c += [...row].filter(x=>x==='C').length;
+      d += [...row].filter(x=>x==='D').length;
+    }
+    if(p<1||c<1||d<1){ console.error(`Nivel ${lv.name} requiere P,C,D`); ok=false; }
+  }
+  console.log(ok?`Self-check niveles OK (${LEVELS.length})`:'Self-check niveles con errores');
+}
+selfCheckLevels();
+
+const STORAGE_KEY='lolo_touch_progress_v1';
+const DIRS={'>':[1,0],'<':[-1,0],'^':[0,-1],'v':[0,1]};
+const state={
+  levelIndex:0,maxUnlocked:1,deaths:0,paused:false,won:false,deadUntil:0,
+  base:null,player:null,chest:null,door:null,hearts:new Set(),blocks:new Set(),filledWater:new Set(),enemies:[],gatesOpen:false,
+  previewPath:[],previewTarget:null,autoPath:[],undo:[],initialSnapshot:null
+};
+
+const canvas=document.getElementById('gameCanvas'),ctx=canvas.getContext('2d');
+const boardWrap=document.getElementById('boardWrap');
+const hudLevel=document.getElementById('hudLevel'),hudHearts=document.getElementById('hudHearts'),hudKey=document.getElementById('hudKey');
+const pauseOverlay=document.getElementById('pauseOverlay'),winOverlay=document.getElementById('winOverlay'),levelsOverlay=document.getElementById('levelsOverlay');
+let board={x:0,y:0,t:32},lastTs=0,acc=0; const TICK=100,MAX_UNDO=200;
+
+function loadProgress(){
+  try{ const p=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); state.maxUnlocked=Math.min(30,Math.max(1,p.maxUnlocked||1)); state.levelIndex=Math.min(state.maxUnlocked-1,Math.max(0,(p.lastLevel||1)-1)); }catch{}
+}
+function saveProgress(){ localStorage.setItem(STORAGE_KEY, JSON.stringify({maxUnlocked:state.maxUnlocked,lastLevel:state.levelIndex+1})); }
+
+function key(x,y){return `${x},${y}`;}
+function has(set,x,y){return set.has(key(x,y));}
+function setFromArr(arr){return new Set(arr.map(p=>key(p.x,p.y)));}
+function arrFromSet(set){ return [...set].map(s=>{const[a,b]=s.split(',').map(Number); return {x:a,y:b};}); }
+function enemyAt(x,y){ return state.enemies.find(e=>e.x===x&&e.y===y); }
+
+function parseLevel(idx){
+  const lv=LEVELS[idx];
+  const base=Array.from({length:H},()=>Array(W).fill('.'));
+  let player=null,chest=null,door=null,pCount=0; const hearts=[],blocks=[],enemies=[];
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    const ch=lv.grid[y][x];
+    if(ch==='#'||ch==='.'||ch==='~'||ch==='S'||ch==='G'||ch==='C'||ch==='D') base[y][x]=ch;
+    if(ch==='P'){ pCount++; if(!player) player={x,y,hasKey:false}; else console.warn(`Más de un jugador en ${lv.name}`); }
+    if(ch==='H') hearts.push({x,y});
+    if(ch==='B') blocks.push({x,y});
+    if('><^v'.includes(ch)) enemies.push({type:'patrol',x,y,prevX:x,prevY:y,dir:ch,moveCounter:0,interval:5,charge:0});
+    if(ch==='M') enemies.push({type:'medusa',x,y,prevX:x,prevY:y,dir:'',moveCounter:0,interval:0,charge:0});
+    if(ch==='C') chest={x,y};
+    if(ch==='D') door={x,y};
+  }
+  if(!player) player={x:1,y:1,hasKey:false};
+  return {base,player,chest,door,hearts:setFromArr(hearts),blocks:setFromArr(blocks),filledWater:new Set(),enemies};
+}
+
+function snapshot(){
+  return {
+    player:{...state.player},hearts:arrFromSet(state.hearts),blocks:arrFromSet(state.blocks),filledWater:arrFromSet(state.filledWater),
+    enemies:state.enemies.map(e=>({...e})),gatesOpen:state.gatesOpen,deadUntil:0,won:false
+  };
+}
+function restore(s){
+  state.player={...s.player}; state.hearts=setFromArr(s.hearts); state.blocks=setFromArr(s.blocks); state.filledWater=setFromArr(s.filledWater);
+  state.enemies=s.enemies.map(e=>({...e})); state.gatesOpen=s.gatesOpen; state.won=false; state.deadUntil=0; state.previewPath=[]; state.autoPath=[];
+}
+function pushUndo(){ state.undo.push(snapshot()); if(state.undo.length>MAX_UNDO) state.undo.shift(); }
+
+function updateGates(){
+  const switched = onSwitch(state.player.x,state.player.y) || arrFromSet(state.blocks).some(p=>onSwitch(p.x,p.y));
+  if(!switched){
+    const occupied = onGate(state.player.x,state.player.y) || arrFromSet(state.blocks).some(p=>onGate(p.x,p.y)) || state.enemies.some(e=>onGate(e.x,e.y));
+    if(occupied) return; // política anti estado imposible: no cerrar gates ocupados.
+  }
+  state.gatesOpen = switched;
+}
+
+function onSwitch(x,y){ return state.base[y]?.[x]==='S'; }
+function onGate(x,y){ return state.base[y]?.[x]==='G'; }
+function chestOpen(){ return state.hearts.size===0; }
+function inBounds(x,y){ return x>=0&&y>=0&&x<W&&y<H; }
+function waterBlocked(x,y){ return state.base[y][x]==='~' && !has(state.filledWater,x,y); }
+function isWallLikeForLOS(x,y){ const b=state.base[y][x]; return b==='#' || (b==='G'&&!state.gatesOpen); }
+
+function passableForPlayer(x,y,ignoreBlocks=false){
+  if(!inBounds(x,y)) return false;
+  if(!ignoreBlocks && has(state.blocks,x,y)) return false;
+  const b=state.base[y][x];
+  if(b==='#') return false;
+  if(b==='~' && !has(state.filledWater,x,y)) return false;
+  if(b==='G' && !state.gatesOpen) return false;
+  if(b==='D' && !state.player.hasKey) return false;
+  if(b==='C' && !chestOpen()) return false;
+  return true;
+}
+function passableForEnemy(x,y){
+  if(!inBounds(x,y) || has(state.blocks,x,y) || enemyAt(x,y)) return false;
+  const b=state.base[y][x];
+  if(b==='#'||(b==='~'&&!has(state.filledWater,x,y))||(b==='G'&&!state.gatesOpen)||b==='C'||b==='D') return false;
+  return true;
+}
+
+function tryMovePlayer(dx,dy){
+  const tx=state.player.x+dx, ty=state.player.y+dy;
+  if(!inBounds(tx,ty)) return false;
+  if(enemyAt(tx,ty)) return killPlayer(), false;
+  if(has(state.blocks,tx,ty)){
+    const bx=tx+dx,by=ty+dy;
+    if(!inBounds(bx,by)||has(state.blocks,bx,by)) return false;
+    const t=state.base[by][bx];
+    if(t==='#'||(t==='G'&&!state.gatesOpen)||t==='C'||t==='D') return false;
+    state.blocks.delete(key(tx,ty));
+    if(t==='~'&&!has(state.filledWater,bx,by)) state.filledWater.add(key(bx,by));
+    else state.blocks.add(key(bx,by));
+  } else if(!passableForPlayer(tx,ty)) return false;
+  state.player.x=tx; state.player.y=ty;
+  state.hearts.delete(key(tx,ty));
+  if(chestOpen() && state.chest && tx===state.chest.x && ty===state.chest.y) state.player.hasKey=true;
+  if(state.player.hasKey && state.door && tx===state.door.x && ty===state.door.y) return winLevel(), true;
+  if(enemyAt(tx,ty)) return killPlayer(), true;
+  updateGates();
+  return true;
+}
+
+function killPlayer(){
+  if(state.deadUntil||state.won) return;
+  state.deaths++; navigator.vibrate?.(40);
+  state.deadUntil=performance.now()+350; state.autoPath=[]; state.previewPath=[];
+}
+function winLevel(){
+  if(state.won) return; state.won=true; winOverlay.classList.add('show'); navigator.vibrate?.([30,30,60]);
+  state.maxUnlocked=Math.max(state.maxUnlocked,state.levelIndex+2); if(state.maxUnlocked>30) state.maxUnlocked=30; saveProgress(); renderLevelButtons();
+}
+function startLevel(i){
+  state.levelIndex=i; saveProgress(); state.paused=false; pauseOverlay.classList.remove('show'); winOverlay.classList.remove('show');
+  const p=parseLevel(i); state.base=p.base; state.player=p.player; state.chest=p.chest; state.door=p.door; state.hearts=p.hearts; state.blocks=p.blocks; state.filledWater=p.filledWater; state.enemies=p.enemies;
+  state.undo=[]; state.previewPath=[]; state.autoPath=[]; state.deadUntil=0; state.won=false; state.gatesOpen=false; updateGates(); state.initialSnapshot=snapshot();
+}
+function resetLevel(){ restore(state.initialSnapshot); state.undo=[]; updateGates(); }
+
+function findPath(tx,ty){
+  if(!passableForPlayer(tx,ty,true)||has(state.blocks,tx,ty)) return [];
+  const q=[[state.player.x,state.player.y]],prev=new Map([[key(state.player.x,state.player.y),null]]);
+  for(let i=0;i<q.length;i++){
+    const [x,y]=q[i]; if(x===tx&&y===ty) break;
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+dx,ny=y+dy,k=key(nx,ny);
+      if(!inBounds(nx,ny)||prev.has(k)||!passableForPlayer(nx,ny,true)||has(state.blocks,nx,ny)) continue;
+      prev.set(k,[x,y]); q.push([nx,ny]);
+    }
+  }
+  const end=key(tx,ty); if(!prev.has(end)) return [];
+  const path=[]; let cur=[tx,ty];
+  while(cur){ path.push({x:cur[0],y:cur[1]}); cur=prev.get(key(cur[0],cur[1])); }
+  path.reverse(); path.shift(); return path;
+}
+
+function tapToTile(clientX,clientY){
+  const rect=canvas.getBoundingClientRect();
+  const x=(clientX-rect.left-board.x)/board.t, y=(clientY-rect.top-board.y)/board.t;
+  return {x:Math.max(0,Math.min(W-1,Math.round(x-0.5))), y:Math.max(0,Math.min(H-1,Math.round(y-0.5)))};
+}
+canvas.addEventListener('pointerdown',e=>{
+  if(state.won||levelsOverlay.classList.contains('show')||state.paused) return;
+  if(state.autoPath.length){ state.autoPath=[]; state.previewPath=[]; return; }
+  const t=tapToTile(e.clientX,e.clientY),dx=t.x-state.player.x,dy=t.y-state.player.y,man=Math.abs(dx)+Math.abs(dy);
+  if(man===1){
+    state.previewPath=[]; state.previewTarget=null; pushUndo(); if(!tryMovePlayer(Math.sign(dx),Math.sign(dy))) state.undo.pop();
+    return;
+  }
+  const path=findPath(t.x,t.y);
+  if(!path.length){ state.previewPath=[]; state.previewTarget=null; return; }
+  if(state.previewTarget && state.previewTarget.x===t.x && state.previewTarget.y===t.y){ state.autoPath=path.slice(); state.previewPath=[]; state.previewTarget=null; return; }
+  state.previewPath=path; state.previewTarget=t;
+});
+
+function tick(){
+  if(state.deadUntil && performance.now()>=state.deadUntil) return resetLevel();
+  if(state.won) return;
+  if(state.autoPath.length){
+    const next=state.autoPath.shift(); const dx=next.x-state.player.x,dy=next.y-state.player.y;
+    pushUndo(); if(!tryMovePlayer(dx,dy)) { state.undo.pop(); state.autoPath=[]; }
+  }
+  updateGates();
+  for(const e of state.enemies){
+    e.prevX=e.x; e.prevY=e.y;
+    if(e.type==='patrol'){
+      e.moveCounter++;
+      if(e.moveCounter>=e.interval){
+        e.moveCounter=0;
+        let [dx,dy]=DIRS[e.dir],nx=e.x+dx,ny=e.y+dy;
+        if(!passableForEnemy(nx,ny)){ e.dir = e.dir==='>'?'<':e.dir==='<'?'>':e.dir==='^'?'v':'^'; [dx,dy]=DIRS[e.dir]; nx=e.x+dx; ny=e.y+dy; }
+        if(passableForEnemy(nx,ny)) { e.x=nx; e.y=ny; }
+      }
+      if(e.x===state.player.x&&e.y===state.player.y) return killPlayer();
+    } else {
+      const aligned = (e.x===state.player.x)||(e.y===state.player.y);
+      let clear=false;
+      if(aligned){
+        clear=true;
+        if(e.x===state.player.x){
+          const [a,b]=[e.y,state.player.y].sort((m,n)=>m-n);
+          for(let y=a+1;y<b;y++) if(isWallLikeForLOS(e.x,y)) {clear=false;break;}
+        } else {
+          const [a,b]=[e.x,state.player.x].sort((m,n)=>m-n);
+          for(let x=a+1;x<b;x++) if(isWallLikeForLOS(x,e.y)) {clear=false;break;}
+        }
+      }
+      e.charge = clear ? e.charge + TICK : 0;
+      if(e.charge>400) return killPlayer();
+    }
+  }
+}
+
+function resize(){
+  const r=boardWrap.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);
+  canvas.width=Math.floor(r.width*dpr); canvas.height=Math.floor(r.height*dpr); ctx.setTransform(dpr,0,0,dpr,0,0);
+  const w=r.width,h=r.height,pad=8; const targetH=h*0.78; const t=Math.floor(Math.min((w-pad*2)/W,(targetH-pad*2)/H));
+  board.t=Math.max(16,t); board.x=Math.floor((w-W*board.t)/2); board.y=Math.floor((targetH-H*board.t)/2)+8;
+}
+window.addEventListener('resize',resize);
+
+function drawTile(x,y,color){ ctx.fillStyle=color; ctx.fillRect(board.x+x*board.t,board.y+y*board.t,board.t,board.t); }
+function draw(){
+  const w=canvas.clientWidth,h=canvas.clientHeight; ctx.clearRect(0,0,w,h);
+  ctx.fillStyle='#0f1528'; ctx.fillRect(0,0,w,h);
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    const b=state.base[y][x]; let c='#2a3557';
+    if(b==='#') c='#4f5e7a'; else if(b==='~'&&!has(state.filledWater,x,y)) c='#2c74a6'; else if(b==='S') c='#725611'; else if(b==='G') c=state.gatesOpen?'#3b8854':'#7b2f45'; else if(b==='C') c=chestOpen()?'#caa647':'#7b6237'; else if(b==='D') c=state.player.hasKey?'#48a26a':'#6d3a3a';
+    drawTile(x,y,c); ctx.strokeStyle='#0003'; ctx.strokeRect(board.x+x*board.t,board.y+y*board.t,board.t,board.t);
+  }
+  ctx.fillStyle='#9b6d3e'; for(const b of arrFromSet(state.blocks)){ drawTile(b.x,b.y,'#9b6d3e'); }
+  ctx.fillStyle='#ff5e7c'; ctx.font=`${Math.floor(board.t*0.65)}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+  for(const h of arrFromSet(state.hearts)) ctx.fillText('♥',board.x+h.x*board.t+board.t/2,board.y+h.y*board.t+board.t/2+1);
+
+  for(const e of state.enemies){
+    let ex=e.x,ey=e.y;
+    if(e.type==='patrol'){ const a=acc/TICK; ex=e.prevX+(e.x-e.prevX)*a; ey=e.prevY+(e.y-e.prevY)*a; }
+    const px=board.x+ex*board.t+board.t/2,py=board.y+ey*board.t+board.t/2;
+    ctx.fillStyle=e.type==='medusa'?'#b96cff':'#ff9f43'; ctx.beginPath(); ctx.arc(px,py,board.t*0.32,0,Math.PI*2); ctx.fill();
+  }
+  for(const e of state.enemies.filter(v=>v.type==='medusa'&&v.charge>0)){
+    ctx.strokeStyle=`rgba(255,90,150,${Math.min(.8,e.charge/400)})`; ctx.lineWidth=4;
+    if(e.x===state.player.x){ ctx.beginPath(); ctx.moveTo(board.x+(e.x+.5)*board.t,board.y+(e.y+.5)*board.t); ctx.lineTo(board.x+(state.player.x+.5)*board.t,board.y+(state.player.y+.5)*board.t); ctx.stroke(); }
+    if(e.y===state.player.y){ ctx.beginPath(); ctx.moveTo(board.x+(e.x+.5)*board.t,board.y+(e.y+.5)*board.t); ctx.lineTo(board.x+(state.player.x+.5)*board.t,board.y+(state.player.y+.5)*board.t); ctx.stroke(); }
+  }
+  if(state.previewPath.length){
+    ctx.fillStyle='#9ee1ff88'; for(const p of state.previewPath) ctx.fillRect(board.x+p.x*board.t+board.t*.3,board.y+p.y*board.t+board.t*.3,board.t*.4,board.t*.4);
+  }
+  ctx.fillStyle= state.deadUntil ? '#ff3a4a' : '#7df0a0';
+  ctx.fillRect(board.x+state.player.x*board.t+board.t*.18,board.y+state.player.y*board.t+board.t*.18,board.t*.64,board.t*.64);
+
+  hudLevel.textContent=`Nivel ${state.levelIndex+1}/30`;
+  hudHearts.textContent=`❤ ${state.hearts.size}`;
+  hudKey.textContent=state.player.hasKey?'🗝️ Llave':'🔒 Sin llave';
+}
+
+function frame(ts){
+  if(!lastTs) lastTs=ts; const dt=Math.min(50,ts-lastTs); lastTs=ts;
+  if(!state.paused && !levelsOverlay.classList.contains('show')){ acc+=dt; while(acc>=TICK){ tick(); acc-=TICK; } }
+  draw(); requestAnimationFrame(frame);
+}
+
+function renderLevelButtons(){
+  const grid=document.getElementById('levelsGrid'); grid.innerHTML='';
+  for(let i=0;i<30;i++){
+    const b=document.createElement('button'); b.className='lv'+(i+1>state.maxUnlocked?' lock':''); b.textContent=String(i+1).padStart(2,'0');
+    b.disabled=i+1>state.maxUnlocked; b.onclick=()=>{startLevel(i); levelsOverlay.classList.remove('show');}; grid.appendChild(b);
+  }
+}
+
+document.getElementById('undoBtn').onclick=()=>{ if(state.undo.length&& !state.won){ restore(state.undo.pop()); updateGates(); } };
+document.getElementById('resetBtn').onclick=()=>resetLevel();
+document.getElementById('pauseBtn').onclick=()=>{ state.paused=!state.paused; pauseOverlay.classList.toggle('show',state.paused); };
+document.getElementById('levelsBtn').onclick=()=>{ levelsOverlay.classList.add('show'); renderLevelButtons(); };
+document.getElementById('closeLevels').onclick=()=>levelsOverlay.classList.remove('show');
+document.getElementById('nextBtn').onclick=()=>{ winOverlay.classList.remove('show'); if(state.levelIndex<29) startLevel(Math.min(state.levelIndex+1,state.maxUnlocked-1)); };
+
+loadProgress(); startLevel(state.levelIndex); resize(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>
