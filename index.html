@@ -109,9 +109,16 @@ const hudMsg = document.getElementById('hudMsg');
 
 const MAX_UNDO = 200;
 const TICK = 100;
+const MOVE_INTERVAL = 75;
 let lastTs = 0;
 let acc = 0;
+let moveAcc = 0;
 let board = { x: 0, y: 0, t: 20 };
+let activePointerId = null;
+let dragPath = [];
+let queuedMoves = [];
+let queuedSnapshot = null;
+let queuedMoved = false;
 
 const state = {
   base: null,
@@ -136,18 +143,18 @@ function makeSprite(name, body){
   sprites[name] = img;
 }
 
-makeSprite('wall', "<rect width='100' height='100' fill='#c99c6f'/><rect x='6' y='8' width='88' height='24' fill='#8f633f'/><rect x='6' y='46' width='88' height='18' fill='#e0b58a'/><path d='M0 74h100v26H0z' fill='#b38456'/>");
-makeSprite('floor', "<rect width='100' height='100' fill='#6d271d'/><rect width='100' height='100' fill='url(#g)'/><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop stop-color='#7c2d22'/><stop offset='1' stop-color='#5e1f18'/></linearGradient></defs>");
-makeSprite('grass', "<rect width='100' height='100' fill='#3f6c2f'/><circle cx='18' cy='28' r='10' fill='#7cc55e'/><circle cx='50' cy='20' r='12' fill='#8ad268'/><circle cx='70' cy='36' r='14' fill='#79bd59'/><circle cx='36' cy='56' r='16' fill='#5ca246'/><circle cx='74' cy='70' r='12' fill='#6ab34f'/>");
-makeSprite('tree', "<rect width='100' height='100' fill='#5f3a22'/><rect x='44' y='56' width='12' height='28' fill='#6e3d1d'/><circle cx='50' cy='40' r='26' fill='#2f7d43'/><circle cx='34' cy='46' r='14' fill='#2a6f3b'/><circle cx='66' cy='48' r='14' fill='#2a6f3b'/>");
-makeSprite('water', "<rect width='100' height='100' fill='#2f5f97'/><path d='M8 30C18 18 32 18 42 30s24 12 34 0 18-12 16 8-10 24-22 16-22-4-32 6S8 60 8 44z' fill='#6cb3ff88'/>");
-makeSprite('block', "<rect width='100' height='100' fill='#b89464'/><rect x='12' y='12' width='76' height='76' fill='#8f6a44'/><rect x='20' y='20' width='60' height='16' fill='#d5b08955'/>");
-makeSprite('chest', "<rect width='100' height='100' fill='#6b4e24'/><rect x='10' y='42' width='80' height='38' rx='8' fill='#b2861f'/><rect x='10' y='32' width='80' height='20' rx='8' fill='#9a6f18'/><rect x='48' y='32' width='6' height='48' fill='#f4d47f'/>");
-makeSprite('door', "<rect width='100' height='100' fill='#3d2220'/><rect x='22' y='14' width='56' height='72' rx='10' fill='#6b3028'/><circle cx='60' cy='52' r='5' fill='#e7dab8'/>");
-makeSprite('heart', "<rect width='100' height='100' fill='none'/><path d='M50 80C15 58 8 40 18 28c9-12 26-7 32 6 6-13 23-18 32-6 10 12 3 30-32 52z' fill='#ff4569'/>");
-makeSprite('medusa', "<rect width='100' height='100' fill='none'/><circle cx='50' cy='42' r='24' fill='#b186f8'/><circle cx='43' cy='40' r='4' fill='#fff'/><circle cx='57' cy='40' r='4' fill='#fff'/><rect x='36' y='52' width='28' height='8' rx='3' fill='#4e2f7f'/>");
-makeSprite('egg', "<rect width='100' height='100' fill='none'/><ellipse cx='50' cy='56' rx='24' ry='30' fill='#f0f0d8'/><ellipse cx='42' cy='50' rx='6' ry='8' fill='#b7d8ff'/>");
-makeSprite('player', "<rect width='100' height='100' fill='none'/><circle cx='50' cy='44' r='24' fill='#5dc9ff'/><rect x='28' y='60' width='44' height='24' rx='8' fill='#4a9dd9'/><circle cx='42' cy='40' r='4' fill='#fff'/><circle cx='58' cy='40' r='4' fill='#fff'/>");
+makeSprite('wall', "<defs><linearGradient id='g1' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#f4cb90'/><stop offset='1' stop-color='#b57d4f'/></linearGradient><pattern id='br' width='26' height='26' patternUnits='userSpaceOnUse'><rect width='26' height='26' fill='none'/><rect x='1' y='1' width='24' height='11' rx='2' fill='#e2b57f'/><rect x='1' y='14' width='11' height='11' rx='2' fill='#d8a56f'/><rect x='14' y='14' width='11' height='11' rx='2' fill='#c8905c'/></pattern></defs><rect width='100' height='100' fill='url(#g1)'/><rect width='100' height='100' fill='url(#br)' opacity='.9'/><path d='M0 0h100v8H0zm0 92h100v8H0z' fill='#925a37'/><path d='M0 24h100M0 50h100M0 76h100' stroke='#8c5633' stroke-width='2' opacity='.5'/>");
+makeSprite('floor', "<defs><linearGradient id='f1' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#913627'/><stop offset='.55' stop-color='#6f261c'/><stop offset='1' stop-color='#52170f'/></linearGradient><pattern id='tile' width='20' height='20' patternUnits='userSpaceOnUse'><rect width='20' height='20' fill='none'/><path d='M0 10h20M10 0v20' stroke='#2d0f0b' stroke-width='1.2' opacity='.45'/><path d='M0 0L20 20M20 0L0 20' stroke='#a84832' stroke-width='.6' opacity='.2'/></pattern></defs><rect width='100' height='100' fill='url(#f1)'/><rect width='100' height='100' fill='url(#tile)'/><ellipse cx='20' cy='22' rx='18' ry='10' fill='#c1654f22'/><ellipse cx='78' cy='74' rx='24' ry='12' fill='#2a0c0840'/>");
+makeSprite('grass', "<defs><radialGradient id='gg' cx='.4' cy='.25' r='.85'><stop offset='0' stop-color='#8bd96c'/><stop offset='1' stop-color='#2f6b2c'/></radialGradient></defs><rect width='100' height='100' fill='#2f5127'/><g fill='url(#gg)'><circle cx='18' cy='26' r='16'/><circle cx='48' cy='18' r='18'/><circle cx='78' cy='30' r='16'/><circle cx='30' cy='58' r='22'/><circle cx='72' cy='66' r='20'/></g><g stroke='#c2ef8d66' stroke-width='2'><path d='M15 36l3-14M44 30l4-14M66 44l5-14M36 78l6-18M77 80l3-16'/></g>");
+makeSprite('tree', "<rect width='100' height='100' fill='#284629'/><rect x='40' y='52' width='20' height='38' rx='7' fill='#6f3e22'/><path d='M46 52V88M54 52V88' stroke='#8d5632' stroke-width='3'/><g><circle cx='50' cy='38' r='27' fill='#2f8f44'/><circle cx='33' cy='42' r='16' fill='#2a7b3b'/><circle cx='67' cy='44' r='16' fill='#2a7b3b'/><circle cx='49' cy='22' r='15' fill='#43a95b'/></g><path d='M35 30c5-8 15-9 24-7' stroke='#a6f0aa66' stroke-width='3' fill='none'/>");
+makeSprite('water', "<defs><linearGradient id='wg' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#6ac2ff'/><stop offset='.6' stop-color='#2a6fbf'/><stop offset='1' stop-color='#1b3f79'/></linearGradient></defs><rect width='100' height='100' fill='url(#wg)'/><path d='M0 26c12-10 24-10 36 0s24 10 36 0 20-10 28 0v14c-10 8-20 8-30 0s-20-8-30 0-20 8-30 0S6 42 0 48z' fill='#9fe3ff66'/><path d='M0 58c10-8 20-8 30 0s20 8 30 0 20-8 30 0 20 8 30 0v14c-10 8-20 8-30 0s-20-8-30 0-20 8-30 0-20-8-30 0z' fill='#d5f4ff44'/>");
+makeSprite('block', "<defs><linearGradient id='bg' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ddb37f'/><stop offset='1' stop-color='#875d3a'/></linearGradient></defs><rect width='100' height='100' fill='#5f3f29'/><rect x='10' y='10' width='80' height='80' rx='8' fill='url(#bg)'/><rect x='16' y='16' width='68' height='68' rx='6' fill='none' stroke='#f2d0a4' stroke-width='3' opacity='.7'/><path d='M24 34h52M24 50h52M24 66h52' stroke='#694326' stroke-width='3' opacity='.55'/>");
+makeSprite('chest', "<defs><linearGradient id='cg' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#f5c64f'/><stop offset='1' stop-color='#9c6718'/></linearGradient></defs><rect width='100' height='100' fill='#3e2a13'/><rect x='12' y='40' width='76' height='40' rx='9' fill='url(#cg)'/><path d='M12 40c6-14 18-22 38-22s32 8 38 22H12z' fill='#c58a25'/><rect x='46' y='22' width='8' height='58' fill='#f7e2a2'/><rect x='38' y='50' width='24' height='16' rx='5' fill='#734d14'/><circle cx='50' cy='58' r='4' fill='#f8e49e'/><rect x='20' y='46' width='16' height='8' rx='3' fill='#ffd57b77'/>");
+makeSprite('door', "<defs><linearGradient id='dg' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#8c4435'/><stop offset='1' stop-color='#4f1f18'/></linearGradient></defs><rect width='100' height='100' fill='#24130f'/><rect x='20' y='10' width='60' height='80' rx='12' fill='url(#dg)'/><rect x='26' y='18' width='48' height='64' rx='10' fill='none' stroke='#b6705a' stroke-width='3' opacity='.55'/><path d='M32 24h36M32 40h36M32 56h36' stroke='#3e1913' stroke-width='2' opacity='.5'/><circle cx='63' cy='52' r='5' fill='#e7cfa5'/>");
+makeSprite('heart', "<defs><radialGradient id='hg' cx='.35' cy='.25' r='.9'><stop offset='0' stop-color='#ff9bb4'/><stop offset='1' stop-color='#d91e4f'/></radialGradient></defs><rect width='100' height='100' fill='none'/><path d='M50 84C13 61 7 41 18 28c9-11 26-7 32 8 6-15 23-19 32-8 11 13 5 33-32 56z' fill='url(#hg)'/><path d='M31 33c4-4 10-5 14-2' stroke='#ffd3df88' stroke-width='4' fill='none'/>");
+makeSprite('medusa', "<defs><radialGradient id='mg' cx='.4' cy='.3' r='.8'><stop offset='0' stop-color='#e8c8ff'/><stop offset='1' stop-color='#9256d9'/></radialGradient></defs><rect width='100' height='100' fill='none'/><circle cx='50' cy='40' r='24' fill='url(#mg)'/><circle cx='42' cy='38' r='5' fill='#fff'/><circle cx='58' cy='38' r='5' fill='#fff'/><circle cx='42' cy='39' r='2' fill='#2d174d'/><circle cx='58' cy='39' r='2' fill='#2d174d'/><path d='M35 53c5 6 25 6 30 0' stroke='#4f2a7d' stroke-width='5' fill='none' stroke-linecap='round'/><path d='M24 66c8-6 14-6 20 0M40 70c6-5 12-5 18 0M58 70c6-5 12-5 18 0' stroke='#8b5fd1' stroke-width='6' fill='none' stroke-linecap='round'/>");
+makeSprite('egg', "<defs><radialGradient id='eg' cx='.35' cy='.2' r='.9'><stop offset='0' stop-color='#fffef4'/><stop offset='1' stop-color='#d7d4bc'/></radialGradient></defs><rect width='100' height='100' fill='none'/><ellipse cx='50' cy='58' rx='23' ry='30' fill='url(#eg)'/><ellipse cx='42' cy='50' rx='7' ry='9' fill='#d8efff'/><ellipse cx='60' cy='64' rx='6' ry='4' fill='#b8b59f66'/>");
+makeSprite('player', "<defs><radialGradient id='pg' cx='.35' cy='.25' r='.9'><stop offset='0' stop-color='#99ecff'/><stop offset='1' stop-color='#2f96dd'/></radialGradient></defs><rect width='100' height='100' fill='none'/><circle cx='50' cy='40' r='24' fill='url(#pg)'/><rect x='28' y='58' width='44' height='26' rx='10' fill='#317fc0'/><circle cx='42' cy='38' r='5' fill='#fff'/><circle cx='58' cy='38' r='5' fill='#fff'/><circle cx='42' cy='39' r='2' fill='#18324b'/><circle cx='58' cy='39' r='2' fill='#18324b'/><path d='M42 50c5 3 11 3 16 0' stroke='#0f3b64' stroke-width='3' fill='none' stroke-linecap='round'/><path d='M32 65h36' stroke='#67b8f2' stroke-width='3' opacity='.8'/>");
 
 function key(x,y){ return `${x},${y}`; }
 function has(set,x,y){ return set.has(key(x,y)); }
@@ -298,9 +305,80 @@ function tapToTile(clientX, clientY){
   };
 }
 
+function appendStepToPath(path, tile){
+  const last = path[path.length - 1];
+  if (!last) {
+    path.push(tile);
+    return;
+  }
+  if (last.x === tile.x && last.y === tile.y) return;
+
+  let cx = last.x;
+  let cy = last.y;
+  while (cx !== tile.x || cy !== tile.y) {
+    const dx = tile.x - cx;
+    const dy = tile.y - cy;
+    if (Math.abs(dx) >= Math.abs(dy) && dx !== 0) cx += Math.sign(dx);
+    else if (dy !== 0) cy += Math.sign(dy);
+    if (path[path.length - 1].x !== cx || path[path.length - 1].y !== cy) path.push({ x: cx, y: cy });
+  }
+}
+
+function clearPathInput(){
+  activePointerId = null;
+  dragPath = [];
+}
+
+function queueDraggedPath(){
+  if (dragPath.length < 2) return;
+  const steps = [];
+  for (let i = 1; i < dragPath.length; i++) {
+    const prev = dragPath[i - 1];
+    const next = dragPath[i];
+    const dx = next.x - prev.x;
+    const dy = next.y - prev.y;
+    if (Math.abs(dx) + Math.abs(dy) !== 1) continue;
+    steps.push([dx, dy]);
+  }
+  if (!steps.length) return;
+  queuedMoves = steps;
+  queuedSnapshot = snapshot();
+  queuedMoved = false;
+  moveAcc = MOVE_INTERVAL;
+}
+
+function processQueuedMove(){
+  if (!queuedMoves.length || state.won || state.deadUntil) return;
+  if (!queuedSnapshot) {
+    queuedMoves = [];
+    return;
+  }
+  if (!queuedMoved) state.undo.push(queuedSnapshot);
+  const [dx,dy] = queuedMoves.shift();
+  if (!tryMovePlayer(dx,dy)) {
+    if (!queuedMoved && state.undo[state.undo.length - 1] === queuedSnapshot) state.undo.pop();
+    queuedMoves = [];
+    queuedSnapshot = null;
+    queuedMoved = false;
+    return;
+  }
+  queuedMoved = true;
+  if (!queuedMoves.length) queuedSnapshot = null;
+}
+
 canvas.addEventListener('pointerdown', e => {
   if (state.won) return;
   const t = tapToTile(e.clientX, e.clientY);
+  if (t.x === state.player.x && t.y === state.player.y) {
+    activePointerId = e.pointerId;
+    queuedMoves = [];
+    queuedSnapshot = null;
+    queuedMoved = false;
+    dragPath = [{ x: state.player.x, y: state.player.y }];
+    canvas.setPointerCapture(e.pointerId);
+    return;
+  }
+
   const dx = t.x - state.player.x;
   const dy = t.y - state.player.y;
   if (Math.abs(dx) + Math.abs(dy) === 1) {
@@ -314,6 +392,21 @@ canvas.addEventListener('pointerdown', e => {
     if (!shoot()) state.undo.pop();
   }
 });
+
+canvas.addEventListener('pointermove', e => {
+  if (e.pointerId !== activePointerId || !dragPath.length) return;
+  const tile = tapToTile(e.clientX, e.clientY);
+  appendStepToPath(dragPath, tile);
+});
+
+function handlePointerEnd(e){
+  if (e.pointerId !== activePointerId) return;
+  queueDraggedPath();
+  clearPathInput();
+}
+
+canvas.addEventListener('pointerup', handlePointerEnd);
+canvas.addEventListener('pointercancel', handlePointerEnd);
 
 function blockedForMedusaShot(x,y){
   const b = state.base[y][x];
@@ -388,6 +481,29 @@ function draw(){
   for (const egg of arrFromSet(state.eggs)) drawSprite('egg',egg.x,egg.y);
   for (const e of state.enemies) drawSprite('medusa',e.x,e.y);
 
+
+  if (dragPath.length > 1) {
+    ctx.strokeStyle = 'rgba(120,225,255,0.95)';
+    ctx.lineWidth = Math.max(4, board.t * 0.24);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (let i = 0; i < dragPath.length; i++) {
+      const p = dragPath[i];
+      const cx = board.x + (p.x + 0.5) * board.t;
+      const cy = board.y + (p.y + 0.5) * board.t;
+      if (i === 0) ctx.moveTo(cx, cy);
+      else ctx.lineTo(cx, cy);
+    }
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(183,246,255,0.9)';
+    for (const p of dragPath) {
+      ctx.beginPath();
+      ctx.arc(board.x + (p.x + 0.5) * board.t, board.y + (p.y + 0.5) * board.t, Math.max(2, board.t * 0.11), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
   for (const e of state.enemies.filter(v => v.charge>0)) {
     ctx.strokeStyle = `rgba(255,130,205,${Math.min(.75,e.charge/400)})`;
     ctx.lineWidth = Math.max(2, board.t*0.12);
@@ -409,6 +525,11 @@ function frame(ts){
   const dt = Math.min(50, ts - lastTs);
   lastTs = ts;
   acc += dt;
+  moveAcc += dt;
+  while (moveAcc >= MOVE_INTERVAL) {
+    processQueuedMove();
+    moveAcc -= MOVE_INTERVAL;
+  }
   while (acc >= TICK) {
     tick();
     acc -= TICK;
@@ -431,6 +552,11 @@ function startLevel(){
   state.won = false;
   state.deadUntil = 0;
   state.undo = [];
+  queuedMoves = [];
+  queuedSnapshot = null;
+  queuedMoved = false;
+  dragPath = [];
+  activePointerId = null;
   hudMsg.textContent = 'Objetivo: abrir puerta';
   state.initialSnapshot = snapshot();
 }
@@ -438,6 +564,11 @@ function startLevel(){
 function resetLevel(){
   restore(state.initialSnapshot);
   state.undo = [];
+  queuedMoves = [];
+  queuedSnapshot = null;
+  queuedMoved = false;
+  dragPath = [];
+  activePointerId = null;
   hudMsg.textContent = 'Objetivo: abrir puerta';
 }
 
