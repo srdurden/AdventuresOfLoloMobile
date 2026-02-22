@@ -21,7 +21,7 @@
       inset: 0;
       display: grid;
       grid-template-rows: 1fr auto;
-      gap: 8px;
+      gap: 6px;
       padding: env(safe-area-inset-top) 8px env(safe-area-inset-bottom) 8px;
     }
     #boardWrap {
@@ -44,6 +44,7 @@
       justify-content: space-between;
       pointer-events: none;
       font-weight: 700;
+      flex-wrap: wrap;
     }
     .pill {
       background: linear-gradient(180deg, #3c261aee, #25170fee);
@@ -58,13 +59,12 @@
     button {
       border: 1px solid #ffffff1f;
       border-radius: 12px;
-      min-height: 48px;
+      min-height: 46px;
       font-size: 16px;
       color: #f7e8d8;
       background: linear-gradient(180deg, #5a3928, #3a2418);
       font-weight: 700;
     }
-    button:active { transform: translateY(1px); }
   </style>
 </head>
 <body>
@@ -85,13 +85,12 @@
   </div>
 
 <script>
-const LEVEL_RAW = `######################\n#P....#....M...#....D#\n#.##..#..######.#.##.#\n#..H..#..#....#.#..#.#\n#.....#..#.~B.#.#..#.#\n#..#####.#.~~.#.#..#.#\n#..#...#.#....#.#..#.#\n#..#.S.#.######.#..#.#\n#..#.G.#........#..#.#\n#..#.G.######.###..#.#\n#..#.G.#....#...#..#.#\n#..#...#.H..#...#..#.#\n#..#####....#.C.#..#.#\n#......#....#...#..#.#\n#.####.#.####.###..#.#\n#.#..#.#....#......#.#\n#.#..#.####.########.#\n#.#..#....#....v...#.#\n#.#..####.#.######.#.#\n#.#..#..#.#..^...#.#.#\n#.#..#..#.####.###.#.#\n#.#..#..#....#...#.#.#\n#.#..#..####.#.<.#.#.#\n#....#.......#...#..>#\n#..H...........B....##\n######################`;
+const LEVEL_RAW = `##############\n#P..g..TT...D#\n#.###.###.##.#\n#..H#.....##.#\n##..#.###....#\n#...#...M.##.#\n#.####.##.##.#\n#....#.~...#.#\n#.##.#.B~..#.#\n#.##.#..~###.#\n#....##...#..#\n#.TT.##.#.#H.#\n#.TT....#.#..#\n#..####.#.##.#\n#..#..M.#....#\n##.#.#######.#\n#..#...H..##.#\n#.#####.#.##.#\n#.....#.#....#\n#.###.#.####.#\n#.#C..#...g#.#\n#.#.######.#.#\n#....g...M...#\n##############`;
 
 const LEVEL = LEVEL_RAW.split('\n');
 const H = LEVEL.length;
 const W = LEVEL[0].length;
-const ALLOWED = new Set(['#','.','P','H','C','D','B','~','S','G','>','<','^','v','M']);
-
+const ALLOWED = new Set(['#','.','P','H','C','D','B','~','M','T','g']);
 for (const row of LEVEL) {
   if (row.length !== W) throw new Error('Nivel inválido: ancho inconsistente.');
   for (const ch of row) if (!ALLOWED.has(ch)) throw new Error('Tile inválido: ' + ch);
@@ -100,7 +99,6 @@ for (const row of LEVEL) {
 document.addEventListener('gesturestart', e => e.preventDefault(), { passive: false });
 document.addEventListener('gesturechange', e => e.preventDefault(), { passive: false });
 document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
-document.addEventListener('touchmove', e => { if (e.scale && e.scale !== 1) e.preventDefault(); }, { passive: false });
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -109,7 +107,6 @@ const hudHearts = document.getElementById('hudHearts');
 const hudKey = document.getElementById('hudKey');
 const hudMsg = document.getElementById('hudMsg');
 
-const DIRS = { '>':[1,0], '<':[-1,0], '^':[0,-1], 'v':[0,1] };
 const MAX_UNDO = 200;
 const TICK = 100;
 let lastTs = 0;
@@ -125,12 +122,32 @@ const state = {
   blocks: new Set(),
   filledWater: new Set(),
   enemies: [],
-  gatesOpen: false,
+  eggs: new Set(),
   won: false,
   deadUntil: 0,
   undo: [],
   initialSnapshot: null,
 };
+
+const sprites = {};
+function makeSprite(name, body){
+  const img = new Image();
+  img.src = `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>${body}</svg>`)}`;
+  sprites[name] = img;
+}
+
+makeSprite('wall', "<rect width='100' height='100' fill='#c99c6f'/><rect x='6' y='8' width='88' height='24' fill='#8f633f'/><rect x='6' y='46' width='88' height='18' fill='#e0b58a'/><path d='M0 74h100v26H0z' fill='#b38456'/>");
+makeSprite('floor', "<rect width='100' height='100' fill='#6d271d'/><rect width='100' height='100' fill='url(#g)'/><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop stop-color='#7c2d22'/><stop offset='1' stop-color='#5e1f18'/></linearGradient></defs>");
+makeSprite('grass', "<rect width='100' height='100' fill='#3f6c2f'/><circle cx='18' cy='28' r='10' fill='#7cc55e'/><circle cx='50' cy='20' r='12' fill='#8ad268'/><circle cx='70' cy='36' r='14' fill='#79bd59'/><circle cx='36' cy='56' r='16' fill='#5ca246'/><circle cx='74' cy='70' r='12' fill='#6ab34f'/>");
+makeSprite('tree', "<rect width='100' height='100' fill='#5f3a22'/><rect x='44' y='56' width='12' height='28' fill='#6e3d1d'/><circle cx='50' cy='40' r='26' fill='#2f7d43'/><circle cx='34' cy='46' r='14' fill='#2a6f3b'/><circle cx='66' cy='48' r='14' fill='#2a6f3b'/>");
+makeSprite('water', "<rect width='100' height='100' fill='#2f5f97'/><path d='M8 30C18 18 32 18 42 30s24 12 34 0 18-12 16 8-10 24-22 16-22-4-32 6S8 60 8 44z' fill='#6cb3ff88'/>");
+makeSprite('block', "<rect width='100' height='100' fill='#b89464'/><rect x='12' y='12' width='76' height='76' fill='#8f6a44'/><rect x='20' y='20' width='60' height='16' fill='#d5b08955'/>");
+makeSprite('chest', "<rect width='100' height='100' fill='#6b4e24'/><rect x='10' y='42' width='80' height='38' rx='8' fill='#b2861f'/><rect x='10' y='32' width='80' height='20' rx='8' fill='#9a6f18'/><rect x='48' y='32' width='6' height='48' fill='#f4d47f'/>");
+makeSprite('door', "<rect width='100' height='100' fill='#3d2220'/><rect x='22' y='14' width='56' height='72' rx='10' fill='#6b3028'/><circle cx='60' cy='52' r='5' fill='#e7dab8'/>");
+makeSprite('heart', "<rect width='100' height='100' fill='none'/><path d='M50 80C15 58 8 40 18 28c9-12 26-7 32 6 6-13 23-18 32-6 10 12 3 30-32 52z' fill='#ff4569'/>");
+makeSprite('medusa', "<rect width='100' height='100' fill='none'/><circle cx='50' cy='42' r='24' fill='#b186f8'/><circle cx='43' cy='40' r='4' fill='#fff'/><circle cx='57' cy='40' r='4' fill='#fff'/><rect x='36' y='52' width='28' height='8' rx='3' fill='#4e2f7f'/>");
+makeSprite('egg', "<rect width='100' height='100' fill='none'/><ellipse cx='50' cy='56' rx='24' ry='30' fill='#f0f0d8'/><ellipse cx='42' cy='50' rx='6' ry='8' fill='#b7d8ff'/>");
+makeSprite('player', "<rect width='100' height='100' fill='none'/><circle cx='50' cy='44' r='24' fill='#5dc9ff'/><rect x='28' y='60' width='44' height='24' rx='8' fill='#4a9dd9'/><circle cx='42' cy='40' r='4' fill='#fff'/><circle cx='58' cy='40' r='4' fill='#fff'/>");
 
 function key(x,y){ return `${x},${y}`; }
 function has(set,x,y){ return set.has(key(x,y)); }
@@ -138,8 +155,6 @@ function setFromArr(arr){ return new Set(arr.map(p => key(p.x,p.y))); }
 function arrFromSet(set){ return [...set].map(s=>{ const [x,y] = s.split(',').map(Number); return {x,y}; }); }
 function inBounds(x,y){ return x>=0 && y>=0 && x<W && y<H; }
 function chestOpen(){ return state.hearts.size === 0; }
-function onSwitch(x,y){ return state.base[y]?.[x] === 'S'; }
-function onGate(x,y){ return state.base[y]?.[x] === 'G'; }
 function enemyAt(x,y){ return state.enemies.find(e => e.x===x && e.y===y); }
 
 function parseLevel(){
@@ -153,16 +168,14 @@ function parseLevel(){
 
   for (let y=0; y<H; y++) for (let x=0; x<W; x++) {
     const ch = LEVEL[y][x];
-    if ('#.~SGCD'.includes(ch)) base[y][x] = ch;
-    if (ch === 'P') player = { x, y, hasKey: false };
+    if ('#.~TgCD'.includes(ch)) base[y][x] = ch;
+    if (ch === 'P') player = { x, y, hasKey: false, facing:[1,0] };
     if (ch === 'H') hearts.push({ x, y });
     if (ch === 'B') blocks.push({ x, y });
-    if ('><^v'.includes(ch)) enemies.push({ type:'patrol', x, y, prevX:x, prevY:y, dir:ch, moveCounter:0, interval:5, charge:0 });
-    if (ch === 'M') enemies.push({ type:'medusa', x, y, prevX:x, prevY:y, dir:'', moveCounter:0, interval:0, charge:0 });
+    if (ch === 'M') enemies.push({ type:'medusa', x, y, charge:0 });
     if (ch === 'C') chest = { x, y };
     if (ch === 'D') door = { x, y };
   }
-
   return { base, player, chest, door, hearts:setFromArr(hearts), blocks:setFromArr(blocks), filledWater:new Set(), enemies };
 }
 
@@ -171,9 +184,9 @@ function snapshot(){
     player: { ...state.player },
     hearts: arrFromSet(state.hearts),
     blocks: arrFromSet(state.blocks),
+    eggs: arrFromSet(state.eggs),
     filledWater: arrFromSet(state.filledWater),
     enemies: state.enemies.map(e => ({ ...e })),
-    gatesOpen: state.gatesOpen,
   };
 }
 
@@ -181,9 +194,9 @@ function restore(s){
   state.player = { ...s.player };
   state.hearts = setFromArr(s.hearts);
   state.blocks = setFromArr(s.blocks);
+  state.eggs = setFromArr(s.eggs);
   state.filledWater = setFromArr(s.filledWater);
   state.enemies = s.enemies.map(e => ({ ...e }));
-  state.gatesOpen = s.gatesOpen;
   state.won = false;
   state.deadUntil = 0;
 }
@@ -193,37 +206,15 @@ function pushUndo(){
   if (state.undo.length > MAX_UNDO) state.undo.shift();
 }
 
-function updateGates(){
-  const switched = onSwitch(state.player.x, state.player.y) || arrFromSet(state.blocks).some(p => onSwitch(p.x,p.y));
-  if (!switched) {
-    const occupied = onGate(state.player.x,state.player.y) || arrFromSet(state.blocks).some(p=>onGate(p.x,p.y)) || state.enemies.some(e=>onGate(e.x,e.y));
-    if (occupied) return;
-  }
-  state.gatesOpen = switched;
-}
-
-function passableForPlayer(x,y,ignoreBlocks=false){
+function passableForPlayer(x,y,ignorePushables=false){
   if (!inBounds(x,y)) return false;
-  if (!ignoreBlocks && has(state.blocks,x,y)) return false;
+  if (!ignorePushables && (has(state.blocks,x,y) || has(state.eggs,x,y))) return false;
   const b = state.base[y][x];
-  if (b === '#') return false;
+  if (b === '#' || b === 'T') return false;
   if (b === '~' && !has(state.filledWater,x,y)) return false;
-  if (b === 'G' && !state.gatesOpen) return false;
   if (b === 'D' && !state.player.hasKey) return false;
   if (b === 'C' && !chestOpen()) return false;
-  return true;
-}
-
-function passableForEnemy(x,y){
-  if (!inBounds(x,y) || has(state.blocks,x,y) || enemyAt(x,y)) return false;
-  const b = state.base[y][x];
-  if (b === '#' || (b === '~' && !has(state.filledWater,x,y)) || (b === 'G' && !state.gatesOpen) || b === 'C' || b === 'D') return false;
-  return true;
-}
-
-function isWallLikeForLOS(x,y){
-  const b = state.base[y][x];
-  return b === '#' || (b === 'G' && !state.gatesOpen);
+  return !enemyAt(x,y);
 }
 
 function killPlayer(){
@@ -238,22 +229,31 @@ function winLevel(){
   navigator.vibrate?.([30,30,60]);
 }
 
+function attemptPush(setRef, fromX, fromY, dx, dy){
+  const nx = fromX + dx;
+  const ny = fromY + dy;
+  if (!inBounds(nx,ny) || has(state.blocks,nx,ny) || has(state.eggs,nx,ny) || enemyAt(nx,ny)) return false;
+  const t = state.base[ny][nx];
+  if (t === '#' || t === 'T' || t === 'C' || t === 'D') return false;
+  setRef.delete(key(fromX,fromY));
+  if (t === '~' && !has(state.filledWater,nx,ny)) state.filledWater.add(key(nx,ny));
+  else setRef.add(key(nx,ny));
+  return true;
+}
+
 function tryMovePlayer(dx,dy){
   const tx = state.player.x + dx;
   const ty = state.player.y + dy;
   if (!inBounds(tx,ty)) return false;
+  state.player.facing = [dx,dy];
+
   if (enemyAt(tx,ty)) return killPlayer(), false;
 
   if (has(state.blocks,tx,ty)) {
-    const bx = tx + dx;
-    const by = ty + dy;
-    if (!inBounds(bx,by) || has(state.blocks,bx,by)) return false;
-    const t = state.base[by][bx];
-    if (t === '#' || (t === 'G' && !state.gatesOpen) || t === 'C' || t === 'D') return false;
-    state.blocks.delete(key(tx,ty));
-    if (t === '~' && !has(state.filledWater,bx,by)) state.filledWater.add(key(bx,by));
-    else state.blocks.add(key(bx,by));
-  } else if (!passableForPlayer(tx,ty)) {
+    if (!attemptPush(state.blocks, tx, ty, dx, dy)) return false;
+  } else if (has(state.eggs,tx,ty)) {
+    if (!attemptPush(state.eggs, tx, ty, dx, dy)) return false;
+  } else if (!passableForPlayer(tx,ty,true)) {
     return false;
   }
 
@@ -262,8 +262,30 @@ function tryMovePlayer(dx,dy){
   state.hearts.delete(key(tx,ty));
   if (chestOpen() && state.chest && tx === state.chest.x && ty === state.chest.y) state.player.hasKey = true;
   if (state.player.hasKey && state.door && tx === state.door.x && ty === state.door.y) return winLevel(), true;
-  updateGates();
   return true;
+}
+
+function shoot(){
+  const [dx,dy] = state.player.facing;
+  if (!dx && !dy) return false;
+  let x = state.player.x + dx;
+  let y = state.player.y + dy;
+  while (inBounds(x,y)) {
+    if (has(state.blocks,x,y) || has(state.eggs,x,y)) return false;
+    const t = state.base[y][x];
+    if (t === '#' || t === 'C' || t === 'D') return false;
+    const hit = enemyAt(x,y);
+    if (hit) {
+      state.enemies = state.enemies.filter(v => v !== hit);
+      state.eggs.add(key(x,y));
+      hudMsg.textContent = '¡Enemigo convertido en huevo!';
+      navigator.vibrate?.(20);
+      return true;
+    }
+    x += dx;
+    y += dy;
+  }
+  return false;
 }
 
 function tapToTile(clientX, clientY){
@@ -281,55 +303,42 @@ canvas.addEventListener('pointerdown', e => {
   const t = tapToTile(e.clientX, e.clientY);
   const dx = t.x - state.player.x;
   const dy = t.y - state.player.y;
-  if (Math.abs(dx) + Math.abs(dy) !== 1) return;
-  pushUndo();
-  if (!tryMovePlayer(Math.sign(dx), Math.sign(dy))) state.undo.pop();
+  if (Math.abs(dx) + Math.abs(dy) === 1) {
+    pushUndo();
+    if (!tryMovePlayer(Math.sign(dx), Math.sign(dy))) state.undo.pop();
+    return;
+  }
+  if (dx === 0 || dy === 0) {
+    state.player.facing = [Math.sign(dx), Math.sign(dy)];
+    pushUndo();
+    if (!shoot()) state.undo.pop();
+  }
 });
+
+function blockedForMedusaShot(x,y){
+  const b = state.base[y][x];
+  return b === '#' || b === 'C' || b === 'D' || has(state.blocks,x,y) || has(state.eggs,x,y);
+}
 
 function tick(){
   if (state.deadUntil && performance.now() >= state.deadUntil) return resetLevel();
   if (state.won) return;
-  updateGates();
 
   for (const e of state.enemies) {
-    e.prevX = e.x;
-    e.prevY = e.y;
-
-    if (e.type === 'patrol') {
-      e.moveCounter++;
-      if (e.moveCounter >= e.interval) {
-        e.moveCounter = 0;
-        let [dx,dy] = DIRS[e.dir];
-        let nx = e.x + dx;
-        let ny = e.y + dy;
-        if (!passableForEnemy(nx,ny)) {
-          e.dir = e.dir === '>' ? '<' : e.dir === '<' ? '>' : e.dir === '^' ? 'v' : '^';
-          [dx,dy] = DIRS[e.dir];
-          nx = e.x + dx;
-          ny = e.y + dy;
-        }
-        if (passableForEnemy(nx,ny)) {
-          e.x = nx;
-          e.y = ny;
-        }
+    const aligned = e.x === state.player.x || e.y === state.player.y;
+    let clear = false;
+    if (aligned) {
+      clear = true;
+      if (e.x === state.player.x) {
+        const [a,b] = [e.y,state.player.y].sort((m,n)=>m-n);
+        for (let y=a+1; y<b; y++) if (blockedForMedusaShot(e.x,y)) clear = false;
+      } else {
+        const [a,b] = [e.x,state.player.x].sort((m,n)=>m-n);
+        for (let x=a+1; x<b; x++) if (blockedForMedusaShot(x,e.y)) clear = false;
       }
-      if (e.x === state.player.x && e.y === state.player.y) return killPlayer();
-    } else {
-      const aligned = e.x === state.player.x || e.y === state.player.y;
-      let clear = false;
-      if (aligned) {
-        clear = true;
-        if (e.x === state.player.x) {
-          const [a,b] = [e.y,state.player.y].sort((m,n)=>m-n);
-          for (let y=a+1; y<b; y++) if (isWallLikeForLOS(e.x,y)) clear = false;
-        } else {
-          const [a,b] = [e.x,state.player.x].sort((m,n)=>m-n);
-          for (let x=a+1; x<b; x++) if (isWallLikeForLOS(x,e.y)) clear = false;
-        }
-      }
-      e.charge = clear ? e.charge + TICK : 0;
-      if (e.charge > 400) return killPlayer();
     }
+    e.charge = clear ? e.charge + TICK : 0;
+    if (e.charge > 400) return killPlayer();
   }
 }
 
@@ -342,17 +351,20 @@ function resize(){
 
   const w = r.width;
   const h = r.height;
-  board.t = Math.max(8, Math.floor(Math.min((w - 4) / W, (h - 4) / H)));
+  board.t = Math.max(12, Math.floor(Math.min((w - 4) / W, (h - 4) / H)));
   board.x = Math.floor((w - W * board.t) / 2);
   board.y = Math.floor((h - H * board.t) / 2);
 }
 window.addEventListener('resize', resize);
 
-function drawTile(x,y,fill){
+function drawSprite(name, x, y){
   const px = board.x + x * board.t;
   const py = board.y + y * board.t;
-  ctx.fillStyle = fill;
-  ctx.fillRect(px,py,board.t,board.t);
+  const img = sprites[name];
+  if (img?.complete) ctx.drawImage(img, px, py, board.t, board.t);
+  else { ctx.fillStyle = '#777'; ctx.fillRect(px,py,board.t,board.t); }
+  ctx.strokeStyle = '#00000022';
+  ctx.strokeRect(px,py,board.t,board.t);
 }
 
 function draw(){
@@ -362,72 +374,21 @@ function draw(){
 
   for (let y=0; y<H; y++) for (let x=0; x<W; x++) {
     const b = state.base[y][x];
-    const px = board.x + x * board.t;
-    const py = board.y + y * board.t;
-
-    if (b === '#') {
-      drawTile(x,y,'#c29768');
-      ctx.fillStyle = '#8f633f';
-      ctx.fillRect(px+1,py+1,board.t-2,board.t*0.35);
-      ctx.fillStyle = '#d6b089';
-      ctx.fillRect(px+1,py+board.t*0.45,board.t-2,board.t*0.18);
-    } else if (b === '~' && !has(state.filledWater,x,y)) {
-      drawTile(x,y,'#2f5f97');
-      ctx.fillStyle = '#6cb3ff55';
-      ctx.beginPath();
-      ctx.arc(px + board.t*0.5, py + board.t*0.5, board.t*0.28, 0, Math.PI*2);
-      ctx.fill();
-    } else if (b === 'S') {
-      drawTile(x,y,'#674322');
-      ctx.fillStyle = '#efce5d';
-      ctx.fillRect(px+board.t*0.2,py+board.t*0.2,board.t*0.6,board.t*0.6);
-    } else if (b === 'G') {
-      drawTile(x,y,state.gatesOpen ? '#3f8f55' : '#7f2f3c');
-      ctx.strokeStyle = '#ffffff44';
-      ctx.strokeRect(px+1,py+1,board.t-2,board.t-2);
-    } else if (b === 'C') {
-      drawTile(x,y,chestOpen() ? '#b2861f' : '#5d451d');
-      ctx.fillStyle = '#f0d274';
-      ctx.fillRect(px+board.t*0.1,py+board.t*0.42,board.t*0.8,board.t*0.2);
-    } else if (b === 'D') {
-      drawTile(x,y,state.player.hasKey ? '#3b8a57' : '#562424');
-      ctx.fillStyle = '#e3dbba';
-      ctx.fillRect(px+board.t*0.56,py+board.t*0.35,board.t*0.09,board.t*0.12);
-    } else {
-      drawTile(x,y,((x+y)%2===0) ? '#79261e' : '#6e221b');
-    }
-    ctx.strokeStyle = '#00000033';
-    ctx.strokeRect(px,py,board.t,board.t);
+    if (b === '#') drawSprite('wall',x,y);
+    else if (b === '~' && !has(state.filledWater,x,y)) drawSprite('water',x,y);
+    else if (b === 'T') drawSprite('tree',x,y);
+    else if (b === 'g') drawSprite('grass',x,y);
+    else if (b === 'C') drawSprite('chest',x,y);
+    else if (b === 'D') drawSprite('door',x,y);
+    else drawSprite('floor',x,y);
   }
 
-  for (const b of arrFromSet(state.blocks)) {
-    const px = board.x + b.x*board.t;
-    const py = board.y + b.y*board.t;
-    drawTile(b.x,b.y,'#b89464');
-    ctx.fillStyle = '#8f6a44';
-    ctx.fillRect(px+board.t*0.12,py+board.t*0.12,board.t*0.76,board.t*0.76);
-  }
+  for (const b of arrFromSet(state.blocks)) drawSprite('block',b.x,b.y);
+  for (const hrt of arrFromSet(state.hearts)) drawSprite('heart',hrt.x,hrt.y);
+  for (const egg of arrFromSet(state.eggs)) drawSprite('egg',egg.x,egg.y);
+  for (const e of state.enemies) drawSprite('medusa',e.x,e.y);
 
-  ctx.fillStyle = '#ff5f97';
-  ctx.font = `${Math.floor(board.t*0.65)}px sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  for (const heart of arrFromSet(state.hearts)) {
-    ctx.fillText('♥', board.x + heart.x*board.t + board.t/2, board.y + heart.y*board.t + board.t/2 + 1);
-  }
-
-  for (const e of state.enemies) {
-    const px = board.x + e.x*board.t + board.t/2;
-    const py = board.y + e.y*board.t + board.t/2;
-    ctx.fillStyle = e.type === 'medusa' ? '#c495ff' : '#f8b35f';
-    ctx.beginPath();
-    ctx.arc(px, py, board.t*0.3, 0, Math.PI*2);
-    ctx.fill();
-    ctx.fillStyle = '#2b1a12';
-    ctx.fillRect(px-board.t*0.1,py-board.t*0.05,board.t*0.2,board.t*0.08);
-  }
-
-  for (const e of state.enemies.filter(v => v.type==='medusa' && v.charge>0)) {
+  for (const e of state.enemies.filter(v => v.charge>0)) {
     ctx.strokeStyle = `rgba(255,130,205,${Math.min(.75,e.charge/400)})`;
     ctx.lineWidth = Math.max(2, board.t*0.12);
     ctx.beginPath();
@@ -436,11 +397,11 @@ function draw(){
     ctx.stroke();
   }
 
-  ctx.fillStyle = state.deadUntil ? '#ff3b4a' : '#67d1ff';
-  ctx.fillRect(board.x + state.player.x*board.t + board.t*0.18, board.y + state.player.y*board.t + board.t*0.18, board.t*0.64, board.t*0.64);
+  drawSprite('player',state.player.x,state.player.y);
 
   hudHearts.textContent = `❤ ${state.hearts.size}`;
   hudKey.textContent = state.player.hasKey ? '🗝️ Con llave' : '🔒 Sin llave';
+  if (!state.won && state.hearts.size === 0 && !state.player.hasKey) hudMsg.textContent = 'Ve al cofre y luego a la puerta';
 }
 
 function frame(ts){
@@ -464,13 +425,12 @@ function startLevel(){
   state.door = p.door;
   state.hearts = p.hearts;
   state.blocks = p.blocks;
+  state.eggs = new Set();
   state.filledWater = p.filledWater;
   state.enemies = p.enemies;
-  state.gatesOpen = false;
   state.won = false;
   state.deadUntil = 0;
   state.undo = [];
-  updateGates();
   hudMsg.textContent = 'Objetivo: abrir puerta';
   state.initialSnapshot = snapshot();
 }
@@ -478,14 +438,12 @@ function startLevel(){
 function resetLevel(){
   restore(state.initialSnapshot);
   state.undo = [];
-  updateGates();
   hudMsg.textContent = 'Objetivo: abrir puerta';
 }
 
 document.getElementById('undoBtn').onclick = () => {
   if (!state.undo.length || state.won) return;
   restore(state.undo.pop());
-  updateGates();
 };
 document.getElementById('resetBtn').onclick = () => resetLevel();
 
