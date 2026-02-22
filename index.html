@@ -78,6 +78,7 @@
       <div id="hud">
         <div class="pill">Puzzle 1</div>
         <div class="pill" id="hudHearts">❤ 0</div>
+        <div class="pill" id="hudShots">✦ 0</div>
         <div class="pill" id="hudMsg">Objetivo: recoge corazones y abre el cofre</div>
       </div>
     </div>
@@ -88,7 +89,7 @@
   </div>
 
 <script>
-const LEVEL_RAW = `##############\n#SSSSSSSSTTTM#\n#S...H...SSSS#\n#S.TTT.T..SSS#\n#S..SSS....SS#\n#S.PSSS....HS#\n#S...SSS....S#\n#STTT....TTTS#\n#STTT....TTTS#\n#S....C.....S#\n#STTT...TTT.S#\n#STTT...TTT.S#\n#SSSSSSSSSSSS#\n##############`;
+const LEVEL_RAW = `##############\n#............#\n#............#\n#............#\n#SSSSSSSSTTTM#\n#S...H...SSSS#\n#S.TTT.T..SSS#\n#S..SSS....SS#\n#S.PSSS....HS#\n#S...SSS....S#\n#STTT....TTTS#\n#STTT....TTTS#\n#S....C.....S#\n#STTT...TTT.S#\n#STTT...TTT.S#\n#SSSSSSSSSSSS#\n#............#\n#............#\n#............#\n##############`;
 
 const LEVEL = LEVEL_RAW.split('\n');
 const H = LEVEL.length;
@@ -107,6 +108,7 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const boardWrap = document.getElementById('boardWrap');
 const hudHearts = document.getElementById('hudHearts');
+const hudShots = document.getElementById('hudShots');
 const hudMsg = document.getElementById('hudMsg');
 
 const MAX_UNDO = 200;
@@ -133,6 +135,7 @@ const state = {
   enemies: [],
   eggs: new Set(),
   won: false,
+  shots: 0,
   deadUntil: 0,
   undo: [],
   initialSnapshot: null,
@@ -194,6 +197,7 @@ function snapshot(){
   return {
     player: { ...state.player },
     hearts: arrFromSet(state.hearts),
+    shots: state.shots,
     blocks: arrFromSet(state.blocks),
     eggs: arrFromSet(state.eggs),
     filledWater: arrFromSet(state.filledWater),
@@ -204,6 +208,7 @@ function snapshot(){
 function restore(s){
   state.player = { ...s.player };
   state.hearts = setFromArr(s.hearts);
+  state.shots = s.shots ?? 0;
   state.blocks = setFromArr(s.blocks);
   state.eggs = setFromArr(s.eggs);
   state.filledWater = setFromArr(s.filledWater);
@@ -269,31 +274,36 @@ function tryMovePlayer(dx,dy){
 
   state.player.x = tx;
   state.player.y = ty;
-  state.hearts.delete(key(tx,ty));
+  const heartKey = key(tx,ty);
+  if (state.hearts.has(heartKey)) {
+    state.hearts.delete(heartKey);
+    state.shots += 1;
+    hudMsg.textContent = '¡Ganaste 1 disparo!';
+  }
   if (chestOpen() && state.chest && tx === state.chest.x && ty === state.chest.y) return winLevel(), true;
   return true;
 }
 
 function shoot(){
+  if (state.shots <= 0) {
+    hudMsg.textContent = 'Sin disparos: recoge corazones';
+    return false;
+  }
   const [dx,dy] = state.player.facing;
   if (!dx && !dy) return false;
-  let x = state.player.x + dx;
-  let y = state.player.y + dy;
-  while (inBounds(x,y)) {
-    if (has(state.blocks,x,y) || has(state.eggs,x,y)) return false;
-    const t = state.base[y][x];
-    if (t === '#' || t === 'C' || t === 'D') return false;
-    const hit = enemyAt(x,y);
-    if (hit) {
-      state.enemies = state.enemies.filter(v => v !== hit);
-      state.eggs.add(key(x,y));
-      hudMsg.textContent = '¡Enemigo convertido en huevo!';
-      navigator.vibrate?.(20);
-      return true;
-    }
-    x += dx;
-    y += dy;
+  const x = state.player.x + dx;
+  const y = state.player.y + dy;
+  if (!inBounds(x,y)) return false;
+  const hit = enemyAt(x,y);
+  if (hit) {
+    state.enemies = state.enemies.filter(v => v !== hit);
+    state.eggs.add(key(x,y));
+    state.shots -= 1;
+    hudMsg.textContent = '¡Enemigo convertido en huevo!';
+    navigator.vibrate?.(20);
+    return true;
   }
+  hudMsg.textContent = 'Acércate a un enemigo para disparar';
   return false;
 }
 
@@ -538,6 +548,7 @@ function draw(){
   drawSprite('player',state.player.x,state.player.y);
 
   hudHearts.textContent = `❤ ${state.hearts.size}`;
+  hudShots.textContent = `✦ ${state.shots}`;
   if (!state.won && state.hearts.size === 0) hudMsg.textContent = '¡Abre el cofre para terminar!';
 }
 
@@ -571,6 +582,7 @@ function startLevel(){
   state.filledWater = p.filledWater;
   state.enemies = p.enemies;
   state.won = false;
+  state.shots = 0;
   state.deadUntil = 0;
   state.undo = [];
   queuedMoves = [];
@@ -578,7 +590,7 @@ function startLevel(){
   queuedMoved = false;
   dragPath = [];
   activePointerId = null;
-  hudMsg.textContent = 'Objetivo: recoge corazones y abre el cofre';
+  hudMsg.textContent = 'Objetivo: recoge corazones para ganar disparos y abre el cofre';
   state.initialSnapshot = snapshot();
 }
 
@@ -590,7 +602,7 @@ function resetLevel(){
   queuedMoved = false;
   dragPath = [];
   activePointerId = null;
-  hudMsg.textContent = 'Objetivo: recoge corazones y abre el cofre';
+  hudMsg.textContent = 'Objetivo: recoge corazones para ganar disparos y abre el cofre';
 }
 
 document.getElementById('undoBtn').onclick = () => {
