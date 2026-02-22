@@ -74,8 +74,7 @@
       <div id="hud">
         <div class="pill">Puzzle 1</div>
         <div class="pill" id="hudHearts">❤ 0</div>
-        <div class="pill" id="hudKey">🔒 Sin llave</div>
-        <div class="pill" id="hudMsg">Objetivo: abrir puerta</div>
+        <div class="pill" id="hudMsg">Objetivo: recoge corazones y abre el cofre</div>
       </div>
     </div>
     <div id="controls">
@@ -85,12 +84,12 @@
   </div>
 
 <script>
-const LEVEL_RAW = `##############\n#P..g..TT...D#\n#.###.###.##.#\n#..H#.....##.#\n##..#.###....#\n#...#...M.##.#\n#.####.##.##.#\n#....#.~...#.#\n#.##.#.B~..#.#\n#.##.#..~###.#\n#....##...#..#\n#.TT.##.#.#H.#\n#.TT....#.#..#\n#..####.#.##.#\n#..#..M.#....#\n##.#.#######.#\n#..#...H..##.#\n#.#####.#.##.#\n#.....#.#....#\n#.###.#.####.#\n#.#C..#...g#.#\n#.#.######.#.#\n#....g...M...#\n##############`;
+const LEVEL_RAW = `##############\n#SSSSSSSSTTTM#\n#S...H...SSSS#\n#S.TTT.T..SSS#\n#S..SSS....SS#\n#S.PSSS....HS#\n#S...SSS....S#\n#STTT....TTTS#\n#STTT....TTTS#\n#S....C.....S#\n#STTT...TTT.S#\n#STTT...TTT.S#\n#SSSSSSSSSSSS#\n##############`;
 
 const LEVEL = LEVEL_RAW.split('\n');
 const H = LEVEL.length;
 const W = LEVEL[0].length;
-const ALLOWED = new Set(['#','.','P','H','C','D','B','~','M','T','g']);
+const ALLOWED = new Set(['#','.','P','H','C','B','~','M','T','g','S']);
 for (const row of LEVEL) {
   if (row.length !== W) throw new Error('Nivel inválido: ancho inconsistente.');
   for (const ch of row) if (!ALLOWED.has(ch)) throw new Error('Tile inválido: ' + ch);
@@ -104,7 +103,6 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const boardWrap = document.getElementById('boardWrap');
 const hudHearts = document.getElementById('hudHearts');
-const hudKey = document.getElementById('hudKey');
 const hudMsg = document.getElementById('hudMsg');
 
 const MAX_UNDO = 200;
@@ -149,6 +147,8 @@ makeSprite('grass', "<defs><radialGradient id='gg' cx='.4' cy='.25' r='.85'><sto
 makeSprite('tree', "<defs><radialGradient id='tg' cx='.45' cy='.2' r='.95'><stop offset='0' stop-color='#7fde83'/><stop offset='.65' stop-color='#2c8e45'/><stop offset='1' stop-color='#1f6031'/></radialGradient></defs><rect width='100' height='100' fill='#233d24'/><rect x='39' y='50' width='22' height='40' rx='8' fill='#7a4728'/><path d='M45 52v36M55 52v36' stroke='#9f6339' stroke-width='3'/><circle cx='50' cy='34' r='28' fill='url(#tg)'/><circle cx='31' cy='44' r='15' fill='#2d7a3e'/><circle cx='69' cy='45' r='15' fill='#2a743b'/><circle cx='49' cy='19' r='13' fill='#53b665'/><circle cx='40' cy='29' r='5' fill='#b0f0b466'/><circle cx='60' cy='30' r='5' fill='#b0f0b455'/>");
 makeSprite('water', "<defs><linearGradient id='wg' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#6ac2ff'/><stop offset='.6' stop-color='#2a6fbf'/><stop offset='1' stop-color='#1b3f79'/></linearGradient></defs><rect width='100' height='100' fill='url(#wg)'/><path d='M0 26c12-10 24-10 36 0s24 10 36 0 20-10 28 0v14c-10 8-20 8-30 0s-20-8-30 0-20 8-30 0S6 42 0 48z' fill='#9fe3ff66'/><path d='M0 58c10-8 20-8 30 0s20 8 30 0 20-8 30 0 20 8 30 0v14c-10 8-20 8-30 0s-20-8-30 0-20 8-30 0-20-8-30 0z' fill='#d5f4ff44'/>");
 makeSprite('block', "<defs><linearGradient id='bg' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ddb37f'/><stop offset='1' stop-color='#875d3a'/></linearGradient></defs><rect width='100' height='100' fill='#5f3f29'/><rect x='10' y='10' width='80' height='80' rx='8' fill='url(#bg)'/><rect x='16' y='16' width='68' height='68' rx='6' fill='none' stroke='#f2d0a4' stroke-width='3' opacity='.7'/><path d='M24 34h52M24 50h52M24 66h52' stroke='#694326' stroke-width='3' opacity='.55'/>");
+makeSprite('stone', "<defs><radialGradient id='sg' cx='.35' cy='.25' r='.9'><stop offset='0' stop-color='#f4d39d'/><stop offset='.6' stop-color='#d8b47e'/><stop offset='1' stop-color='#ae8454'/></radialGradient></defs><rect width='100' height='100' fill='#4b2f1f'/><g fill='url(#sg)'><ellipse cx='28' cy='30' rx='20' ry='16'/><ellipse cx='62' cy='24' rx='18' ry='14'/><ellipse cx='76' cy='54' rx='18' ry='15'/><ellipse cx='36' cy='58' rx='23' ry='17'/><ellipse cx='56' cy='77' rx='22' ry='15'/></g><g stroke='#fff3d166' stroke-width='2'><path d='M21 28c3-2 9-2 12 1'/><path d='M57 21c3-2 8-1 11 2'/></g>");
+
 makeSprite('chest', "<defs><linearGradient id='cg' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#f5c64f'/><stop offset='1' stop-color='#9c6718'/></linearGradient></defs><rect width='100' height='100' fill='#3e2a13'/><rect x='12' y='40' width='76' height='40' rx='9' fill='url(#cg)'/><path d='M12 40c6-14 18-22 38-22s32 8 38 22H12z' fill='#c58a25'/><rect x='46' y='22' width='8' height='58' fill='#f7e2a2'/><rect x='38' y='50' width='24' height='16' rx='5' fill='#734d14'/><circle cx='50' cy='58' r='4' fill='#f8e49e'/><rect x='20' y='46' width='16' height='8' rx='3' fill='#ffd57b77'/>");
 makeSprite('door', "<defs><linearGradient id='dg' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#8c4435'/><stop offset='1' stop-color='#4f1f18'/></linearGradient></defs><rect width='100' height='100' fill='#24130f'/><rect x='20' y='10' width='60' height='80' rx='12' fill='url(#dg)'/><rect x='26' y='18' width='48' height='64' rx='10' fill='none' stroke='#b6705a' stroke-width='3' opacity='.55'/><path d='M32 24h36M32 40h36M32 56h36' stroke='#3e1913' stroke-width='2' opacity='.5'/><circle cx='63' cy='52' r='5' fill='#e7cfa5'/>");
 makeSprite('heart', "<defs><radialGradient id='hg' cx='.35' cy='.25' r='.9'><stop offset='0' stop-color='#ff9bb4'/><stop offset='1' stop-color='#d91e4f'/></radialGradient></defs><rect width='100' height='100' fill='none'/><path d='M50 84C13 61 7 41 18 28c9-11 26-7 32 8 6-15 23-19 32-8 11 13 5 33-32 56z' fill='url(#hg)'/><path d='M31 33c4-4 10-5 14-2' stroke='#ffd3df88' stroke-width='4' fill='none'/>");
@@ -175,8 +175,8 @@ function parseLevel(){
 
   for (let y=0; y<H; y++) for (let x=0; x<W; x++) {
     const ch = LEVEL[y][x];
-    if ('#.~TgCD'.includes(ch)) base[y][x] = ch;
-    if (ch === 'P') player = { x, y, hasKey: false, facing:[1,0] };
+    if ('#.~TgCDS'.includes(ch)) base[y][x] = ch;
+    if (ch === 'P') player = { x, y, facing:[1,0] };
     if (ch === 'H') hearts.push({ x, y });
     if (ch === 'B') blocks.push({ x, y });
     if (ch === 'M') enemies.push({ type:'medusa', x, y, charge:0 });
@@ -217,9 +217,8 @@ function passableForPlayer(x,y,ignorePushables=false){
   if (!inBounds(x,y)) return false;
   if (!ignorePushables && (has(state.blocks,x,y) || has(state.eggs,x,y))) return false;
   const b = state.base[y][x];
-  if (b === '#' || b === 'T') return false;
+  if (b === '#' || b === 'T' || b === 'S') return false;
   if (b === '~' && !has(state.filledWater,x,y)) return false;
-  if (b === 'D' && !state.player.hasKey) return false;
   if (b === 'C' && !chestOpen()) return false;
   return !enemyAt(x,y);
 }
@@ -241,7 +240,7 @@ function attemptPush(setRef, fromX, fromY, dx, dy){
   const ny = fromY + dy;
   if (!inBounds(nx,ny) || has(state.blocks,nx,ny) || has(state.eggs,nx,ny) || enemyAt(nx,ny)) return false;
   const t = state.base[ny][nx];
-  if (t === '#' || t === 'T' || t === 'C' || t === 'D') return false;
+  if (t === '#' || t === 'T' || t === 'C' || t === 'D' || t === 'S') return false;
   setRef.delete(key(fromX,fromY));
   if (t === '~' && !has(state.filledWater,nx,ny)) state.filledWater.add(key(nx,ny));
   else setRef.add(key(nx,ny));
@@ -267,8 +266,7 @@ function tryMovePlayer(dx,dy){
   state.player.x = tx;
   state.player.y = ty;
   state.hearts.delete(key(tx,ty));
-  if (chestOpen() && state.chest && tx === state.chest.x && ty === state.chest.y) state.player.hasKey = true;
-  if (state.player.hasKey && state.door && tx === state.door.x && ty === state.door.y) return winLevel(), true;
+  if (chestOpen() && state.chest && tx === state.chest.x && ty === state.chest.y) return winLevel(), true;
   return true;
 }
 
@@ -489,6 +487,7 @@ function draw(){
     if (b === '#') drawSprite('wall',x,y);
     else if (b === '~' && !has(state.filledWater,x,y)) drawSprite('water',x,y);
     else if (b === 'T') drawSprite('tree',x,y);
+    else if (b === 'S') drawSprite('stone',x,y);
     else if (b === 'g') drawSprite('grass',x,y);
     else if (b === 'C') drawSprite('chest',x,y);
     else if (b === 'D') drawSprite('door',x,y);
@@ -535,8 +534,7 @@ function draw(){
   drawSprite('player',state.player.x,state.player.y);
 
   hudHearts.textContent = `❤ ${state.hearts.size}`;
-  hudKey.textContent = state.player.hasKey ? '🗝️ Con llave' : '🔒 Sin llave';
-  if (!state.won && state.hearts.size === 0 && !state.player.hasKey) hudMsg.textContent = 'Ve al cofre y luego a la puerta';
+  if (!state.won && state.hearts.size === 0) hudMsg.textContent = '¡Abre el cofre para terminar!';
 }
 
 function frame(ts){
@@ -576,7 +574,7 @@ function startLevel(){
   queuedMoved = false;
   dragPath = [];
   activePointerId = null;
-  hudMsg.textContent = 'Objetivo: abrir puerta';
+  hudMsg.textContent = 'Objetivo: recoge corazones y abre el cofre';
   state.initialSnapshot = snapshot();
 }
 
@@ -588,7 +586,7 @@ function resetLevel(){
   queuedMoved = false;
   dragPath = [];
   activePointerId = null;
-  hudMsg.textContent = 'Objetivo: abrir puerta';
+  hudMsg.textContent = 'Objetivo: recoge corazones y abre el cofre';
 }
 
 document.getElementById('undoBtn').onclick = () => {
