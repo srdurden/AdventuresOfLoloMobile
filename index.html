@@ -143,10 +143,10 @@ function makeSprite(name, body){
   sprites[name] = img;
 }
 
-makeSprite('wall', "<defs><linearGradient id='g1' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#f4cb90'/><stop offset='1' stop-color='#b57d4f'/></linearGradient><pattern id='br' width='26' height='26' patternUnits='userSpaceOnUse'><rect width='26' height='26' fill='none'/><rect x='1' y='1' width='24' height='11' rx='2' fill='#e2b57f'/><rect x='1' y='14' width='11' height='11' rx='2' fill='#d8a56f'/><rect x='14' y='14' width='11' height='11' rx='2' fill='#c8905c'/></pattern></defs><rect width='100' height='100' fill='url(#g1)'/><rect width='100' height='100' fill='url(#br)' opacity='.9'/><path d='M0 0h100v8H0zm0 92h100v8H0z' fill='#925a37'/><path d='M0 24h100M0 50h100M0 76h100' stroke='#8c5633' stroke-width='2' opacity='.5'/>");
+makeSprite('wall', "<defs><linearGradient id='g1' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#ffe1b4'/><stop offset='.6' stop-color='#c89260'/><stop offset='1' stop-color='#8f5e39'/></linearGradient><pattern id='br' width='25' height='25' patternUnits='userSpaceOnUse'><rect width='25' height='25' fill='none'/><rect x='1' y='2' width='23' height='10' rx='2' fill='#efc290'/><rect x='1' y='14' width='10' height='10' rx='2' fill='#dfad76'/><rect x='13' y='14' width='11' height='10' rx='2' fill='#cb905d'/></pattern></defs><rect width='100' height='100' fill='url(#g1)'/><rect width='100' height='100' fill='url(#br)' opacity='.92'/><path d='M0 0h100v9H0zm0 91h100v9H0z' fill='#845432'/><path d='M0 24h100M0 50h100M0 76h100' stroke='#7e4f30' stroke-width='2.1' opacity='.52'/><path d='M5 5h90v90H5z' fill='none' stroke='#ffe8c279' stroke-width='2'/>");
 makeSprite('floor', "<defs><linearGradient id='f1' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#913627'/><stop offset='.55' stop-color='#6f261c'/><stop offset='1' stop-color='#52170f'/></linearGradient><pattern id='tile' width='20' height='20' patternUnits='userSpaceOnUse'><rect width='20' height='20' fill='none'/><path d='M0 10h20M10 0v20' stroke='#2d0f0b' stroke-width='1.2' opacity='.45'/><path d='M0 0L20 20M20 0L0 20' stroke='#a84832' stroke-width='.6' opacity='.2'/></pattern></defs><rect width='100' height='100' fill='url(#f1)'/><rect width='100' height='100' fill='url(#tile)'/><ellipse cx='20' cy='22' rx='18' ry='10' fill='#c1654f22'/><ellipse cx='78' cy='74' rx='24' ry='12' fill='#2a0c0840'/>");
 makeSprite('grass', "<defs><radialGradient id='gg' cx='.4' cy='.25' r='.85'><stop offset='0' stop-color='#8bd96c'/><stop offset='1' stop-color='#2f6b2c'/></radialGradient></defs><rect width='100' height='100' fill='#2f5127'/><g fill='url(#gg)'><circle cx='18' cy='26' r='16'/><circle cx='48' cy='18' r='18'/><circle cx='78' cy='30' r='16'/><circle cx='30' cy='58' r='22'/><circle cx='72' cy='66' r='20'/></g><g stroke='#c2ef8d66' stroke-width='2'><path d='M15 36l3-14M44 30l4-14M66 44l5-14M36 78l6-18M77 80l3-16'/></g>");
-makeSprite('tree', "<rect width='100' height='100' fill='#284629'/><rect x='40' y='52' width='20' height='38' rx='7' fill='#6f3e22'/><path d='M46 52V88M54 52V88' stroke='#8d5632' stroke-width='3'/><g><circle cx='50' cy='38' r='27' fill='#2f8f44'/><circle cx='33' cy='42' r='16' fill='#2a7b3b'/><circle cx='67' cy='44' r='16' fill='#2a7b3b'/><circle cx='49' cy='22' r='15' fill='#43a95b'/></g><path d='M35 30c5-8 15-9 24-7' stroke='#a6f0aa66' stroke-width='3' fill='none'/>");
+makeSprite('tree', "<defs><radialGradient id='tg' cx='.45' cy='.2' r='.95'><stop offset='0' stop-color='#7fde83'/><stop offset='.65' stop-color='#2c8e45'/><stop offset='1' stop-color='#1f6031'/></radialGradient></defs><rect width='100' height='100' fill='#233d24'/><rect x='39' y='50' width='22' height='40' rx='8' fill='#7a4728'/><path d='M45 52v36M55 52v36' stroke='#9f6339' stroke-width='3'/><circle cx='50' cy='34' r='28' fill='url(#tg)'/><circle cx='31' cy='44' r='15' fill='#2d7a3e'/><circle cx='69' cy='45' r='15' fill='#2a743b'/><circle cx='49' cy='19' r='13' fill='#53b665'/><circle cx='40' cy='29' r='5' fill='#b0f0b466'/><circle cx='60' cy='30' r='5' fill='#b0f0b455'/>");
 makeSprite('water', "<defs><linearGradient id='wg' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#6ac2ff'/><stop offset='.6' stop-color='#2a6fbf'/><stop offset='1' stop-color='#1b3f79'/></linearGradient></defs><rect width='100' height='100' fill='url(#wg)'/><path d='M0 26c12-10 24-10 36 0s24 10 36 0 20-10 28 0v14c-10 8-20 8-30 0s-20-8-30 0-20 8-30 0S6 42 0 48z' fill='#9fe3ff66'/><path d='M0 58c10-8 20-8 30 0s20 8 30 0 20-8 30 0 20 8 30 0v14c-10 8-20 8-30 0s-20-8-30 0-20 8-30 0-20-8-30 0z' fill='#d5f4ff44'/>");
 makeSprite('block', "<defs><linearGradient id='bg' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ddb37f'/><stop offset='1' stop-color='#875d3a'/></linearGradient></defs><rect width='100' height='100' fill='#5f3f29'/><rect x='10' y='10' width='80' height='80' rx='8' fill='url(#bg)'/><rect x='16' y='16' width='68' height='68' rx='6' fill='none' stroke='#f2d0a4' stroke-width='3' opacity='.7'/><path d='M24 34h52M24 50h52M24 66h52' stroke='#694326' stroke-width='3' opacity='.55'/>");
 makeSprite('chest', "<defs><linearGradient id='cg' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#f5c64f'/><stop offset='1' stop-color='#9c6718'/></linearGradient></defs><rect width='100' height='100' fill='#3e2a13'/><rect x='12' y='40' width='76' height='40' rx='9' fill='url(#cg)'/><path d='M12 40c6-14 18-22 38-22s32 8 38 22H12z' fill='#c58a25'/><rect x='46' y='22' width='8' height='58' fill='#f7e2a2'/><rect x='38' y='50' width='24' height='16' rx='5' fill='#734d14'/><circle cx='50' cy='58' r='4' fill='#f8e49e'/><rect x='20' y='46' width='16' height='8' rx='3' fill='#ffd57b77'/>");
@@ -154,7 +154,7 @@ makeSprite('door', "<defs><linearGradient id='dg' x1='0' y1='0' x2='0' y2='1'><s
 makeSprite('heart', "<defs><radialGradient id='hg' cx='.35' cy='.25' r='.9'><stop offset='0' stop-color='#ff9bb4'/><stop offset='1' stop-color='#d91e4f'/></radialGradient></defs><rect width='100' height='100' fill='none'/><path d='M50 84C13 61 7 41 18 28c9-11 26-7 32 8 6-15 23-19 32-8 11 13 5 33-32 56z' fill='url(#hg)'/><path d='M31 33c4-4 10-5 14-2' stroke='#ffd3df88' stroke-width='4' fill='none'/>");
 makeSprite('medusa', "<defs><radialGradient id='mg' cx='.4' cy='.3' r='.8'><stop offset='0' stop-color='#e8c8ff'/><stop offset='1' stop-color='#9256d9'/></radialGradient></defs><rect width='100' height='100' fill='none'/><circle cx='50' cy='40' r='24' fill='url(#mg)'/><circle cx='42' cy='38' r='5' fill='#fff'/><circle cx='58' cy='38' r='5' fill='#fff'/><circle cx='42' cy='39' r='2' fill='#2d174d'/><circle cx='58' cy='39' r='2' fill='#2d174d'/><path d='M35 53c5 6 25 6 30 0' stroke='#4f2a7d' stroke-width='5' fill='none' stroke-linecap='round'/><path d='M24 66c8-6 14-6 20 0M40 70c6-5 12-5 18 0M58 70c6-5 12-5 18 0' stroke='#8b5fd1' stroke-width='6' fill='none' stroke-linecap='round'/>");
 makeSprite('egg', "<defs><radialGradient id='eg' cx='.35' cy='.2' r='.9'><stop offset='0' stop-color='#fffef4'/><stop offset='1' stop-color='#d7d4bc'/></radialGradient></defs><rect width='100' height='100' fill='none'/><ellipse cx='50' cy='58' rx='23' ry='30' fill='url(#eg)'/><ellipse cx='42' cy='50' rx='7' ry='9' fill='#d8efff'/><ellipse cx='60' cy='64' rx='6' ry='4' fill='#b8b59f66'/>");
-makeSprite('player', "<defs><radialGradient id='pg' cx='.35' cy='.25' r='.9'><stop offset='0' stop-color='#99ecff'/><stop offset='1' stop-color='#2f96dd'/></radialGradient></defs><rect width='100' height='100' fill='none'/><circle cx='50' cy='40' r='24' fill='url(#pg)'/><rect x='28' y='58' width='44' height='26' rx='10' fill='#317fc0'/><circle cx='42' cy='38' r='5' fill='#fff'/><circle cx='58' cy='38' r='5' fill='#fff'/><circle cx='42' cy='39' r='2' fill='#18324b'/><circle cx='58' cy='39' r='2' fill='#18324b'/><path d='M42 50c5 3 11 3 16 0' stroke='#0f3b64' stroke-width='3' fill='none' stroke-linecap='round'/><path d='M32 65h36' stroke='#67b8f2' stroke-width='3' opacity='.8'/>");
+makeSprite('player', "<defs><radialGradient id='pg' cx='.35' cy='.2' r='.95'><stop offset='0' stop-color='#bff6ff'/><stop offset='.55' stop-color='#4fb2ee'/><stop offset='1' stop-color='#245ea1'/></radialGradient><linearGradient id='pb' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#53b6ff'/><stop offset='1' stop-color='#24579b'/></linearGradient></defs><rect width='100' height='100' fill='none'/><ellipse cx='50' cy='43' rx='25' ry='24' fill='url(#pg)'/><ellipse cx='50' cy='41' rx='21' ry='18' fill='none' stroke='#dffaff88' stroke-width='3'/><rect x='24' y='58' width='52' height='28' rx='12' fill='url(#pb)'/><rect x='30' y='61' width='40' height='8' rx='4' fill='#8ad8ff66'/><circle cx='42' cy='39' r='5.3' fill='#fff'/><circle cx='58' cy='39' r='5.3' fill='#fff'/><circle cx='42' cy='40' r='2.1' fill='#12365a'/><circle cx='58' cy='40' r='2.1' fill='#12365a'/><path d='M41 50c6 5 12 5 18 0' stroke='#11385e' stroke-width='3.4' fill='none' stroke-linecap='round'/><path d='M33 73h34' stroke='#9de3ff' stroke-width='3.2' stroke-linecap='round'/><circle cx='36' cy='33' r='3' fill='#f7feff88'/><circle cx='63' cy='34' r='2.5' fill='#f7feff66'/>");
 
 function key(x,y){ return `${x},${y}`; }
 function has(set,x,y){ return set.has(key(x,y)); }
@@ -305,6 +305,11 @@ function tapToTile(clientX, clientY){
   };
 }
 
+function canDragThrough(x,y){
+  if (x === state.player.x && y === state.player.y) return true;
+  return passableForPlayer(x,y,true);
+}
+
 function appendStepToPath(path, tile){
   const last = path[path.length - 1];
   if (!last) {
@@ -318,8 +323,22 @@ function appendStepToPath(path, tile){
   while (cx !== tile.x || cy !== tile.y) {
     const dx = tile.x - cx;
     const dy = tile.y - cy;
-    if (Math.abs(dx) >= Math.abs(dy) && dx !== 0) cx += Math.sign(dx);
-    else if (dy !== 0) cy += Math.sign(dy);
+
+    const horizontalFirst = Math.abs(dx) >= Math.abs(dy);
+    const candidates = [];
+    if (horizontalFirst) {
+      if (dx !== 0) candidates.push({ x: cx + Math.sign(dx), y: cy });
+      if (dy !== 0) candidates.push({ x: cx, y: cy + Math.sign(dy) });
+    } else {
+      if (dy !== 0) candidates.push({ x: cx, y: cy + Math.sign(dy) });
+      if (dx !== 0) candidates.push({ x: cx + Math.sign(dx), y: cy });
+    }
+
+    const next = candidates.find(c => canDragThrough(c.x, c.y));
+    if (!next) break;
+
+    cx = next.x;
+    cy = next.y;
     if (path[path.length - 1].x !== cx || path[path.length - 1].y !== cy) path.push({ x: cx, y: cy });
   }
 }
