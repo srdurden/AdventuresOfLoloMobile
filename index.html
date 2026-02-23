@@ -193,6 +193,11 @@
       transform: none;
       box-shadow: none;
     }
+    .editor-cell.drop-target {
+      outline: 2px solid #00d4ff;
+      outline-offset: -2px;
+      box-shadow: inset 0 0 0 2px rgba(0, 212, 255, 0.35);
+    }
     #editorText {
       width: 100%;
       min-height: 150px;
@@ -363,6 +368,7 @@ let editorRows = LEVEL.map(r => r.split(''));
 let editorMouseDown = false;
 let editorActivePointerId = null;
 let editorDrag = null;
+let editorDropTarget = null;
 
 const state = {
   base: null,
@@ -972,6 +978,39 @@ function moveEditorTile(fromX, fromY, toX, toY){
   editorText.value = editorToRaw(editorRows);
 }
 
+function setEditorDropTarget(x, y){
+  if (editorDropTarget && editorDropTarget.x === x && editorDropTarget.y === y) return;
+  if (editorDropTarget) {
+    const prev = editorGrid.querySelector(`.editor-cell[data-x="${editorDropTarget.x}"][data-y="${editorDropTarget.y}"]`);
+    prev?.classList.remove('drop-target');
+  }
+  editorDropTarget = { x, y };
+  const next = editorGrid.querySelector(`.editor-cell[data-x="${x}"][data-y="${y}"]`);
+  next?.classList.add('drop-target');
+}
+
+function clearEditorDropTarget(){
+  if (!editorDropTarget) return;
+  const prev = editorGrid.querySelector(`.editor-cell[data-x="${editorDropTarget.x}"][data-y="${editorDropTarget.y}"]`);
+  prev?.classList.remove('drop-target');
+  editorDropTarget = null;
+}
+
+function getEditorTileFromPointerEvent(e, clamp=false){
+  const rect = editorGrid.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  const relX = (e.clientX - rect.left) / rect.width;
+  const relY = (e.clientY - rect.top) / rect.height;
+  if (!clamp && (relX < 0 || relX > 1 || relY < 0 || relY > 1)) return null;
+  const x = clamp
+    ? Math.max(0, Math.min(W - 1, Math.floor(relX * W)))
+    : Math.floor(relX * W);
+  const y = clamp
+    ? Math.max(0, Math.min(H - 1, Math.floor(relY * H)))
+    : Math.floor(relY * H);
+  return { x, y };
+}
+
 function frame(ts){
   if (!lastTs) lastTs = ts;
   const dt = Math.min(50, ts - lastTs);
@@ -1017,13 +1056,9 @@ function paintEditorCell(x, y){
 }
 
 function paintEditorFromPointerEvent(e){
-  const rect = editorGrid.getBoundingClientRect();
-  if (!rect.width || !rect.height) return;
-  const relX = (e.clientX - rect.left) / rect.width;
-  const relY = (e.clientY - rect.top) / rect.height;
-  if (relX < 0 || relX > 1 || relY < 0 || relY > 1) return;
-  const x = Math.max(0, Math.min(W - 1, Math.floor(relX * W)));
-  const y = Math.max(0, Math.min(H - 1, Math.floor(relY * H)));
+  const tilePos = getEditorTileFromPointerEvent(e);
+  if (!tilePos) return;
+  const { x, y } = tilePos;
   if (editorDrag && editorMouseDown && (x !== editorDrag.fromX || y !== editorDrag.fromY) && editorDrag.tile !== '.') {
     editorDrag.moved = true;
   }
@@ -1051,11 +1086,13 @@ function renderEditorGrid(){
         const sourceTile = editorRows[y][x];
         editorDrag = { fromX: x, fromY: y, moved: false, tile: sourceTile, isMove: sourceTile !== '.' };
         editorGrid.setPointerCapture(e.pointerId);
+        if (editorDrag.isMove) setEditorDropTarget(x, y);
         if (!editorDrag.isMove) paintEditorFromPointerEvent(e);
       });
       editorGrid.appendChild(cell);
     }
   }
+  clearEditorDropTarget();
   editorText.value = editorToRaw(editorRows);
 }
 
@@ -1063,6 +1100,11 @@ editorGrid.addEventListener('pointermove', (e) => {
   if (!editorMouseDown) return;
   if (e.pointerId !== editorActivePointerId) return;
   if ((e.buttons & 1) !== 1) return;
+  if (editorDrag?.isMove) {
+    const target = getEditorTileFromPointerEvent(e);
+    if (target) setEditorDropTarget(target.x, target.y);
+    else clearEditorDropTarget();
+  }
   paintEditorFromPointerEvent(e);
 });
 
@@ -1111,6 +1153,7 @@ function closeEditor(){
   editorMouseDown = false;
   editorActivePointerId = null;
   editorDrag = null;
+  clearEditorDropTarget();
 }
 
 function startLevel(){
@@ -1161,16 +1204,13 @@ document.getElementById('editBtn').onclick = () => openEditor();
 function releaseEditorPointer(e){
   if (e && editorActivePointerId !== null && e.pointerId !== editorActivePointerId) return;
   if (editorDrag && editorDrag.isMove && editorDrag.moved && e) {
-    const rect = editorGrid.getBoundingClientRect();
-    const relX = (e.clientX - rect.left) / rect.width;
-    const relY = (e.clientY - rect.top) / rect.height;
-    const toX = Math.max(0, Math.min(W - 1, Math.floor(relX * W)));
-    const toY = Math.max(0, Math.min(H - 1, Math.floor(relY * H)));
-    moveEditorTile(editorDrag.fromX, editorDrag.fromY, toX, toY);
+    const target = getEditorTileFromPointerEvent(e, true);
+    if (target) moveEditorTile(editorDrag.fromX, editorDrag.fromY, target.x, target.y);
   }
   editorMouseDown = false;
   editorActivePointerId = null;
   editorDrag = null;
+  clearEditorDropTarget();
 }
 
 document.addEventListener('pointerup', releaseEditorPointer);
