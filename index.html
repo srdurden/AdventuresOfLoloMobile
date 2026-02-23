@@ -942,10 +942,17 @@ function spriteNameForTile(tile){
 
 function applyEditorCellVisual(cell, tile, x, y){
   const meta = TILE_META[tile] ?? TILE_META['.'];
-  const sprite = sprites[spriteNameForTile(tile)] ?? sprites.floor;
+  const floorSprite = sprites.floor;
+  const sprite = sprites[spriteNameForTile(tile)] ?? floorSprite;
   cell.textContent = '';
   cell.title = `${meta.label} (${tile}) - [${x},${y}]`;
-  cell.style.backgroundImage = sprite?.src ? `url("${sprite.src}")` : 'none';
+  const floorLayer = floorSprite?.src ? `url("${floorSprite.src}")` : '';
+  const spriteLayer = sprite?.src ? `url("${sprite.src}")` : '';
+  if (tile === '.' || !spriteLayer) {
+    cell.style.backgroundImage = floorLayer || 'none';
+  } else {
+    cell.style.backgroundImage = `${spriteLayer}, ${floorLayer}`;
+  }
 }
 
 function moveEditorTile(fromX, fromY, toX, toY){
