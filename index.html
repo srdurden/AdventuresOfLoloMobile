@@ -338,6 +338,9 @@ const MAX_UNDO = 200;
 const TICK = 100;
 const MOVE_INTERVAL = 75;
 const EGG_HATCH_MS = 30000;
+const MEDUSA_FREEZE_BEFORE_SHOT_MS = 70;
+const MEDUSA_SHOT_FLASH_MS = 90;
+const DEATH_RESET_FLASH_MS = 320;
 let lastTs = 0;
 let acc = 0;
 let moveAcc = 0;
@@ -388,6 +391,7 @@ const state = {
   deadUntil: 0,
   frozenUntil: 0,
   medusaShot: null,
+  resetFlashUntil: 0,
   undo: [],
   initialSnapshot: null,
 };
@@ -514,6 +518,7 @@ function restore(s){
   state.deadUntil = 0;
   state.frozenUntil = 0;
   state.medusaShot = null;
+  state.resetFlashUntil = 0;
 }
 
 function pushUndo(){
@@ -538,7 +543,9 @@ function isPlayerFrozen(){
 
 function killPlayer(){
   if (state.deadUntil || state.won) return;
-  state.deadUntil = performance.now() + 350;
+  const now = performance.now();
+  state.deadUntil = now + 350;
+  state.frozenUntil = now + 350;
   navigator.vibrate?.(40);
 }
 
@@ -864,7 +871,7 @@ function isPlayerAdjacentToVision(medusa){
 
 function tick(){
   const now = performance.now();
-  if (state.deadUntil && now >= state.deadUntil) return resetLevel();
+  if (state.deadUntil && now >= state.deadUntil) return resetLevel({ fromDeath: true });
   if (state.won) return;
   if (state.frozenUntil && now >= state.frozenUntil) state.frozenUntil = 0;
 
@@ -890,17 +897,23 @@ function tick(){
       e.charge = 0;
       continue;
     }
-    e.charge += TICK;
-    state.frozenUntil = now + 200;
+    if (!e.charge) e.charge = now;
+    const elapsed = now - e.charge;
+    state.frozenUntil = Math.max(state.frozenUntil, e.charge + MEDUSA_FREEZE_BEFORE_SHOT_MS + MEDUSA_SHOT_FLASH_MS);
+    if (elapsed < MEDUSA_FREEZE_BEFORE_SHOT_MS) continue;
+
+    const shotStartedAt = e.charge + MEDUSA_FREEZE_BEFORE_SHOT_MS;
+    const shotAge = now - shotStartedAt;
     state.medusaShot = {
       fromX: e.x,
       fromY: e.y,
       toX: state.player.x,
       toY: state.player.y,
-      chargeRatio: Math.min(1, e.charge / 280),
-      ts: now,
+      chargeRatio: 1,
+      ts: shotStartedAt,
+      life: MEDUSA_SHOT_FLASH_MS,
     };
-    if (e.charge >= 280) return killPlayer();
+    if (shotAge >= MEDUSA_SHOT_FLASH_MS * 0.35) return killPlayer();
   }
 }
 
@@ -995,15 +1008,15 @@ function draw(){
   }
 
   if (state.medusaShot) {
-    const { fromX, fromY, toX, toY, chargeRatio = 1, ts = performance.now() } = state.medusaShot;
+    const { fromX, fromY, toX, toY, chargeRatio = 1, ts = performance.now(), life = MEDUSA_SHOT_FLASH_MS } = state.medusaShot;
     const fromPx = board.x + (fromX + 0.5) * board.t;
     const fromPy = board.y + (fromY + 0.5) * board.t;
     const toPx = board.x + (toX + 0.5) * board.t;
     const toPy = board.y + (toY + 0.5) * board.t;
 
     const now = performance.now();
-    const beamAnim = (now - ts) * 0.008;
-    const head = Math.min(1, chargeRatio + 0.12 + Math.sin(beamAnim) * 0.03);
+    const progress = Math.max(0, Math.min(1, (now - ts) / Math.max(1, life)));
+    const head = Math.min(1, 0.92 + progress * 0.2);
     const sx = fromPx;
     const sy = fromPy;
     const ex = fromPx + (toPx - fromPx) * head;
@@ -1014,9 +1027,9 @@ function draw(){
     grad.addColorStop(0.45, 'rgba(246, 240, 107, 0.92)');
     grad.addColorStop(1, 'rgba(255, 255, 255, 1)');
     ctx.strokeStyle = grad;
-    ctx.lineWidth = Math.max(2, board.t * (0.17 + chargeRatio * 0.18));
+    ctx.lineWidth = Math.max(2, board.t * (0.24 + chargeRatio * 0.08));
     ctx.lineCap = 'round';
-    ctx.shadowBlur = board.t * (0.3 + chargeRatio * 0.6);
+    ctx.shadowBlur = board.t * (0.7 + (1 - progress) * 0.8);
     ctx.shadowColor = 'rgba(246, 240, 107, 0.9)';
     ctx.beginPath();
     ctx.moveTo(sx, sy);
@@ -1052,6 +1065,26 @@ function draw(){
     const py = board.y + state.player.y * board.t;
     ctx.fillStyle = 'rgba(120, 210, 255, 0.4)';
     ctx.fillRect(px, py, board.t, board.t);
+  }
+
+  if (state.deadUntil) {
+    const blink = 0.25 + Math.abs(Math.sin(performance.now() * 0.04)) * 0.35;
+    ctx.fillStyle = `rgba(255, 44, 44, ${blink})`;
+    ctx.fillRect(board.x, board.y, board.t * W, board.t * H);
+  }
+
+  if (state.resetFlashUntil) {
+    const now = performance.now();
+    const remain = state.resetFlashUntil - now;
+    if (remain <= 0) state.resetFlashUntil = 0;
+    else {
+      const p = remain / DEATH_RESET_FLASH_MS;
+      ctx.fillStyle = `rgba(200, 245, 255, ${0.5 * p})`;
+      ctx.fillRect(board.x, board.y, board.t * W, board.t * H);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.95 * p})`;
+      ctx.lineWidth = Math.max(2, board.t * 0.16);
+      ctx.strokeRect(board.x, board.y, board.t * W, board.t * H);
+    }
   }
 
   hudShots.textContent = `✦ ${state.shots}`;
@@ -1302,6 +1335,7 @@ function startLevel(){
   state.deadUntil = 0;
   state.frozenUntil = 0;
   state.medusaShot = null;
+  state.resetFlashUntil = 0;
   state.undo = [];
   queuedMoves = [];
   queuedSnapshot = null;
@@ -1312,7 +1346,7 @@ function startLevel(){
   state.initialSnapshot = snapshot();
 }
 
-function resetLevel(){
+function resetLevel({ fromDeath = false } = {}){
   restore(state.initialSnapshot);
   state.undo = [];
   queuedMoves = [];
@@ -1320,6 +1354,7 @@ function resetLevel(){
   queuedMoved = false;
   dragPath = [];
   activePointerId = null;
+  if (fromDeath) state.resetFlashUntil = performance.now() + DEATH_RESET_FLASH_MS;
   setHudMessage('');
 }
 
