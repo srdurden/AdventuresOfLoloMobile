@@ -337,6 +337,7 @@ const setHudMessage = () => {};
 const MAX_UNDO = 200;
 const TICK = 100;
 const MOVE_INTERVAL = 75;
+const DRAG_PATH_MOVE_INTERVAL = 110;
 const PLAYER_MOVE_MS = MOVE_INTERVAL;
 const EGG_HATCH_MS = 30000;
 const MEDUSA_FREEZE_BEFORE_SHOT_MS = 70;
@@ -529,10 +530,10 @@ function parseLevel(){
     if (ch === 'H') hearts.push({ x, y });
     if (ch === 'A') enemies.push({ type:'ardilla', x, y, charge:0, alert:false });
     if (ch === 'M') enemies.push({ type:'medusa', x, y, charge:0, alert:false });
-    if (ch === 'N') enemies.push({ type:'dragon', x, y, dir:[0,-1], coolDownUntil:0 });
-    if (ch === 'U') enemies.push({ type:'dragon', x, y, dir:[0,1], coolDownUntil:0 });
-    if (ch === 'E') enemies.push({ type:'dragon', x, y, dir:[1,0], coolDownUntil:0 });
-    if (ch === 'O') enemies.push({ type:'dragon', x, y, dir:[-1,0], coolDownUntil:0 });
+    if (ch === 'N') enemies.push({ type:'dragon', x, y, dir:[0,-1], coolDownUntil:0, wasSeeingPlayer:false });
+    if (ch === 'U') enemies.push({ type:'dragon', x, y, dir:[0,1], coolDownUntil:0, wasSeeingPlayer:false });
+    if (ch === 'E') enemies.push({ type:'dragon', x, y, dir:[1,0], coolDownUntil:0, wasSeeingPlayer:false });
+    if (ch === 'O') enemies.push({ type:'dragon', x, y, dir:[-1,0], coolDownUntil:0, wasSeeingPlayer:false });
     if (ch === 'B') blocks.push({ x, y });
     if (ch === 'C') chest = { x, y };
     if (ch === 'D') door = { x, y };
@@ -836,9 +837,9 @@ function clearPathInput(){
 function clearKeyboardInput(){
 }
 
-function enqueueMove(dx, dy, undoSnapshot = snapshot()){
-  queuedMoves.push({ dx, dy, undoSnapshot });
-  moveAcc = MOVE_INTERVAL;
+function enqueueMove(dx, dy, undoSnapshot = snapshot(), intervalMs = MOVE_INTERVAL){
+  queuedMoves.push({ dx, dy, undoSnapshot, intervalMs });
+  if (queuedMoves.length === 1) moveAcc = intervalMs;
 }
 
 function queueDraggedPath(){
@@ -853,16 +854,17 @@ function queueDraggedPath(){
     steps.push([dx, dy]);
   }
   if (!steps.length) return;
-  for (const [dx, dy] of steps) enqueueMove(dx, dy);
+  for (const [dx, dy] of steps) enqueueMove(dx, dy, snapshot(), DRAG_PATH_MOVE_INTERVAL);
 }
 
 function processQueuedMove(){
-  if (!queuedMoves.length || state.won || state.deadUntil || isPlayerFrozen()) return;
+  if (!queuedMoves.length || state.won || state.deadUntil || isPlayerFrozen()) return false;
   const nextMove = queuedMoves.shift();
   pushUndoSnapshot(nextMove.undoSnapshot);
   if (!tryMovePlayer(nextMove.dx, nextMove.dy)) {
     state.undo.pop();
   }
+  return true;
 }
 
 canvas.addEventListener('pointerdown', e => {
@@ -963,8 +965,14 @@ function updateDragonThreat(now = performance.now()){
   if (!chestOpen() || state.keyCollected || state.won || state.deadUntil) return;
   for (const enemy of state.enemies) {
     if (enemy.type !== 'dragon') continue;
-    if ((enemy.coolDownUntil ?? 0) > now) continue;
-    if (!getDragonSightToPlayer(enemy)) continue;
+    const seesPlayer = getDragonSightToPlayer(enemy);
+    if (!seesPlayer) {
+      enemy.wasSeeingPlayer = false;
+      continue;
+    }
+    const justSpottedPlayer = !enemy.wasSeeingPlayer;
+    enemy.wasSeeingPlayer = true;
+    if (!justSpottedPlayer && (enemy.coolDownUntil ?? 0) > now) continue;
     enemy.coolDownUntil = now + DRAGON_FIRE_COOLDOWN_MS;
     spawnDragonFireball(enemy, now);
   }
@@ -1466,9 +1474,12 @@ function frame(ts){
   lastTs = ts;
   acc += dt;
   moveAcc += dt;
-  while (moveAcc >= MOVE_INTERVAL) {
-    processQueuedMove();
-    moveAcc -= MOVE_INTERVAL;
+  while (queuedMoves.length) {
+    const intervalMs = queuedMoves[0].intervalMs ?? MOVE_INTERVAL;
+    if (moveAcc < intervalMs) break;
+    const processed = processQueuedMove();
+    if (!processed) break;
+    moveAcc -= intervalMs;
   }
   while (acc >= TICK) {
     tick();
