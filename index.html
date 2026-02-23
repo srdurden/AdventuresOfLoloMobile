@@ -349,6 +349,13 @@ let board = { x: 0, y: 0, t: 20 };
 let activePointerId = null;
 let dragPath = [];
 let queuedMoves = [];
+const KEY_DIRECTIONS = {
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+};
+const heldKeyboardDirections = new Map();
 let playerAnim = null;
 let isEditorOpen = false;
 
@@ -772,6 +779,10 @@ function clearPathInput(){
   dragPath = [];
 }
 
+function clearKeyboardInput(){
+  heldKeyboardDirections.clear();
+}
+
 function enqueueMove(dx, dy, undoSnapshot = snapshot()){
   queuedMoves.push({ dx, dy, undoSnapshot });
   moveAcc = MOVE_INTERVAL;
@@ -799,6 +810,24 @@ function processQueuedMove(){
   if (!tryMovePlayer(nextMove.dx, nextMove.dy)) {
     state.undo.pop();
   }
+}
+
+function getKeyboardDirection(){
+  let latest = null;
+  for (const entry of heldKeyboardDirections.values()) {
+    if (!latest || entry.pressedAt > latest.pressedAt) latest = entry;
+  }
+  return latest ? [latest.dx, latest.dy] : null;
+}
+
+function attemptKeyboardMove(){
+  if (queuedMoves.length || state.won || state.deadUntil || isPlayerFrozen()) return;
+  const direction = getKeyboardDirection();
+  if (!direction) return;
+  const [dx, dy] = direction;
+  const undoSnapshot = snapshot();
+  pushUndoSnapshot(undoSnapshot);
+  if (!tryMovePlayer(dx, dy)) state.undo.pop();
 }
 
 canvas.addEventListener('pointerdown', e => {
@@ -849,18 +878,25 @@ canvas.addEventListener('pointerup', handlePointerEnd);
 canvas.addEventListener('pointercancel', handlePointerEnd);
 
 document.addEventListener('keydown', (e) => {
-  if (isEditorOpen || state.won || state.deadUntil || isPlayerFrozen()) return;
-  const movement = {
-    ArrowUp: [0, -1],
-    ArrowDown: [0, 1],
-    ArrowLeft: [-1, 0],
-    ArrowRight: [1, 0],
-  }[e.key];
+  const movement = KEY_DIRECTIONS[e.key];
   if (!movement) return;
   e.preventDefault();
+  if (isEditorOpen || state.won || state.deadUntil || isPlayerFrozen()) return;
   const [dx, dy] = movement;
-  enqueueMove(dx, dy);
+  if (!heldKeyboardDirections.has(e.key)) {
+    heldKeyboardDirections.set(e.key, { dx, dy, pressedAt: performance.now() });
+    attemptKeyboardMove();
+    return;
+  }
+  heldKeyboardDirections.set(e.key, { dx, dy, pressedAt: performance.now() });
 });
+
+document.addEventListener('keyup', (e) => {
+  if (!KEY_DIRECTIONS[e.key]) return;
+  heldKeyboardDirections.delete(e.key);
+});
+
+window.addEventListener('blur', clearKeyboardInput);
 
 function blockedForMedusaShot(x,y){
   const b = state.base[y][x];
@@ -1217,6 +1253,7 @@ function frame(ts){
   acc += dt;
   moveAcc += dt;
   while (moveAcc >= MOVE_INTERVAL) {
+    attemptKeyboardMove();
     processQueuedMove();
     moveAcc -= MOVE_INTERVAL;
   }
@@ -1338,6 +1375,7 @@ function loadEditorFromRaw(raw){
 }
 
 function openEditor(){
+  clearKeyboardInput();
   isEditorOpen = true;
   editorView.classList.add('visible');
   editorView.setAttribute('aria-hidden', 'false');
@@ -1347,6 +1385,7 @@ function openEditor(){
 }
 
 function closeEditor(){
+  clearKeyboardInput();
   isEditorOpen = false;
   editorView.classList.remove('visible');
   editorView.setAttribute('aria-hidden', 'true');
