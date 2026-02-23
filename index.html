@@ -1249,10 +1249,11 @@ function renderEditorGrid(){
         editorMouseDown = true;
         editorActivePointerId = e.pointerId;
         const sourceTile = editorRows[y][x];
-        editorDrag = { fromX: x, fromY: y, moved: false, tile: sourceTile, isMove: sourceTile !== '.' };
+        const canMoveTile = sourceTile !== '.' && sourceTile === editorTile;
+        editorDrag = { fromX: x, fromY: y, moved: false, tile: sourceTile, isMove: canMoveTile };
         editorGrid.setPointerCapture(e.pointerId);
         if (editorDrag.isMove) setEditorDropTarget(x, y);
-        if (!editorDrag.isMove) paintEditorFromPointerEvent(e);
+        if (!editorDrag.isMove) paintEditorCell(x, y);
       });
       editorGrid.appendChild(cell);
     }
