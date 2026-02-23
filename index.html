@@ -423,12 +423,12 @@ function initSprites() {
     chest: "0000000000000000\n1111111111111111\n1333333333333331\n1222222222222221\n1222222222222221\n1333333333333331\n1333333333333331\n1222221111222221\n1222221441222221\n1222221441222221\n1222221111222221\n1222222222222221\n1222222222222221\n1333333333333331\n1111111111111111\n0000000000000000",
     chest_open: "0000000000000000\n1111111111111111\n1333333333333331\n1222222222222221\n1222222222222221\n1333333333333331\n1111111111111111\n1444444444444441\n1444444444444441\n1111111111111111\n1222222222222221\n1222222222222221\n1333333333333331\n1111111111111111\n0000000000000000\n0000000000000000",
     ardilla: "0000000111000000\n0000001333100000\n0000013333310000\n0000122222210000\n0001412222221000\n0001412222221000\n0001442211221000\n0001222211221000\n0000122222210000\n0000122222210000\n0000012222100000\n0000012221000000\n0000122221000000\n0001222221100000\n0012222222210000\n0011111111110000",
-    medusa: "0000000222200000\n0000022333322000\n0000233333332000\n0000232333232000\n0000233333332000\n0000022222220000\n0000000444400000\n0000044444440000\n0000444455444000\n0004444444444400\n0004444444444400\n0004444444444400\n0004444444444400\n0000444444444000\n0000044444440000\n0000000000000000",
+    medusa: "0000002222220000\n0000233333332000\n0002332323233200\n0023332332333320\n0022333333333220\n0002233333332200\n0000022222220000\n0000004554000000\n0000044555440000\n0000444444444000\n0004444444444400\n0044444545444440\n0044444444444440\n0004444444444400\n0000444444444000\n0000000000000000",
     egg: "0000001111000000\n0000112222110000\n0001222222221000\n0012222222223100\n0122222222223310\n0122222222223310\n1222222222223331\n1222222222223331\n1222222222223331\n1222222222223331\n1222222222223331\n0122222222223310\n0132222222223310\n0013322222233100\n0001133333331000\n0000111111110000",
     door: "0000000000000000\n0001111001111000\n0012221001222100\n0122221001222210\n0122221001222210\n0111111001111110\n0122221001222210\n0122221001222210\n0122221001222210\n0111111001111110\n0122221001222210\n0122221001222210\n0122231001322210\n0122221001222210\n0111111001111110\n0000000000000000",
     water: "1111111111111111\n1111221111112211\n1122332211223322\n1122332211223322\n1111221111112211\n1111111111111111\n1111111111111111\n1111111111111111\n1111112211111122\n1111223322112233\n1111223322112233\n1111112211111122\n1111111111111111\n1111111111111111\n1111111111111111\n1111111111111111",
     block: "0000000000000000\n0001111111111000\n0012222333332100\n0122233333333210\n1223332232233321\n1233223332332331\n1232233323233321\n1232333322333321\n1223332233333221\n1223333233323221\n1223333333233321\n0123333233333210\n0012444444444100\n0001455444551000\n0000111111110000\n0000000000000000",
-    medusa_alert: "0000000222200000\n0000022333322000\n0000233333332000\n0000236333632000\n0000233333332000\n0000022222220000\n0000000444400000\n0000044444440000\n0000444455444000\n0004444444444400\n0004444444444400\n0004444444444400\n0004444444444400\n0000444444444000\n0000044444440000\n0000000000000000"
+    medusa_alert: "0000002222220000\n0000233333332000\n0002332323233200\n0023332636233320\n0022333333333220\n0002233333332200\n0000022222220000\n0000004554000000\n0000044555440000\n0000444444444000\n0004444444444400\n0044444545444440\n0044444444444440\n0004444444444400\n0000444444444000\n0000000000000000"
   };
 
   for (const k in art) {
@@ -824,7 +824,7 @@ document.addEventListener('keydown', (e) => {
 
 function blockedForMedusaShot(x,y){
   const b = state.base[y][x];
-  return b === '#' || b === 'C' || b === 'D' || b === 'T' || b === 'S' || has(state.blocks,x,y) || has(state.eggs,x,y);
+  return b === '#' || b === 'C' || b === 'D' || b === 'S' || has(state.blocks,x,y) || has(state.eggs,x,y);
 }
 
 function hasLineOfSightToPlayer(medusa){
@@ -892,7 +892,14 @@ function tick(){
     }
     e.charge += TICK;
     state.frozenUntil = now + 200;
-    state.medusaShot = { fromX: e.x, fromY: e.y, toX: state.player.x, toY: state.player.y };
+    state.medusaShot = {
+      fromX: e.x,
+      fromY: e.y,
+      toX: state.player.x,
+      toY: state.player.y,
+      chargeRatio: Math.min(1, e.charge / 280),
+      ts: now,
+    };
     if (e.charge >= 280) return killPlayer();
   }
 }
@@ -965,22 +972,62 @@ function draw(){
   for (const hrt of arrFromSet(state.hearts)) drawSprite('heart',hrt.x,hrt.y);
   for (const egg of arrFromSet(state.eggs)) drawSprite('egg',egg.x,egg.y);
   for (const e of state.enemies) {
-    if (e.type === 'medusa' && e.alert) drawSprite('medusa_alert', e.x, e.y);
-    else drawSprite(e.type, e.x, e.y);
+    if (e.type === 'medusa' && e.alert) {
+      const px = board.x + e.x * board.t;
+      const py = board.y + e.y * board.t;
+      const t = performance.now() * 0.012;
+      const pulse = 0.45 + Math.abs(Math.sin(t)) * 0.55;
+      const radius = board.t * (0.5 + pulse * 0.32);
+      const glow = ctx.createRadialGradient(
+        px + board.t * 0.5,
+        py + board.t * 0.5,
+        board.t * 0.2,
+        px + board.t * 0.5,
+        py + board.t * 0.5,
+        radius
+      );
+      glow.addColorStop(0, `rgba(246, 240, 107, ${0.32 + pulse * 0.28})`);
+      glow.addColorStop(1, 'rgba(246, 240, 107, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(px - board.t * 0.4, py - board.t * 0.4, board.t * 1.8, board.t * 1.8);
+      drawSprite('medusa_alert', e.x, e.y);
+    } else drawSprite(e.type, e.x, e.y);
   }
 
   if (state.medusaShot) {
-    const { fromX, fromY, toX, toY } = state.medusaShot;
+    const { fromX, fromY, toX, toY, chargeRatio = 1, ts = performance.now() } = state.medusaShot;
     const fromPx = board.x + (fromX + 0.5) * board.t;
     const fromPy = board.y + (fromY + 0.5) * board.t;
     const toPx = board.x + (toX + 0.5) * board.t;
     const toPy = board.y + (toY + 0.5) * board.t;
-    ctx.strokeStyle = 'rgba(246, 240, 107, 0.95)';
-    ctx.lineWidth = Math.max(2, board.t * 0.2);
+
+    const now = performance.now();
+    const beamAnim = (now - ts) * 0.008;
+    const head = Math.min(1, chargeRatio + 0.12 + Math.sin(beamAnim) * 0.03);
+    const sx = fromPx;
+    const sy = fromPy;
+    const ex = fromPx + (toPx - fromPx) * head;
+    const ey = fromPy + (toPy - fromPy) * head;
+
+    const grad = ctx.createLinearGradient(sx, sy, ex, ey);
+    grad.addColorStop(0, 'rgba(153, 230, 255, 0.25)');
+    grad.addColorStop(0.45, 'rgba(246, 240, 107, 0.92)');
+    grad.addColorStop(1, 'rgba(255, 255, 255, 1)');
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = Math.max(2, board.t * (0.17 + chargeRatio * 0.18));
+    ctx.lineCap = 'round';
+    ctx.shadowBlur = board.t * (0.3 + chargeRatio * 0.6);
+    ctx.shadowColor = 'rgba(246, 240, 107, 0.9)';
     ctx.beginPath();
-    ctx.moveTo(fromPx, fromPy);
-    ctx.lineTo(toPx, toPy);
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ex, ey);
     ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.beginPath();
+    ctx.arc(ex, ey, Math.max(1.5, board.t * 0.11), 0, Math.PI * 2);
+    ctx.fill();
   }
 
   if (dragPath.length > 1) {
