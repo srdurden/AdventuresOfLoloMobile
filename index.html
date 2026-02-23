@@ -355,7 +355,6 @@ const KEY_DIRECTIONS = {
   ArrowLeft: [-1, 0],
   ArrowRight: [1, 0],
 };
-const heldKeyboardDirections = new Map();
 let playerAnim = null;
 let isEditorOpen = false;
 
@@ -657,6 +656,7 @@ function tryMovePlayer(dx,dy){
     setHudMessage('¡Puerta abierta!');
   }
   if (state.doorOpen && state.door && tx === state.door.x && ty === state.door.y) return winLevel(), true;
+  resolveMedusaThreat(performance.now(), true);
   return true;
 }
 
@@ -781,7 +781,6 @@ function clearPathInput(){
 }
 
 function clearKeyboardInput(){
-  heldKeyboardDirections.clear();
 }
 
 function enqueueMove(dx, dy, undoSnapshot = snapshot()){
@@ -811,24 +810,6 @@ function processQueuedMove(){
   if (!tryMovePlayer(nextMove.dx, nextMove.dy)) {
     state.undo.pop();
   }
-}
-
-function getKeyboardDirection(){
-  let latest = null;
-  for (const entry of heldKeyboardDirections.values()) {
-    if (!latest || entry.pressedAt > latest.pressedAt) latest = entry;
-  }
-  return latest ? [latest.dx, latest.dy] : null;
-}
-
-function attemptKeyboardMove(){
-  if (queuedMoves.length || state.won || state.deadUntil || isPlayerFrozen()) return;
-  const direction = getKeyboardDirection();
-  if (!direction) return;
-  const [dx, dy] = direction;
-  const undoSnapshot = snapshot();
-  pushUndoSnapshot(undoSnapshot);
-  if (!tryMovePlayer(dx, dy)) state.undo.pop();
 }
 
 canvas.addEventListener('pointerdown', e => {
@@ -883,20 +864,14 @@ document.addEventListener('keydown', (e) => {
   if (!movement) return;
   e.preventDefault();
   if (isEditorOpen || state.won || state.deadUntil || isPlayerFrozen()) return;
+  if (e.repeat || queuedMoves.length) return;
   const [dx, dy] = movement;
-  if (!heldKeyboardDirections.has(e.key)) {
-    heldKeyboardDirections.set(e.key, { dx, dy, pressedAt: performance.now() });
-    attemptKeyboardMove();
-    return;
-  }
-  heldKeyboardDirections.set(e.key, { dx, dy, pressedAt: performance.now() });
+  const undoSnapshot = snapshot();
+  pushUndoSnapshot(undoSnapshot);
+  if (!tryMovePlayer(dx, dy)) state.undo.pop();
 });
 
-document.addEventListener('keyup', (e) => {
-  if (!KEY_DIRECTIONS[e.key]) return;
-  heldKeyboardDirections.delete(e.key);
-});
-
+document.addEventListener('keyup', clearKeyboardInput);
 window.addEventListener('blur', clearKeyboardInput);
 
 function blockedForMedusaShot(x,y){
@@ -943,21 +918,7 @@ function isPlayerAdjacentToVision(medusa){
   return medusaVisionTiles(medusa).some(v => Math.abs(v.x - state.player.x) + Math.abs(v.y - state.player.y) === 1);
 }
 
-function tick(){
-  const now = performance.now();
-  if (state.deadUntil && now >= state.deadUntil) return resetLevel({ fromDeath: true });
-  if (state.won) return;
-  if (state.frozenUntil && now >= state.frozenUntil) state.frozenUntil = 0;
-
-  for (const [pos, hatchAt] of state.eggTimers.entries()) {
-    if (now < hatchAt) continue;
-    const [x,y] = pos.split(',').map(Number);
-    state.eggTimers.delete(pos);
-    if (!state.eggs.has(pos)) continue;
-    state.eggs.delete(pos);
-    if (!enemyAt(x,y)) state.enemies.push({ type:'ardilla', x, y, charge:0, alert:false });
-  }
-
+function resolveMedusaThreat(now = performance.now(), instantKill = false){
   state.medusaShot = null;
   for (const e of state.enemies) {
     if (e.type !== 'medusa') {
@@ -973,6 +934,7 @@ function tick(){
       continue;
     }
     if (!e.charge) e.charge = now;
+    if (instantKill) e.charge = Math.min(e.charge, now - MEDUSA_FREEZE_BEFORE_SHOT_MS);
     const elapsed = now - e.charge;
     state.frozenUntil = Math.max(state.frozenUntil, e.charge + MEDUSA_FREEZE_BEFORE_SHOT_MS + MEDUSA_SHOT_FLASH_MS);
     if (elapsed < MEDUSA_FREEZE_BEFORE_SHOT_MS) continue;
@@ -988,8 +950,29 @@ function tick(){
       ts: shotStartedAt,
       life: MEDUSA_SHOT_FLASH_MS,
     };
-    if (shotAge >= MEDUSA_SHOT_FLASH_MS * 0.35) return killPlayer();
+    if (shotAge >= MEDUSA_SHOT_FLASH_MS * 0.35 || instantKill) {
+      killPlayer();
+      return;
+    }
   }
+}
+
+function tick(){
+  const now = performance.now();
+  if (state.deadUntil && now >= state.deadUntil) return resetLevel({ fromDeath: true });
+  if (state.won) return;
+  if (state.frozenUntil && now >= state.frozenUntil) state.frozenUntil = 0;
+
+  for (const [pos, hatchAt] of state.eggTimers.entries()) {
+    if (now < hatchAt) continue;
+    const [x,y] = pos.split(',').map(Number);
+    state.eggTimers.delete(pos);
+    if (!state.eggs.has(pos)) continue;
+    state.eggs.delete(pos);
+    if (!enemyAt(x,y)) state.enemies.push({ type:'ardilla', x, y, charge:0, alert:false });
+  }
+
+  resolveMedusaThreat(now);
 }
 
 function resize(){
@@ -1266,7 +1249,6 @@ function frame(ts){
   acc += dt;
   moveAcc += dt;
   while (moveAcc >= MOVE_INTERVAL) {
-    attemptKeyboardMove();
     processQueuedMove();
     moveAcc -= MOVE_INTERVAL;
   }
