@@ -286,7 +286,7 @@ VVVVVVVVVVVVVV`,
 #.#.#C#.#....#
 #...#.#...##.#
 ###.#.#####..#
-#P..#.....#D.#
+#P..#..R..#D.#
 #.######..#..#
 #......#..#..#
 #.####.#..#..#
@@ -298,7 +298,7 @@ VVVVVVVVVVVVVV`,
 ##############`
 ];
 
-const ALLOWED = new Set(['#','V','.','P','H','C','B','~','A','M','T','S','D','N','U','E','O']);
+const ALLOWED = new Set(['#','V','.','P','H','C','B','~','R','A','M','T','S','D','N','U','E','O']);
 function parseLevelRows(raw) {
   const rows = raw.trim().split('\n').map(r => r.trim());
   const h = rows.length;
@@ -372,6 +372,7 @@ const TILE_META = {
   'D': { label: 'Puerta', color: '#735124', text: '#fff' },
   'B': { label: 'Bloque', color: '#c89f6f', text: '#111' },
   '~': { label: 'Agua', color: '#0f4dd8', text: '#fff' },
+  'R': { label: 'Puente', color: '#9b632f', text: '#fff' },
   'A': { label: 'Ardilla', color: '#2d962d', text: '#fff' },
   'M': { label: 'Medusa', color: '#8742c8', text: '#fff' },
   'N': { label: 'Dragón Norte', color: '#b94242', text: '#fff' },
@@ -381,7 +382,7 @@ const TILE_META = {
   'T': { label: 'Árbol', color: '#0c6515', text: '#fff' },
   'S': { label: 'Piedra', color: '#8a8a8a', text: '#111' },
 };
-const PALETTE_ORDER = ['.','#','V','T','S','~','B','H','C','D','A','M','N','U','E','O','P'];
+const PALETTE_ORDER = ['.','#','V','T','S','~','R','B','H','C','D','A','M','N','U','E','O','P'];
 let editorTile = 'P';
 let editorRows = LEVEL.map(r => r.split(''));
 let editorMouseDown = false;
@@ -436,6 +437,7 @@ function initSprites() {
     door: ['#000000', '#503000', '#805000', '#F8B800'],
     water: ['#000000', '#0058F8', '#3CBCFC', '#FFFFFF'],
     block: ['transparent', '#000000', '#FFFFFF', '#00A800', '#D83800', '#881400', '#005800'],
+    bridge: ['transparent', '#000000', '#4e3117', '#7a4b24', '#ae6f34', '#d89a55'],
     medusa_alert: ['transparent', '#000000', '#6B6B6B', '#D0D0D0', '#CC33FF', '#FFFFFF', '#f6f06b']
   };
 
@@ -455,6 +457,7 @@ function initSprites() {
     egg: "0000001111000000\n0000112222110000\n0001222222221000\n0012222222223100\n0122222222223310\n0122222222223310\n1222222222223331\n1222222222223331\n1222222222223331\n1222222222223331\n1222222222223331\n0122222222223310\n0132222222223310\n0013322222233100\n0001133333331000\n0000111111110000",
     door: "0000000000000000\n0001111001111000\n0012221001222100\n0122221001222210\n0122221001222210\n0111111001111110\n0122221001222210\n0122221001222210\n0122221001222210\n0111111001111110\n0122221001222210\n0122221001222210\n0122231001322210\n0122221001222210\n0111111001111110\n0000000000000000",
     water: waterBaseArt,
+    bridge: "0000000000000000\n0000000000000000\n2222222222222222\n2333333333333332\n2333333333333332\n2555555555555552\n2555555555555552\n2000200020002002\n2000200020002002\n2555555555555552\n2555555555555552\n2333333333333332\n2333333333333332\n2222222222222222\n0000000000000000\n0000000000000000",
     block: "0000000000000000\n0001111111111000\n0012222333332100\n0122233333333210\n1223332232233321\n1233223332332331\n1232233323233321\n1232333322333321\n1223332233333221\n1223333233323221\n1223333333233321\n0123333233333210\n0012444444444100\n0001455444551000\n0000111111110000\n0000000000000000",
     medusa_alert: "0011111111111100\n0122233223322210\n1223322332233221\n1233223333223321\n1333333333333331\n0133111111113310\n0133166116613310\n0133111111113310\n0013333113333100\n0013333113333100\n0001331111331000\n0000111111110000\n0000013333100000\n0011114444111100\n0144541111454410\n1444444444444441",
     dragon_n: "0000000660000000\n0000002662000000\n0000022222200000\n0000222332220000\n0002223333222000\n0022222332222200\n0222244444422220\n0222444444442220\n0222233443322220\n0022233333332220\n0002233113332200\n0000233113332000\n0000022222220000\n0000022112220000\n0000222000222000\n0002200000002200",
@@ -538,7 +541,7 @@ function parseLevel(){
 
   for (let y=0; y<H; y++) for (let x=0; x<W; x++) {
     const ch = LEVEL[y][x];
-    if ('#V.~TCDS'.includes(ch)) base[y][x] = ch;
+    if ('#V.~TCDSR'.includes(ch)) base[y][x] = ch;
     if (ch === 'P') player = { x, y, facing:[1,0] };
     if (ch === 'H') hearts.push({ x, y });
     if (ch === 'A') enemies.push({ type:'ardilla', x, y, charge:0, alert:false });
@@ -1202,6 +1205,10 @@ function draw(){
         ctx.fillRect(px, py, board.t, board.t);
       }
       else if (b === '~') drawSprite(getWaterSpriteName(now, x, y),x,y);
+      else if (b === 'R') {
+        drawSprite(getWaterSpriteName(now, x, y),x,y);
+        drawSprite('bridge',x,y);
+      }
       else if (b === 'T') drawSprite('tree',x,y);
       else if (b === 'S') drawSprite('stone',x,y);
       else if (b === 'C') {
@@ -1415,6 +1422,7 @@ function spriteNameForTile(tile){
   if (tile === 'T') return 'tree';
   if (tile === 'S') return 'stone';
   if (tile === '~') return 'water';
+  if (tile === 'R') return 'bridge';
   if (tile === 'B') return 'block';
   if (tile === 'H') return 'heart';
   if (tile === 'C') return 'chest';
