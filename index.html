@@ -341,7 +341,7 @@ const PLAYER_MOVE_MS = MOVE_INTERVAL;
 const EGG_HATCH_MS = 30000;
 const MEDUSA_FREEZE_BEFORE_SHOT_MS = 70;
 const MEDUSA_SHOT_FLASH_MS = 90;
-const DRAGON_FIREBALL_STEP_MS = 220;
+const DRAGON_FIREBALL_STEP_MS = 110;
 const DRAGON_FIRE_COOLDOWN_MS = 900;
 const DEATH_RESET_FLASH_MS = 320;
 const EXPLOSION_FLASH_MS = 420;
@@ -997,6 +997,14 @@ function advanceDragonFireballs(now = performance.now()){
   state.fireballs = next;
 }
 
+function getFireballRenderPosition(fireball, now = performance.now()){
+  const progress = Math.max(0, Math.min(1, (now - fireball.lastStepAt) / DRAGON_FIREBALL_STEP_MS));
+  return {
+    x: fireball.x + fireball.dx * progress,
+    y: fireball.y + fireball.dy * progress,
+  };
+}
+
 function blockedForMedusaShot(x,y){
   const b = state.base[y][x];
   return b === '#' || b === 'V' || b === 'C' || b === 'D' || b === 'S' || has(state.blocks,x,y) || has(state.eggs,x,y);
@@ -1263,8 +1271,9 @@ function draw(){
   }
 
   for (const fireball of state.fireballs) {
-    const px = board.x + (fireball.x + 0.5) * board.t;
-    const py = board.y + (fireball.y + 0.5) * board.t;
+    const renderPos = getFireballRenderPosition(fireball, now);
+    const px = board.x + (renderPos.x + 0.5) * board.t;
+    const py = board.y + (renderPos.y + 0.5) * board.t;
     const glow = ctx.createRadialGradient(px, py, board.t * 0.05, px, py, board.t * 0.45);
     glow.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
     glow.addColorStop(0.35, 'rgba(255, 204, 83, 0.95)');
