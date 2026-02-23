@@ -217,7 +217,26 @@
 
 <script>
 // Mapa actualizado: Retirada la Medusa y añadida la Ardilla (A) en el centro.
-const DEFAULT_LEVEL_RAW = `##############\n#............#\n#............#\n#............#\n#SSSSSSSSTTT.#\n#S...H...SSSS#\n#S.TTT.T..SSS#\n#S..SSS....SS#\n#S.PSSS..A.HS#\n#S...SSS....S#\n#STTT....TTTS#\n#STTT....TTTS#\n#S....C.....S#\n#STTT...TTT.S#\n#STTT...TTT.S#\n#SSSSSSSSSSSS#\n#............#\n#............#\n#............#\n##############`;
+const DEFAULT_LEVEL_RAW = `##############
+#......T.....#
+#......T.....#
+#......T.....#
+#......T.....#
+#......T.....#
+#......T.....#
+#......T.....#
+#......T.....#
+#..P.H.A.H.C.#
+#......S.....#
+#......S.....#
+#......S.....#
+#......S.....#
+#......S.....#
+#......S.....#
+#......S.....#
+#......S.....#
+#......S.....#
+##############`;
 
 const ALLOWED = new Set(['#','.','P','H','C','B','~','A','T','S']);
 function parseLevelRows(raw) {
