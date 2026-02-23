@@ -342,6 +342,7 @@ const EGG_HATCH_MS = 30000;
 const MEDUSA_FREEZE_BEFORE_SHOT_MS = 70;
 const MEDUSA_SHOT_FLASH_MS = 90;
 const DEATH_RESET_FLASH_MS = 320;
+const EXPLOSION_FLASH_MS = 420;
 let lastTs = 0;
 let acc = 0;
 let moveAcc = 0;
@@ -399,6 +400,8 @@ const state = {
   frozenUntil: 0,
   medusaShot: null,
   resetFlashUntil: 0,
+  keyCollected: false,
+  explosions: [],
   undo: [],
   initialSnapshot: null,
 };
@@ -530,6 +533,8 @@ function snapshot(){
     doorOpen: state.doorOpen,
     frozenUntil: state.frozenUntil,
     medusaShot: state.medusaShot ? { ...state.medusaShot } : null,
+    keyCollected: Boolean(state.keyCollected),
+    explosions: state.explosions.map(explosion => ({ ...explosion })),
   };
 }
 
@@ -548,7 +553,25 @@ function restore(s){
   state.frozenUntil = 0;
   state.medusaShot = null;
   state.resetFlashUntil = 0;
+  state.keyCollected = Boolean(s.keyCollected);
+  state.explosions = (s.explosions ?? []).map(explosion => ({ ...explosion }));
   clearPlayerAnimation();
+}
+
+function triggerEnemyExplosion(){
+  const now = performance.now();
+  const exploded = [];
+  for (const enemy of state.enemies) exploded.push({ x: enemy.x, y: enemy.y, startedAt: now, life: EXPLOSION_FLASH_MS });
+  for (const egg of arrFromSet(state.eggs)) exploded.push({ x: egg.x, y: egg.y, startedAt: now, life: EXPLOSION_FLASH_MS });
+  if (!exploded.length) return;
+  state.explosions.push(...exploded);
+  state.enemies = [];
+  state.eggs = new Set();
+  state.eggTimers = new Map();
+  state.medusaShot = null;
+  state.frozenUntil = 0;
+  setHudMessage('¡La llave destruyó a todos los enemigos!');
+  navigator.vibrate?.([20, 20, 45]);
 }
 
 function pushUndoSnapshot(undoSnapshot){
@@ -652,6 +675,10 @@ function tryMovePlayer(dx,dy){
     setHudMessage('¡Ganaste 1 disparo!');
   }
   if (!state.doorOpen && chestOpen() && state.chest && tx === state.chest.x && ty === state.chest.y) {
+    if (!state.keyCollected) {
+      state.keyCollected = true;
+      triggerEnemyExplosion();
+    }
     state.doorOpen = true;
     setHudMessage('¡Puerta abierta!');
   }
@@ -972,6 +999,8 @@ function tick(){
     if (!enemyAt(x,y)) state.enemies.push({ type:'ardilla', x, y, charge:0, alert:false });
   }
 
+  state.explosions = state.explosions.filter(explosion => now - explosion.startedAt < explosion.life);
+
   resolveMedusaThreat(now);
 }
 
@@ -1009,6 +1038,7 @@ function draw(){
   
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, w, h);
+  const now = performance.now();
 
   // Capa 0: Suelo en todas partes
   for (let y=0; y<H; y++) {
@@ -1031,14 +1061,49 @@ function draw(){
       else if (b === '~') drawSprite('water',x,y);
       else if (b === 'T') drawSprite('tree',x,y);
       else if (b === 'S') drawSprite('stone',x,y);
-      else if (b === 'C') drawSprite(chestOpen() ? 'chest_open' : 'chest',x,y);
-      else if (b === 'D') {
-        drawSprite('door',x,y);
-        if (!state.doorOpen) {
+      else if (b === 'C') {
+        drawSprite(chestOpen() ? 'chest_open' : 'chest',x,y);
+        if (chestOpen()) {
           const px = board.x + x * board.t;
           const py = board.y + y * board.t;
+          const pulse = 0.5 + Math.abs(Math.sin(now * 0.01)) * 0.5;
+          const glow = ctx.createRadialGradient(
+            px + board.t * 0.5,
+            py + board.t * 0.5,
+            board.t * 0.1,
+            px + board.t * 0.5,
+            py + board.t * 0.5,
+            board.t * (0.9 + pulse * 0.55)
+          );
+          glow.addColorStop(0, `rgba(255, 255, 180, ${0.28 + pulse * 0.22})`);
+          glow.addColorStop(0.6, `rgba(255, 212, 92, ${0.24 + pulse * 0.2})`);
+          glow.addColorStop(1, 'rgba(255, 212, 92, 0)');
+          ctx.fillStyle = glow;
+          ctx.fillRect(px - board.t * 0.75, py - board.t * 0.75, board.t * 2.5, board.t * 2.5);
+        }
+      }
+      else if (b === 'D') {
+        drawSprite('door',x,y);
+        const px = board.x + x * board.t;
+        const py = board.y + y * board.t;
+        if (!state.doorOpen) {
           ctx.fillStyle = 'rgba(20, 12, 4, 0.6)';
           ctx.fillRect(px, py, board.t, board.t);
+        } else {
+          const pulse = 0.45 + Math.abs(Math.sin(now * 0.008 + 1.2)) * 0.55;
+          const glow = ctx.createRadialGradient(
+            px + board.t * 0.5,
+            py + board.t * 0.5,
+            board.t * 0.15,
+            px + board.t * 0.5,
+            py + board.t * 0.5,
+            board.t * (1.05 + pulse * 0.5)
+          );
+          glow.addColorStop(0, `rgba(170, 240, 255, ${0.26 + pulse * 0.18})`);
+          glow.addColorStop(0.65, `rgba(75, 192, 255, ${0.18 + pulse * 0.22})`);
+          glow.addColorStop(1, 'rgba(75, 192, 255, 0)');
+          ctx.fillStyle = glow;
+          ctx.fillRect(px - board.t * 0.8, py - board.t * 0.8, board.t * 2.6, board.t * 2.6);
         }
       }
     }
@@ -1071,6 +1136,25 @@ function draw(){
     } else drawSprite(e.type, e.x, e.y);
   }
 
+  for (const explosion of state.explosions) {
+    const life = Math.max(1, explosion.life);
+    const progress = Math.max(0, Math.min(1, (now - explosion.startedAt) / life));
+    const alpha = 1 - progress;
+    const px = board.x + (explosion.x + 0.5) * board.t;
+    const py = board.y + (explosion.y + 0.5) * board.t;
+    const radius = board.t * (0.2 + progress * 0.85);
+
+    const blast = ctx.createRadialGradient(px, py, board.t * 0.04, px, py, radius);
+    blast.addColorStop(0, `rgba(255, 255, 255, ${0.95 * alpha})`);
+    blast.addColorStop(0.4, `rgba(255, 214, 94, ${0.8 * alpha})`);
+    blast.addColorStop(0.8, `rgba(255, 92, 64, ${0.5 * alpha})`);
+    blast.addColorStop(1, 'rgba(255, 92, 64, 0)');
+    ctx.fillStyle = blast;
+    ctx.beginPath();
+    ctx.arc(px, py, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   if (state.medusaShot) {
     const { fromX, fromY, toX, toY, chargeRatio = 1, ts = performance.now(), life = MEDUSA_SHOT_FLASH_MS } = state.medusaShot;
     const fromPx = board.x + (fromX + 0.5) * board.t;
@@ -1078,7 +1162,6 @@ function draw(){
     const toPx = board.x + (toX + 0.5) * board.t;
     const toPy = board.y + (toY + 0.5) * board.t;
 
-    const now = performance.now();
     const progress = Math.max(0, Math.min(1, (now - ts) / Math.max(1, life)));
     const head = Math.min(1, 0.92 + progress * 0.2);
     const sx = fromPx;
@@ -1410,6 +1493,8 @@ function startLevel(){
   state.frozenUntil = 0;
   state.medusaShot = null;
   state.resetFlashUntil = 0;
+  state.keyCollected = false;
+  state.explosions = [];
   state.undo = [];
   queuedMoves = [];
   clearPlayerAnimation();
@@ -1426,6 +1511,7 @@ function resetLevel({ fromDeath = false } = {}){
   clearPlayerAnimation();
   dragPath = [];
   activePointerId = null;
+  state.explosions = [];
   if (fromDeath) state.resetFlashUntil = performance.now() + DEATH_RESET_FLASH_MS;
   setHudMessage('');
 }
