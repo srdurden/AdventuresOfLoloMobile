@@ -298,7 +298,7 @@ VVVVVVVVVVVVVV`,
 ##############`
 ];
 
-const ALLOWED = new Set(['#','V','.','P','H','C','B','~','A','M','T','S','D']);
+const ALLOWED = new Set(['#','V','.','P','H','C','B','~','A','M','T','S','D','N','U','E','O']);
 function parseLevelRows(raw) {
   const rows = raw.trim().split('\n').map(r => r.trim());
   const h = rows.length;
@@ -341,6 +341,8 @@ const PLAYER_MOVE_MS = MOVE_INTERVAL;
 const EGG_HATCH_MS = 30000;
 const MEDUSA_FREEZE_BEFORE_SHOT_MS = 70;
 const MEDUSA_SHOT_FLASH_MS = 90;
+const DRAGON_FIREBALL_STEP_MS = 220;
+const DRAGON_FIRE_COOLDOWN_MS = 900;
 const DEATH_RESET_FLASH_MS = 320;
 const EXPLOSION_FLASH_MS = 420;
 let lastTs = 0;
@@ -371,10 +373,14 @@ const TILE_META = {
   '~': { label: 'Agua', color: '#0f4dd8', text: '#fff' },
   'A': { label: 'Ardilla', color: '#2d962d', text: '#fff' },
   'M': { label: 'Medusa', color: '#8742c8', text: '#fff' },
+  'N': { label: 'Dragón Norte', color: '#b94242', text: '#fff' },
+  'U': { label: 'Dragón Sur', color: '#b94242', text: '#fff' },
+  'E': { label: 'Dragón Este', color: '#b94242', text: '#fff' },
+  'O': { label: 'Dragón Oeste', color: '#b94242', text: '#fff' },
   'T': { label: 'Árbol', color: '#0c6515', text: '#fff' },
   'S': { label: 'Piedra', color: '#8a8a8a', text: '#111' },
 };
-const PALETTE_ORDER = ['.','#','V','T','S','~','B','H','C','D','A','M','P'];
+const PALETTE_ORDER = ['.','#','V','T','S','~','B','H','C','D','A','M','N','U','E','O','P'];
 let editorTile = 'P';
 let editorRows = LEVEL.map(r => r.split(''));
 let editorMouseDown = false;
@@ -399,6 +405,7 @@ const state = {
   deadUntil: 0,
   frozenUntil: 0,
   medusaShot: null,
+  fireballs: [],
   resetFlashUntil: 0,
   keyCollected: false,
   explosions: [],
@@ -420,6 +427,10 @@ function initSprites() {
     chest_open: ['transparent', '#000000', '#F83800', '#FFFFFF', '#880000'],
     ardilla: ['transparent', '#000000', '#00A800', '#F83800', '#FFFFFF'],
     medusa: ['transparent', '#000000', '#6B6B6B', '#D0D0D0', '#CC33FF', '#FFFFFF', '#58d1ff'],
+    dragon_n: ['transparent', '#000000', '#b44a1a', '#ee9b2f', '#f4d9a4', '#ffd15f', '#9b1f1f'],
+    dragon_s: ['transparent', '#000000', '#b44a1a', '#ee9b2f', '#f4d9a4', '#ffd15f', '#9b1f1f'],
+    dragon_e: ['transparent', '#000000', '#b44a1a', '#ee9b2f', '#f4d9a4', '#ffd15f', '#9b1f1f'],
+    dragon_o: ['transparent', '#000000', '#b44a1a', '#ee9b2f', '#f4d9a4', '#ffd15f', '#9b1f1f'],
     egg: ['transparent', '#000000', '#FFFFFF', '#AAAAAA', '#555555'],
     door: ['#000000', '#503000', '#805000', '#F8B800'],
     water: ['#000000', '#0058F8', '#3CBCFC', '#FFFFFF'],
@@ -442,7 +453,11 @@ function initSprites() {
     door: "0000000000000000\n0001111001111000\n0012221001222100\n0122221001222210\n0122221001222210\n0111111001111110\n0122221001222210\n0122221001222210\n0122221001222210\n0111111001111110\n0122221001222210\n0122221001222210\n0122231001322210\n0122221001222210\n0111111001111110\n0000000000000000",
     water: "1111111111111111\n1111221111112211\n1122332211223322\n1122332211223322\n1111221111112211\n1111111111111111\n1111111111111111\n1111111111111111\n1111112211111122\n1111223322112233\n1111223322112233\n1111112211111122\n1111111111111111\n1111111111111111\n1111111111111111\n1111111111111111",
     block: "0000000000000000\n0001111111111000\n0012222333332100\n0122233333333210\n1223332232233321\n1233223332332331\n1232233323233321\n1232333322333321\n1223332233333221\n1223333233323221\n1223333333233321\n0123333233333210\n0012444444444100\n0001455444551000\n0000111111110000\n0000000000000000",
-    medusa_alert: "0011111111111100\n0122233223322210\n1223322332233221\n1233223333223321\n1333333333333331\n0133111111113310\n0133166116613310\n0133111111113310\n0013333113333100\n0013333113333100\n0001331111331000\n0000111111110000\n0000013333100000\n0011114444111100\n0144541111454410\n1444444444444441"
+    medusa_alert: "0011111111111100\n0122233223322210\n1223322332233221\n1233223333223321\n1333333333333331\n0133111111113310\n0133166116613310\n0133111111113310\n0013333113333100\n0013333113333100\n0001331111331000\n0000111111110000\n0000013333100000\n0011114444111100\n0144541111454410\n1444444444444441",
+    dragon_n: "0000000660000000\n0000002662000000\n0000022222200000\n0000222332220000\n0002223333222000\n0022222332222200\n0222244444422220\n0222444444442220\n0222233443322220\n0022233333332220\n0002233113332200\n0000233113332000\n0000022222220000\n0000022112220000\n0000222000222000\n0002200000002200",
+    dragon_s: "0002200000002200\n0000222000222000\n0000022112220000\n0000022222220000\n0000233113332000\n0002233113332200\n0022233333332220\n0222233443322220\n0222444444442220\n0222244444422220\n0022222332222200\n0002223333222000\n0000222332220000\n0000022222200000\n0000002662000000\n0000000660000000",
+    dragon_e: "0000000000220000\n0000000022222000\n0000000223222200\n0000002233322220\n0000022333333220\n0000222333333322\n0002234444433332\n0222234444443332\n0222333444433320\n0002233333333220\n0000223331132200\n0000022331132000\n0000002222220000\n0000022211220000\n0000222002200000\n0002200000000000",
+    dragon_o: "0002200000000000\n0000222002200000\n0000022211220000\n0000002222220000\n0000022331132000\n0000223331132200\n0002233333333220\n0222333444433320\n0222234444443332\n0002234444433332\n0000222333333322\n0000022333333220\n0000002233322220\n0000000223222200\n0000000022222000\n0000000000220000"
   };
 
   for (const k in art) {
@@ -474,6 +489,7 @@ function arrFromSet(set){ return [...set].map(s=>{ const [x,y] = s.split(',').ma
 function inBounds(x,y){ return x>=0 && y>=0 && x<W && y<H; }
 function chestOpen(){ return state.hearts.size === 0; }
 function enemyAt(x,y){ return state.enemies.find(e => e.x===x && e.y===y); }
+function fireballAt(x,y){ return state.fireballs.find(f => Math.round(f.x)===x && Math.round(f.y)===y); }
 
 function setPlayerAnimation(fromX, fromY, toX, toY){
   playerAnim = { fromX, fromY, toX, toY, startedAt: performance.now(), duration: PLAYER_MOVE_MS };
@@ -513,6 +529,10 @@ function parseLevel(){
     if (ch === 'H') hearts.push({ x, y });
     if (ch === 'A') enemies.push({ type:'ardilla', x, y, charge:0, alert:false });
     if (ch === 'M') enemies.push({ type:'medusa', x, y, charge:0, alert:false });
+    if (ch === 'N') enemies.push({ type:'dragon', x, y, dir:[0,-1], coolDownUntil:0 });
+    if (ch === 'U') enemies.push({ type:'dragon', x, y, dir:[0,1], coolDownUntil:0 });
+    if (ch === 'E') enemies.push({ type:'dragon', x, y, dir:[1,0], coolDownUntil:0 });
+    if (ch === 'O') enemies.push({ type:'dragon', x, y, dir:[-1,0], coolDownUntil:0 });
     if (ch === 'B') blocks.push({ x, y });
     if (ch === 'C') chest = { x, y };
     if (ch === 'D') door = { x, y };
@@ -533,6 +553,7 @@ function snapshot(){
     doorOpen: state.doorOpen,
     frozenUntil: state.frozenUntil,
     medusaShot: state.medusaShot ? { ...state.medusaShot } : null,
+    fireballs: state.fireballs.map(f => ({ ...f })),
     keyCollected: Boolean(state.keyCollected),
     explosions: state.explosions.map(explosion => ({ ...explosion })),
   };
@@ -552,6 +573,7 @@ function restore(s){
   state.deadUntil = 0;
   state.frozenUntil = 0;
   state.medusaShot = null;
+  state.fireballs = (s.fireballs ?? []).map(f => ({ ...f }));
   state.resetFlashUntil = 0;
   state.keyCollected = Boolean(s.keyCollected);
   state.explosions = (s.explosions ?? []).map(explosion => ({ ...explosion }));
@@ -569,6 +591,7 @@ function triggerEnemyExplosion(){
   state.eggs = new Set();
   state.eggTimers = new Map();
   state.medusaShot = null;
+  state.fireballs = [];
   state.frozenUntil = 0;
   setHudMessage('¡La llave destruyó a todos los enemigos!');
   navigator.vibrate?.([20, 20, 45]);
@@ -594,7 +617,7 @@ function passableForPlayer(x,y,ignorePushables=false){
   if (b === '~' && !has(state.filledWater,x,y)) return false;
   if (b === 'C' && !chestOpen()) return false;
   if (b === 'D' && !state.doorOpen) return false;
-  return !enemyAt(x,y);
+  return !enemyAt(x,y) && !fireballAt(x,y);
 }
 
 function isPlayerFrozen(){
@@ -683,6 +706,7 @@ function tryMovePlayer(dx,dy){
     setHudMessage('¡Puerta abierta!');
   }
   if (state.doorOpen && state.door && tx === state.door.x && ty === state.door.y) return winLevel(), true;
+  if (fireballAt(tx, ty)) killPlayer();
   resolveMedusaThreat(performance.now(), true);
   return true;
 }
@@ -901,6 +925,78 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', clearKeyboardInput);
 window.addEventListener('blur', clearKeyboardInput);
 
+function blockedForDragonSight(x,y){
+  const b = state.base[y][x];
+  if (b === '#' || b === 'V' || b === 'C' || b === 'D' || b === 'S' || b === 'T') return true;
+  if (has(state.blocks,x,y) || has(state.eggs,x,y)) return true;
+  if (enemyAt(x,y)) return true;
+  return false;
+}
+
+function getDragonSightToPlayer(dragon){
+  const [dx, dy] = dragon.dir || [0, 0];
+  if (!dx && !dy) return false;
+  let x = dragon.x + dx;
+  let y = dragon.y + dy;
+  while (inBounds(x, y)) {
+    if (blockedForDragonSight(x, y)) return false;
+    if (x === state.player.x && y === state.player.y) return true;
+    x += dx;
+    y += dy;
+  }
+  return false;
+}
+
+function spawnDragonFireball(dragon, now){
+  const [dx, dy] = dragon.dir || [0, 0];
+  const x = dragon.x + dx;
+  const y = dragon.y + dy;
+  if (!inBounds(x, y) || blockedForDragonSight(x, y)) return;
+  const fireball = { x, y, dx, dy, lastStepAt: now };
+  state.fireballs.push(fireball);
+  if (x === state.player.x && y === state.player.y) killPlayer();
+}
+
+function updateDragonThreat(now = performance.now()){
+  if (!chestOpen() || state.keyCollected || state.won || state.deadUntil) return;
+  for (const enemy of state.enemies) {
+    if (enemy.type !== 'dragon') continue;
+    if ((enemy.coolDownUntil ?? 0) > now) continue;
+    if (!getDragonSightToPlayer(enemy)) continue;
+    enemy.coolDownUntil = now + DRAGON_FIRE_COOLDOWN_MS;
+    spawnDragonFireball(enemy, now);
+  }
+}
+
+function advanceDragonFireballs(now = performance.now()){
+  const next = [];
+  for (const fireball of state.fireballs) {
+    if (!inBounds(Math.round(fireball.x), Math.round(fireball.y))) continue;
+    let stepped = false;
+    while (now - fireball.lastStepAt >= DRAGON_FIREBALL_STEP_MS) {
+      fireball.lastStepAt += DRAGON_FIREBALL_STEP_MS;
+      fireball.x += fireball.dx;
+      fireball.y += fireball.dy;
+      stepped = true;
+      if (!inBounds(Math.round(fireball.x), Math.round(fireball.y))) break;
+      const tx = Math.round(fireball.x);
+      const ty = Math.round(fireball.y);
+      if (tx === state.player.x && ty === state.player.y) {
+        killPlayer();
+        break;
+      }
+      if (blockedForDragonSight(tx, ty)) break;
+    }
+    if (!inBounds(Math.round(fireball.x), Math.round(fireball.y))) continue;
+    const tx = Math.round(fireball.x);
+    const ty = Math.round(fireball.y);
+    if (tx === state.player.x && ty === state.player.y) continue;
+    if (stepped && blockedForDragonSight(tx, ty)) continue;
+    next.push(fireball);
+  }
+  state.fireballs = next;
+}
+
 function blockedForMedusaShot(x,y){
   const b = state.base[y][x];
   return b === '#' || b === 'V' || b === 'C' || b === 'D' || b === 'S' || has(state.blocks,x,y) || has(state.eggs,x,y);
@@ -1001,6 +1097,8 @@ function tick(){
 
   state.explosions = state.explosions.filter(explosion => now - explosion.startedAt < explosion.life);
 
+  updateDragonThreat(now);
+  advanceDragonFireballs(now);
   resolveMedusaThreat(now);
 }
 
@@ -1114,6 +1212,15 @@ function draw(){
   for (const hrt of arrFromSet(state.hearts)) drawSprite('heart',hrt.x,hrt.y);
   for (const egg of arrFromSet(state.eggs)) drawSprite('egg',egg.x,egg.y);
   for (const e of state.enemies) {
+    if (e.type === 'dragon') {
+      const dir = e.dir || [0, -1];
+      let sprite = 'dragon_n';
+      if (dir[0] === 1) sprite = 'dragon_e';
+      else if (dir[0] === -1) sprite = 'dragon_o';
+      else if (dir[1] === 1) sprite = 'dragon_s';
+      drawSprite(sprite, e.x, e.y);
+      continue;
+    }
     if (e.type === 'medusa' && e.alert) {
       const px = board.x + e.x * board.t;
       const py = board.y + e.y * board.t;
@@ -1152,6 +1259,19 @@ function draw(){
     ctx.fillStyle = blast;
     ctx.beginPath();
     ctx.arc(px, py, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  for (const fireball of state.fireballs) {
+    const px = board.x + (fireball.x + 0.5) * board.t;
+    const py = board.y + (fireball.y + 0.5) * board.t;
+    const glow = ctx.createRadialGradient(px, py, board.t * 0.05, px, py, board.t * 0.45);
+    glow.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+    glow.addColorStop(0.35, 'rgba(255, 204, 83, 0.95)');
+    glow.addColorStop(1, 'rgba(200, 32, 0, 0.2)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(px, py, Math.max(3, board.t * 0.22), 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -1255,6 +1375,10 @@ function spriteNameForTile(tile){
   if (tile === 'D') return 'door';
   if (tile === 'A') return 'ardilla';
   if (tile === 'M') return 'medusa';
+  if (tile === 'N') return 'dragon_n';
+  if (tile === 'U') return 'dragon_s';
+  if (tile === 'E') return 'dragon_e';
+  if (tile === 'O') return 'dragon_o';
   if (tile === 'P') return 'player';
   return 'floor';
 }
@@ -1492,6 +1616,7 @@ function startLevel(){
   state.deadUntil = 0;
   state.frozenUntil = 0;
   state.medusaShot = null;
+  state.fireballs = [];
   state.resetFlashUntil = 0;
   state.keyCollected = false;
   state.explosions = [];
