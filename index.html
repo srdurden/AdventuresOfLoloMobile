@@ -167,8 +167,11 @@
       color: #00d4ff;
     }
     #editorGrid {
+      --editor-cell-size: clamp(14px, 4.4vw, 20px);
       display: grid;
-      grid-template-columns: repeat(20, 1fr);
+      grid-template-columns: repeat(20, var(--editor-cell-size));
+      width: fit-content;
+      margin: 0 auto;
       gap: 0;
       background: #000;
       border: 2px solid #666;
@@ -176,8 +179,9 @@
     }
     .editor-cell {
       border: 0;
-      min-height: 20px;
-      height: 20px;
+      min-height: var(--editor-cell-size);
+      height: var(--editor-cell-size);
+      width: var(--editor-cell-size);
       box-shadow: none;
       padding: 0;
       background-color: #000;
@@ -1029,7 +1033,8 @@ function paintEditorFromPointerEvent(e){
 
 function renderEditorGrid(){
   editorGrid.innerHTML = '';
-  editorGrid.style.gridTemplateColumns = `repeat(${W}, 1fr)`;
+  editorGrid.style.gridTemplateColumns = `repeat(${W}, var(--editor-cell-size))`;
+  editorGrid.style.width = 'max-content';
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const tile = editorRows[y][x];
