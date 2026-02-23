@@ -528,7 +528,10 @@ function pushUndo(){
 
 function passableForPlayer(x,y,ignorePushables=false){
   if (!inBounds(x,y)) return false;
-  if (!ignorePushables && (has(state.blocks,x,y) || has(state.eggs,x,y))) return false;
+  if (!ignorePushables) {
+    if (has(state.blocks,x,y)) return false;
+    if (has(state.eggs,x,y) && !has(state.filledWater,x,y)) return false;
+  }
   const b = state.base[y][x];
   if (b === '#' || b === 'T' || b === 'S') return false;
   if (b === '~' && !has(state.filledWater,x,y)) return false;
@@ -574,6 +577,9 @@ function attemptPush(setRef, fromX, fromY, dx, dy){
   if (setRef === state.eggs) state.eggTimers.delete(fromKey);
   if (t === '~' && !has(state.filledWater,nx,ny)) {
     state.filledWater.add(toKey);
+    if (setRef === state.eggs) {
+      setRef.add(toKey);
+    }
   } else {
     setRef.add(toKey);
     if (setRef === state.eggs && eggHatchAt != null) state.eggTimers.set(toKey, eggHatchAt);
@@ -593,7 +599,9 @@ function tryMovePlayer(dx,dy){
   if (has(state.blocks,tx,ty)) {
     if (!attemptPush(state.blocks, tx, ty, dx, dy)) return false;
   } else if (has(state.eggs,tx,ty)) {
-    if (!attemptPush(state.eggs, tx, ty, dx, dy)) return false;
+    if (!has(state.filledWater,tx,ty)) {
+      if (!attemptPush(state.eggs, tx, ty, dx, dy)) return false;
+    }
   } else if (!passableForPlayer(tx,ty,true)) {
     return false;
   }
@@ -969,7 +977,7 @@ function draw(){
     for (let x=0; x<W; x++) {
       const b = state.base[y][x];
       if (b === '#') drawSprite('wall',x,y);
-      else if (b === '~' && !has(state.filledWater,x,y)) drawSprite('water',x,y);
+      else if (b === '~') drawSprite('water',x,y);
       else if (b === 'T') drawSprite('tree',x,y);
       else if (b === 'S') drawSprite('stone',x,y);
       else if (b === 'C') drawSprite(chestOpen() ? 'chest_open' : 'chest',x,y);
