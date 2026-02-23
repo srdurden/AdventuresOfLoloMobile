@@ -93,7 +93,6 @@
         <div class="pill">Nivel 1</div>
         <div class="pill" id="hudHearts">❤ 0</div>
         <div class="pill" id="hudShots">✦ 0</div>
-        <div class="pill" id="hudMsg" style="flex-basis: 100%; margin-top: 4px;"></div>
       </div>
     </div>
     <div id="controls">
@@ -124,7 +123,7 @@ const ctx = canvas.getContext('2d');
 const boardWrap = document.getElementById('boardWrap');
 const hudHearts = document.getElementById('hudHearts');
 const hudShots = document.getElementById('hudShots');
-const hudMsg = document.getElementById('hudMsg');
+const setHudMessage = () => {};
 
 const MAX_UNDO = 200;
 const TICK = 100;
@@ -287,7 +286,7 @@ function killPlayer(){
 
 function winLevel(){
   state.won = true;
-  hudMsg.textContent = '¡Completado!';
+  setHudMessage('¡Completado!');
   navigator.vibrate?.([30,30,60]);
 }
 
@@ -325,7 +324,7 @@ function tryMovePlayer(dx,dy){
   if (state.hearts.has(heartKey)) {
     state.hearts.delete(heartKey);
     state.shots += 1;
-    hudMsg.textContent = '¡Ganaste 1 disparo!';
+    setHudMessage('¡Ganaste 1 disparo!');
   }
   if (chestOpen() && state.chest && tx === state.chest.x && ty === state.chest.y) return winLevel(), true;
   return true;
@@ -333,7 +332,7 @@ function tryMovePlayer(dx,dy){
 
 function shoot(){
   if (state.shots <= 0) {
-    hudMsg.textContent = 'Sin disparos: recoge corazones';
+    setHudMessage('Sin disparos: recoge corazones');
     return false;
   }
   const [dx,dy] = state.player.facing;
@@ -346,11 +345,11 @@ function shoot(){
     state.enemies = state.enemies.filter(v => v !== hit);
     state.eggs.add(key(x,y));
     state.shots -= 1;
-    hudMsg.textContent = '¡Enemigo convertido en huevo!';
+    setHudMessage('¡Enemigo convertido en huevo!');
     navigator.vibrate?.(20);
     return true;
   }
-  hudMsg.textContent = 'Acércate a un enemigo para disparar';
+  setHudMessage('Acércate a un enemigo para disparar');
   return false;
 }
 
@@ -595,7 +594,7 @@ function draw(){
 
   hudHearts.textContent = `❤ ${state.hearts.size}`;
   hudShots.textContent = `✦ ${state.shots}`;
-  if (!state.won && state.hearts.size === 0) hudMsg.textContent = '¡Abre el cofre para terminar!';
+  if (!state.won && state.hearts.size === 0) setHudMessage('¡Abre el cofre para terminar!');
 }
 
 function frame(ts){
@@ -636,7 +635,7 @@ function startLevel(){
   queuedMoved = false;
   dragPath = [];
   activePointerId = null;
-  hudMsg.textContent = '';
+  setHudMessage('');
   state.initialSnapshot = snapshot();
 }
 
@@ -648,7 +647,7 @@ function resetLevel(){
   queuedMoved = false;
   dragPath = [];
   activePointerId = null;
-  hudMsg.textContent = '';
+  setHudMessage('');
 }
 
 document.getElementById('undoBtn').onclick = () => {
