@@ -1033,7 +1033,8 @@ function paintEditorFromPointerEvent(e){
 
 function renderEditorGrid(){
   editorGrid.innerHTML = '';
-  editorGrid.style.gridTemplateColumns = `repeat(${W}, 1fr)`;
+  editorGrid.style.gridTemplateColumns = `repeat(${W}, var(--editor-cell-size))`;
+  editorGrid.style.width = 'max-content';
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const tile = editorRows[y][x];
