@@ -298,7 +298,7 @@ const LEVELS_RAW = [
 ##############`
 ];
 
-const ALLOWED = new Set(['#','.','P','H','C','B','~','A','T','S','D']);
+const ALLOWED = new Set(['#','.','P','H','C','B','~','A','M','T','S','D']);
 function parseLevelRows(raw) {
   const rows = raw.trim().split('\n').map(r => r.trim());
   const h = rows.length;
@@ -359,10 +359,11 @@ const TILE_META = {
   'B': { label: 'Bloque', color: '#c89f6f', text: '#111' },
   '~': { label: 'Agua', color: '#0f4dd8', text: '#fff' },
   'A': { label: 'Ardilla', color: '#2d962d', text: '#fff' },
+  'M': { label: 'Medusa', color: '#8742c8', text: '#fff' },
   'T': { label: 'Árbol', color: '#0c6515', text: '#fff' },
   'S': { label: 'Piedra', color: '#8a8a8a', text: '#111' },
 };
-const PALETTE_ORDER = ['.','#','T','S','~','B','H','C','D','A','P'];
+const PALETTE_ORDER = ['.','#','T','S','~','B','H','C','D','A','M','P'];
 let editorTile = 'P';
 let editorRows = LEVEL.map(r => r.split(''));
 let editorMouseDown = false;
@@ -385,6 +386,8 @@ const state = {
   doorOpen: false,
   shots: 0,
   deadUntil: 0,
+  frozenUntil: 0,
+  medusaShot: null,
   undo: [],
   initialSnapshot: null,
 };
@@ -402,10 +405,12 @@ function initSprites() {
     chest: ['transparent', '#000000', '#F83800', '#FFFFFF', '#880000'],
     chest_open: ['transparent', '#000000', '#F83800', '#FFFFFF', '#880000'],
     ardilla: ['transparent', '#000000', '#00A800', '#F83800', '#FFFFFF'],
+    medusa: ['transparent', '#000000', '#6B6B6B', '#D0D0D0', '#CC33FF', '#FFFFFF', '#58d1ff'],
     egg: ['transparent', '#000000', '#FFFFFF', '#AAAAAA', '#555555'],
     door: ['#000000', '#503000', '#805000', '#F8B800'],
     water: ['#000000', '#0058F8', '#3CBCFC', '#FFFFFF'],
-    block: ['transparent', '#000000', '#F7D6AD', '#FCE9CC', '#D45A00', '#A63C00']
+    block: ['transparent', '#000000', '#F7D6AD', '#FCE9CC', '#D45A00', '#A63C00'],
+    medusa_alert: ['transparent', '#000000', '#6B6B6B', '#D0D0D0', '#CC33FF', '#FFFFFF', '#f6f06b']
   };
 
   const art = {
@@ -418,10 +423,12 @@ function initSprites() {
     chest: "0000000000000000\n1111111111111111\n1333333333333331\n1222222222222221\n1222222222222221\n1333333333333331\n1333333333333331\n1222221111222221\n1222221441222221\n1222221441222221\n1222221111222221\n1222222222222221\n1222222222222221\n1333333333333331\n1111111111111111\n0000000000000000",
     chest_open: "0000000000000000\n1111111111111111\n1333333333333331\n1222222222222221\n1222222222222221\n1333333333333331\n1111111111111111\n1444444444444441\n1444444444444441\n1111111111111111\n1222222222222221\n1222222222222221\n1333333333333331\n1111111111111111\n0000000000000000\n0000000000000000",
     ardilla: "0000000111000000\n0000001333100000\n0000013333310000\n0000122222210000\n0001412222221000\n0001412222221000\n0001442211221000\n0001222211221000\n0000122222210000\n0000122222210000\n0000012222100000\n0000012221000000\n0000122221000000\n0001222221100000\n0012222222210000\n0011111111110000",
+    medusa: "0000000222200000\n0000022333322000\n0000233333332000\n0000232333232000\n0000233333332000\n0000022222220000\n0000000444400000\n0000044444440000\n0000444455444000\n0004444444444400\n0004444444444400\n0004444444444400\n0004444444444400\n0000444444444000\n0000044444440000\n0000000000000000",
     egg: "0000001111000000\n0000112222110000\n0001222222221000\n0012222222223100\n0122222222223310\n0122222222223310\n1222222222223331\n1222222222223331\n1222222222223331\n1222222222223331\n1222222222223331\n0122222222223310\n0132222222223310\n0013322222233100\n0001133333331000\n0000111111110000",
     door: "0000000000000000\n0001111001111000\n0012221001222100\n0122221001222210\n0122221001222210\n0111111001111110\n0122221001222210\n0122221001222210\n0122221001222210\n0111111001111110\n0122221001222210\n0122221001222210\n0122231001322210\n0122221001222210\n0111111001111110\n0000000000000000",
     water: "1111111111111111\n1111221111112211\n1122332211223322\n1122332211223322\n1111221111112211\n1111111111111111\n1111111111111111\n1111111111111111\n1111112211111122\n1111223322112233\n1111223322112233\n1111112211111122\n1111111111111111\n1111111111111111\n1111111111111111\n1111111111111111",
-    block: "0000000000000000\n0001111111111000\n0012222333332100\n0122233333333210\n1223332232233321\n1233223332332331\n1232233323233321\n1232333322333321\n1223332233333221\n1223333233323221\n1223333333233321\n0123333233333210\n0012444444444100\n0001455444551000\n0000111111110000\n0000000000000000"
+    block: "0000000000000000\n0001111111111000\n0012222333332100\n0122233333333210\n1223332232233321\n1233223332332331\n1232233323233321\n1232333322333321\n1223332233333221\n1223333233323221\n1223333333233321\n0123333233333210\n0012444444444100\n0001455444551000\n0000111111110000\n0000000000000000",
+    medusa_alert: "0000000222200000\n0000022333322000\n0000233333332000\n0000236333632000\n0000233333332000\n0000022222220000\n0000000444400000\n0000044444440000\n0000444455444000\n0004444444444400\n0004444444444400\n0004444444444400\n0004444444444400\n0000444444444000\n0000044444440000\n0000000000000000"
   };
 
   for (const k in art) {
@@ -468,7 +475,8 @@ function parseLevel(){
     if ('#.~TCDS'.includes(ch)) base[y][x] = ch;
     if (ch === 'P') player = { x, y, facing:[1,0] };
     if (ch === 'H') hearts.push({ x, y });
-    if (ch === 'A') enemies.push({ type:'ardilla', x, y, charge:0 });
+    if (ch === 'A') enemies.push({ type:'ardilla', x, y, charge:0, alert:false });
+    if (ch === 'M') enemies.push({ type:'medusa', x, y, charge:0, alert:false });
     if (ch === 'B') blocks.push({ x, y });
     if (ch === 'C') chest = { x, y };
     if (ch === 'D') door = { x, y };
@@ -487,6 +495,8 @@ function snapshot(){
     filledWater: arrFromSet(state.filledWater),
     enemies: state.enemies.map(e => ({ ...e })),
     doorOpen: state.doorOpen,
+    frozenUntil: state.frozenUntil,
+    medusaShot: state.medusaShot ? { ...state.medusaShot } : null,
   };
 }
 
@@ -502,6 +512,8 @@ function restore(s){
   state.doorOpen = Boolean(s.doorOpen);
   state.won = false;
   state.deadUntil = 0;
+  state.frozenUntil = 0;
+  state.medusaShot = null;
 }
 
 function pushUndo(){
@@ -518,6 +530,10 @@ function passableForPlayer(x,y,ignorePushables=false){
   if (b === 'C' && !chestOpen()) return false;
   if (b === 'D' && !state.doorOpen) return false;
   return !enemyAt(x,y);
+}
+
+function isPlayerFrozen(){
+  return state.frozenUntil && performance.now() < state.frozenUntil;
 }
 
 function killPlayer(){
@@ -559,6 +575,7 @@ function attemptPush(setRef, fromX, fromY, dx, dy){
 }
 
 function tryMovePlayer(dx,dy){
+  if (isPlayerFrozen()) return false;
   const tx = state.player.x + dx;
   const ty = state.player.y + dy;
   if (!inBounds(tx,ty)) return false;
@@ -591,6 +608,7 @@ function tryMovePlayer(dx,dy){
 }
 
 function shoot(){
+  if (isPlayerFrozen()) return false;
   if (state.shots <= 0) {
     setHudMessage('Sin disparos: recoge corazones');
     return false;
@@ -625,6 +643,7 @@ function shoot(){
 }
 
 function interactAdjacent(dx,dy){
+  if (isPlayerFrozen()) return false;
   if (state.shots <= 0) {
     setHudMessage('Sin disparos: recoge corazones');
     return false;
@@ -727,7 +746,7 @@ function queueDraggedPath(){
 }
 
 function processQueuedMove(){
-  if (!queuedMoves.length || state.won || state.deadUntil) return;
+  if (!queuedMoves.length || state.won || state.deadUntil || isPlayerFrozen()) return;
   if (!queuedSnapshot) {
     queuedMoves = [];
     return;
@@ -746,7 +765,7 @@ function processQueuedMove(){
 }
 
 canvas.addEventListener('pointerdown', e => {
-  if (state.won || isEditorOpen) return;
+  if (state.won || isEditorOpen || isPlayerFrozen()) return;
   const t = tapToTile(e.clientX, e.clientY);
   if (t.x === state.player.x && t.y === state.player.y) {
     activePointerId = e.pointerId;
@@ -789,7 +808,7 @@ canvas.addEventListener('pointerup', handlePointerEnd);
 canvas.addEventListener('pointercancel', handlePointerEnd);
 
 document.addEventListener('keydown', (e) => {
-  if (isEditorOpen || state.won || state.deadUntil) return;
+  if (isEditorOpen || state.won || state.deadUntil || isPlayerFrozen()) return;
   const movement = {
     ArrowUp: [0, -1],
     ArrowDown: [0, 1],
@@ -805,13 +824,49 @@ document.addEventListener('keydown', (e) => {
 
 function blockedForMedusaShot(x,y){
   const b = state.base[y][x];
-  return b === '#' || b === 'C' || b === 'D' || has(state.blocks,x,y) || has(state.eggs,x,y);
+  return b === '#' || b === 'C' || b === 'D' || b === 'T' || b === 'S' || has(state.blocks,x,y) || has(state.eggs,x,y);
+}
+
+function hasLineOfSightToPlayer(medusa){
+  if (medusa.x !== state.player.x && medusa.y !== state.player.y) return null;
+  if (medusa.x === state.player.x) {
+    const step = Math.sign(state.player.y - medusa.y);
+    for (let y = medusa.y + step; y !== state.player.y; y += step) {
+      if (blockedForMedusaShot(medusa.x, y)) return null;
+    }
+    return { dx: 0, dy: step };
+  }
+  const step = Math.sign(state.player.x - medusa.x);
+  for (let x = medusa.x + step; x !== state.player.x; x += step) {
+    if (blockedForMedusaShot(x, medusa.y)) return null;
+  }
+  return { dx: step, dy: 0 };
+}
+
+function medusaVisionTiles(medusa){
+  const tiles = [];
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+  for (const [dx,dy] of dirs) {
+    let x = medusa.x + dx;
+    let y = medusa.y + dy;
+    while (inBounds(x,y) && !blockedForMedusaShot(x,y)) {
+      tiles.push({x,y});
+      x += dx;
+      y += dy;
+    }
+  }
+  return tiles;
+}
+
+function isPlayerAdjacentToVision(medusa){
+  return medusaVisionTiles(medusa).some(v => Math.abs(v.x - state.player.x) + Math.abs(v.y - state.player.y) === 1);
 }
 
 function tick(){
   const now = performance.now();
   if (state.deadUntil && now >= state.deadUntil) return resetLevel();
   if (state.won) return;
+  if (state.frozenUntil && now >= state.frozenUntil) state.frozenUntil = 0;
 
   for (const [pos, hatchAt] of state.eggTimers.entries()) {
     if (now < hatchAt) continue;
@@ -819,25 +874,26 @@ function tick(){
     state.eggTimers.delete(pos);
     if (!state.eggs.has(pos)) continue;
     state.eggs.delete(pos);
-    if (!enemyAt(x,y)) state.enemies.push({ type:'ardilla', x, y, charge:0 });
+    if (!enemyAt(x,y)) state.enemies.push({ type:'ardilla', x, y, charge:0, alert:false });
   }
 
+  state.medusaShot = null;
   for (const e of state.enemies) {
-    if (e.type !== 'medusa') continue; // ardilla is passive, no lasers
-    const aligned = e.x === state.player.x || e.y === state.player.y;
-    let clear = false;
-    if (aligned) {
-      clear = true;
-      if (e.x === state.player.x) {
-        const [a,b] = [e.y,state.player.y].sort((m,n)=>m-n);
-        for (let y=a+1; y<b; y++) if (blockedForMedusaShot(e.x,y)) clear = false;
-      } else {
-        const [a,b] = [e.x,state.player.x].sort((m,n)=>m-n);
-        for (let x=a+1; x<b; x++) if (blockedForMedusaShot(x,e.y)) clear = false;
-      }
+    if (e.type !== 'medusa') {
+      e.alert = false;
+      continue;
     }
-    e.charge = clear ? e.charge + TICK : 0;
-    if (e.charge > 400) return killPlayer();
+    const sight = hasLineOfSightToPlayer(e);
+    const warning = isPlayerAdjacentToVision(e);
+    e.alert = Boolean(sight || warning);
+    if (!sight) {
+      e.charge = 0;
+      continue;
+    }
+    e.charge += TICK;
+    state.frozenUntil = now + 200;
+    state.medusaShot = { fromX: e.x, fromY: e.y, toX: state.player.x, toY: state.player.y };
+    if (e.charge >= 280) return killPlayer();
   }
 }
 
@@ -908,7 +964,24 @@ function draw(){
   for (const b of arrFromSet(state.blocks)) drawSprite('block',b.x,b.y);
   for (const hrt of arrFromSet(state.hearts)) drawSprite('heart',hrt.x,hrt.y);
   for (const egg of arrFromSet(state.eggs)) drawSprite('egg',egg.x,egg.y);
-  for (const e of state.enemies) drawSprite(e.type, e.x, e.y);
+  for (const e of state.enemies) {
+    if (e.type === 'medusa' && e.alert) drawSprite('medusa_alert', e.x, e.y);
+    else drawSprite(e.type, e.x, e.y);
+  }
+
+  if (state.medusaShot) {
+    const { fromX, fromY, toX, toY } = state.medusaShot;
+    const fromPx = board.x + (fromX + 0.5) * board.t;
+    const fromPy = board.y + (fromY + 0.5) * board.t;
+    const toPx = board.x + (toX + 0.5) * board.t;
+    const toPy = board.y + (toY + 0.5) * board.t;
+    ctx.strokeStyle = 'rgba(246, 240, 107, 0.95)';
+    ctx.lineWidth = Math.max(2, board.t * 0.2);
+    ctx.beginPath();
+    ctx.moveTo(fromPx, fromPy);
+    ctx.lineTo(toPx, toPy);
+    ctx.stroke();
+  }
 
   if (dragPath.length > 1) {
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
@@ -927,6 +1000,12 @@ function draw(){
   }
 
   drawSprite('player',state.player.x,state.player.y);
+  if (state.frozenUntil) {
+    const px = board.x + state.player.x * board.t;
+    const py = board.y + state.player.y * board.t;
+    ctx.fillStyle = 'rgba(120, 210, 255, 0.4)';
+    ctx.fillRect(px, py, board.t, board.t);
+  }
 
   hudShots.textContent = `✦ ${state.shots}`;
   hudLevel.textContent = `Nivel ${currentLevelIndex + 1} ▾`;
@@ -946,6 +1025,7 @@ function spriteNameForTile(tile){
   if (tile === 'C') return 'chest';
   if (tile === 'D') return 'door';
   if (tile === 'A') return 'ardilla';
+  if (tile === 'M') return 'medusa';
   if (tile === 'P') return 'player';
   return 'floor';
 }
@@ -1173,6 +1253,8 @@ function startLevel(){
   state.doorOpen = false;
   state.shots = 0;
   state.deadUntil = 0;
+  state.frozenUntil = 0;
+  state.medusaShot = null;
   state.undo = [];
   queuedMoves = [];
   queuedSnapshot = null;
