@@ -66,6 +66,9 @@
       grid-template-columns: repeat(2, 1fr);
       gap: 8px;
     }
+    #editBtn {
+      grid-column: 1 / -1;
+    }
     button {
       border: 2px solid #fff;
       min-height: 46px;
@@ -83,6 +86,88 @@
       box-shadow: 0px 0px 0px #000;
       background: #333;
     }
+
+    #editorView {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      background: #050505;
+      color: #fff;
+      display: none;
+      padding: calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 12px);
+      overflow: auto;
+    }
+    #editorView.visible {
+      display: block;
+    }
+    .editor-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(120px, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .editor-actions button {
+      min-height: 42px;
+      font-size: 13px;
+    }
+    #editorStatus {
+      margin: 0 0 10px;
+      font-size: 14px;
+      border: 1px dashed #666;
+      padding: 6px;
+      min-height: 34px;
+    }
+    .editor-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .editor-card {
+      border: 2px solid #666;
+      padding: 8px;
+      background: #111;
+    }
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(62px, 1fr));
+      gap: 6px;
+    }
+    .palette-tile.active {
+      border-color: #00d4ff;
+      color: #00d4ff;
+    }
+    #editorGrid {
+      display: grid;
+      grid-template-columns: repeat(20, 1fr);
+      gap: 1px;
+      background: #333;
+      border: 2px solid #666;
+      touch-action: none;
+    }
+    .editor-cell {
+      border: 0;
+      min-height: 20px;
+      height: 20px;
+      box-shadow: none;
+      font-size: 11px;
+      font-weight: bold;
+      text-transform: none;
+      padding: 0;
+    }
+    .editor-cell:active {
+      transform: none;
+      box-shadow: none;
+    }
+    #editorText {
+      width: 100%;
+      min-height: 150px;
+      background: #000;
+      color: #fff;
+      border: 2px solid #666;
+      font-family: inherit;
+      padding: 8px;
+      resize: vertical;
+    }
   </style>
 </head>
 <body>
@@ -98,21 +183,56 @@
     <div id="controls">
       <button id="undoBtn">Deshacer</button>
       <button id="resetBtn">Reiniciar</button>
+      <button id="editBtn">Editar pantalla</button>
+    </div>
+
+    <div id="editorView" aria-hidden="true">
+      <div class="editor-actions">
+        <button id="editorBackBtn">Volver al juego</button>
+        <button id="editorSaveBtn">Guardar pantalla</button>
+        <button id="editorExportBtn">Exportar pantalla</button>
+        <button id="editorImportBtn">Importar pantalla</button>
+      </div>
+      <p id="editorStatus">Editor listo. Elige una pieza y toca la cuadrícula para pintar.</p>
+      <div class="editor-layout">
+        <section class="editor-card">
+          <h3>Paleta de piezas</h3>
+          <div id="paletteGrid" class="palette-grid"></div>
+        </section>
+        <section class="editor-card">
+          <h3>Diseño de pantalla</h3>
+          <div id="editorGrid"></div>
+        </section>
+        <section class="editor-card">
+          <h3>Cadena de texto de la pantalla</h3>
+          <p>Puedes exportar para copiarla o importar pegando aquí una nueva pantalla (20x20).</p>
+          <textarea id="editorText" spellcheck="false"></textarea>
+        </section>
+      </div>
     </div>
   </div>
 
 <script>
 // Mapa actualizado: Retirada la Medusa y añadida la Ardilla (A) en el centro.
-const LEVEL_RAW = `##############\n#............#\n#............#\n#............#\n#SSSSSSSSTTT.#\n#S...H...SSSS#\n#S.TTT.T..SSS#\n#S..SSS....SS#\n#S.PSSS..A.HS#\n#S...SSS....S#\n#STTT....TTTS#\n#STTT....TTTS#\n#S....C.....S#\n#STTT...TTT.S#\n#STTT...TTT.S#\n#SSSSSSSSSSSS#\n#............#\n#............#\n#............#\n##############`;
+const DEFAULT_LEVEL_RAW = `##############\n#............#\n#............#\n#............#\n#SSSSSSSSTTT.#\n#S...H...SSSS#\n#S.TTT.T..SSS#\n#S..SSS....SS#\n#S.PSSS..A.HS#\n#S...SSS....S#\n#STTT....TTTS#\n#STTT....TTTS#\n#S....C.....S#\n#STTT...TTT.S#\n#STTT...TTT.S#\n#SSSSSSSSSSSS#\n#............#\n#............#\n#............#\n##############`;
 
-const LEVEL = LEVEL_RAW.split('\n');
+const ALLOWED = new Set(['#','.','P','H','C','B','~','A','T','S']);
+function parseLevelRows(raw) {
+  const rows = raw.trim().split('\n').map(r => r.trim());
+  const h = rows.length;
+  const w = rows[0]?.length ?? 0;
+  if (!h || !w) throw new Error('Nivel inválido: vacío.');
+  for (const row of rows) {
+    if (row.length !== w) throw new Error('Nivel inválido: ancho inconsistente.');
+    for (const ch of row) if (!ALLOWED.has(ch)) throw new Error('Tile inválido: ' + ch);
+  }
+  return rows;
+}
+
+let currentLevelRaw = DEFAULT_LEVEL_RAW;
+let LEVEL = parseLevelRows(currentLevelRaw);
 const H = LEVEL.length;
 const W = LEVEL[0].length;
-const ALLOWED = new Set(['#','.','P','H','C','B','~','A','T','S']);
-for (const row of LEVEL) {
-  if (row.length !== W) throw new Error('Nivel inválido: ancho inconsistente.');
-  for (const ch of row) if (!ALLOWED.has(ch)) throw new Error('Tile inválido: ' + ch);
-}
 
 document.addEventListener('gesturestart', e => e.preventDefault(), { passive: false });
 document.addEventListener('gesturechange', e => e.preventDefault(), { passive: false });
@@ -123,6 +243,11 @@ const ctx = canvas.getContext('2d');
 const boardWrap = document.getElementById('boardWrap');
 const hudHearts = document.getElementById('hudHearts');
 const hudShots = document.getElementById('hudShots');
+const editorView = document.getElementById('editorView');
+const editorGrid = document.getElementById('editorGrid');
+const paletteGrid = document.getElementById('paletteGrid');
+const editorText = document.getElementById('editorText');
+const editorStatus = document.getElementById('editorStatus');
 const setHudMessage = () => {};
 
 const MAX_UNDO = 200;
@@ -137,6 +262,24 @@ let dragPath = [];
 let queuedMoves = [];
 let queuedSnapshot = null;
 let queuedMoved = false;
+let isEditorOpen = false;
+
+const TILE_META = {
+  '#': { label: 'Muro', color: '#8b4d1a', text: '#111' },
+  '.': { label: 'Suelo', color: '#2b2b2b', text: '#fff' },
+  'P': { label: 'Jugador', color: '#206bff', text: '#fff' },
+  'H': { label: 'Corazón', color: '#ce1a1a', text: '#fff' },
+  'C': { label: 'Cofre', color: '#b0801a', text: '#111' },
+  'B': { label: 'Bloque', color: '#c89f6f', text: '#111' },
+  '~': { label: 'Agua', color: '#0f4dd8', text: '#fff' },
+  'A': { label: 'Ardilla', color: '#2d962d', text: '#fff' },
+  'T': { label: 'Árbol', color: '#0c6515', text: '#fff' },
+  'S': { label: 'Piedra', color: '#8a8a8a', text: '#111' },
+};
+const PALETTE_ORDER = ['.','#','T','S','~','B','H','C','A','P'];
+let editorTile = 'P';
+let editorRows = LEVEL.map(r => r.split(''));
+let editorMouseDown = false;
 
 const state = {
   base: null,
@@ -233,6 +376,7 @@ function parseLevel(){
     if (ch === 'P') player = { x, y, facing:[1,0] };
     if (ch === 'H') hearts.push({ x, y });
     if (ch === 'A') enemies.push({ type:'ardilla', x, y, charge:0 });
+    if (ch === 'B') blocks.push({ x, y });
     if (ch === 'C') chest = { x, y };
     if (ch === 'D') door = { x, y };
   }
@@ -444,7 +588,7 @@ function processQueuedMove(){
 }
 
 canvas.addEventListener('pointerdown', e => {
-  if (state.won) return;
+  if (state.won || isEditorOpen) return;
   const t = tapToTile(e.clientX, e.clientY);
   if (t.x === state.player.x && t.y === state.player.y) {
     activePointerId = e.pointerId;
@@ -615,7 +759,104 @@ function frame(ts){
   requestAnimationFrame(frame);
 }
 
+function setEditorStatus(message, isError=false) {
+  editorStatus.textContent = message;
+  editorStatus.style.borderColor = isError ? '#d33' : '#666';
+  editorStatus.style.color = isError ? '#ff9f9f' : '#fff';
+}
+
+function editorToRaw(rows){
+  return rows.map(r => r.join('')).join('\n');
+}
+
+function validateEditorRows(rows){
+  const players = rows.flat().filter(ch => ch === 'P').length;
+  const chests = rows.flat().filter(ch => ch === 'C').length;
+  if (players !== 1) throw new Error('Debe existir exactamente 1 jugador (P).');
+  if (chests > 1) throw new Error('Solo puede haber 1 cofre (C).');
+}
+
+function paintEditorCell(x, y){
+  if (!editorRows[y] || !editorRows[y][x]) return;
+  editorRows[y][x] = editorTile;
+  renderEditorGrid();
+}
+
+function renderEditorGrid(){
+  editorGrid.innerHTML = '';
+  editorGrid.style.gridTemplateColumns = `repeat(${W}, 1fr)`;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const tile = editorRows[y][x];
+      const cell = document.createElement('button');
+      const meta = TILE_META[tile] ?? TILE_META['.'];
+      cell.className = 'editor-cell';
+      cell.type = 'button';
+      cell.textContent = tile;
+      cell.title = `${meta.label} (${tile}) - [${x},${y}]`;
+      cell.style.background = meta.color;
+      cell.style.color = meta.text;
+      cell.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        editorMouseDown = true;
+        paintEditorCell(x, y);
+      });
+      cell.addEventListener('pointerenter', () => {
+        if (editorMouseDown) paintEditorCell(x, y);
+      });
+      editorGrid.appendChild(cell);
+    }
+  }
+  editorText.value = editorToRaw(editorRows);
+}
+
+function renderPalette(){
+  paletteGrid.innerHTML = '';
+  for (const tile of PALETTE_ORDER) {
+    const meta = TILE_META[tile];
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `palette-tile ${tile === editorTile ? 'active' : ''}`;
+    btn.textContent = `${tile} ${meta.label}`;
+    btn.style.background = meta.color;
+    btn.style.color = meta.text;
+    btn.onclick = () => {
+      editorTile = tile;
+      renderPalette();
+      setEditorStatus(`Pieza activa: ${meta.label} (${tile}).`);
+    };
+    paletteGrid.appendChild(btn);
+  }
+}
+
+function loadEditorFromRaw(raw){
+  const rows = parseLevelRows(raw).map(r => r.split(''));
+  if (rows.length !== H || rows[0].length !== W) {
+    throw new Error(`La pantalla debe mantener tamaño ${W}x${H}.`);
+  }
+  validateEditorRows(rows);
+  editorRows = rows;
+  renderEditorGrid();
+}
+
+function openEditor(){
+  isEditorOpen = true;
+  editorView.classList.add('visible');
+  editorView.setAttribute('aria-hidden', 'false');
+  loadEditorFromRaw(currentLevelRaw);
+  renderPalette();
+  setEditorStatus('Editor abierto. Arrastra el dedo para pintar rápido.');
+}
+
+function closeEditor(){
+  isEditorOpen = false;
+  editorView.classList.remove('visible');
+  editorView.setAttribute('aria-hidden', 'true');
+  editorMouseDown = false;
+}
+
 function startLevel(){
+  LEVEL = parseLevelRows(currentLevelRaw);
   const p = parseLevel();
   state.base = p.base;
   state.player = p.player;
@@ -655,6 +896,47 @@ document.getElementById('undoBtn').onclick = () => {
   restore(state.undo.pop());
 };
 document.getElementById('resetBtn').onclick = () => resetLevel();
+document.getElementById('editBtn').onclick = () => openEditor();
+
+document.addEventListener('pointerup', () => {
+  editorMouseDown = false;
+});
+document.addEventListener('pointercancel', () => {
+  editorMouseDown = false;
+});
+
+document.getElementById('editorBackBtn').onclick = () => closeEditor();
+document.getElementById('editorSaveBtn').onclick = () => {
+  try {
+    validateEditorRows(editorRows);
+    currentLevelRaw = editorToRaw(editorRows);
+    startLevel();
+    resize();
+    closeEditor();
+  } catch (err) {
+    setEditorStatus(`No se pudo guardar: ${err.message}`, true);
+  }
+};
+
+document.getElementById('editorExportBtn').onclick = async () => {
+  const raw = editorToRaw(editorRows);
+  editorText.value = raw;
+  try {
+    await navigator.clipboard.writeText(raw);
+    setEditorStatus('Pantalla exportada y copiada al portapapeles.');
+  } catch {
+    setEditorStatus('Pantalla exportada. Copia el texto manualmente desde la caja.');
+  }
+};
+
+document.getElementById('editorImportBtn').onclick = () => {
+  try {
+    loadEditorFromRaw(editorText.value);
+    setEditorStatus('Pantalla importada correctamente. Revisa y guarda para aplicarla.');
+  } catch (err) {
+    setEditorStatus(`Importación inválida: ${err.message}`, true);
+  }
+};
 
 startLevel();
 resize();
