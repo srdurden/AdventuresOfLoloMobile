@@ -937,25 +937,31 @@ function blockedForDragonSight(x,y){
   return false;
 }
 
-function getDragonSightToPlayer(dragon){
+function isPlayerInDragonFireDirection(dragon){
   const [dx, dy] = dragon.dir || [0, 0];
   if (!dx && !dy) return false;
-  let x = dragon.x + dx;
-  let y = dragon.y + dy;
-  while (inBounds(x, y)) {
-    if (blockedForDragonSight(x, y)) return false;
-    if (x === state.player.x && y === state.player.y) return true;
-    x += dx;
-    y += dy;
+  if (dx !== 0) {
+    if (state.player.y !== dragon.y) return false;
+    return (state.player.x - dragon.x) * dx > 0;
   }
-  return false;
+  if (state.player.x !== dragon.x) return false;
+  return (state.player.y - dragon.y) * dy > 0;
+}
+
+
+function triggerExplosionAt(x, y, now = performance.now()){
+  state.explosions.push({ x, y, startedAt: now, life: EXPLOSION_FLASH_MS * 0.55 });
 }
 
 function spawnDragonFireball(dragon, now){
   const [dx, dy] = dragon.dir || [0, 0];
   const x = dragon.x + dx;
   const y = dragon.y + dy;
-  if (!inBounds(x, y) || blockedForDragonSight(x, y)) return;
+  if (!inBounds(x, y)) return;
+  if (blockedForDragonSight(x, y)) {
+    triggerExplosionAt(x, y, now);
+    return;
+  }
   const fireball = { x, y, dx, dy, lastStepAt: now };
   state.fireballs.push(fireball);
   if (x === state.player.x && y === state.player.y) killPlayer();
@@ -965,7 +971,7 @@ function updateDragonThreat(now = performance.now()){
   if (!chestOpen() || state.keyCollected || state.won || state.deadUntil) return;
   for (const enemy of state.enemies) {
     if (enemy.type !== 'dragon') continue;
-    const seesPlayer = getDragonSightToPlayer(enemy);
+    const seesPlayer = isPlayerInDragonFireDirection(enemy);
     if (!seesPlayer) {
       enemy.wasSeeingPlayer = false;
       continue;
@@ -995,7 +1001,10 @@ function advanceDragonFireballs(now = performance.now()){
         killPlayer();
         break;
       }
-      if (blockedForDragonSight(tx, ty)) break;
+      if (blockedForDragonSight(tx, ty)) {
+        triggerExplosionAt(tx, ty, fireball.lastStepAt);
+        break;
+      }
     }
     if (!inBounds(Math.round(fireball.x), Math.round(fireball.y))) continue;
     const tx = Math.round(fireball.x);
