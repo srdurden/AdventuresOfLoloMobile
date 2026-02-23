@@ -479,11 +479,13 @@ function initSprites() {
 
   for (const k in art) {
     const lines = art[k].trim().split('\n');
+    const palette = pal[k] ?? (k.startsWith('water_') ? pal.water : null);
+    if (!palette) continue;
     let rects = '';
     for(let y=0; y<16; y++) {
       for(let x=0; x<16; x++) {
         let c = lines[y][x];
-        let color = pal[k][c];
+        let color = palette[c];
         if (color && color !== 'transparent') {
           // Solapamiento de 1.02 para evitar huecos de sub-píxeles
           rects += `<rect x='${x}' y='${y}' width='1.02' height='1.02' fill='${color}'/>`;
