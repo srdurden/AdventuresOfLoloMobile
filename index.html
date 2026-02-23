@@ -945,7 +945,7 @@ function applyEditorCellVisual(cell, tile, x, y){
   const sprite = sprites[spriteNameForTile(tile)] ?? sprites.floor;
   cell.textContent = '';
   cell.title = `${meta.label} (${tile}) - [${x},${y}]`;
-  cell.style.backgroundImage = `url(${sprite?.src ?? ''})`;
+  cell.style.backgroundImage = sprite?.src ? `url("${sprite.src}")` : 'none';
 }
 
 function moveEditorTile(fromX, fromY, toX, toY){
