@@ -337,6 +337,7 @@ const setHudMessage = () => {};
 const MAX_UNDO = 200;
 const TICK = 100;
 const MOVE_INTERVAL = 75;
+const PLAYER_MOVE_MS = MOVE_INTERVAL;
 const EGG_HATCH_MS = 30000;
 const MEDUSA_FREEZE_BEFORE_SHOT_MS = 70;
 const MEDUSA_SHOT_FLASH_MS = 90;
@@ -348,8 +349,7 @@ let board = { x: 0, y: 0, t: 20 };
 let activePointerId = null;
 let dragPath = [];
 let queuedMoves = [];
-let queuedSnapshot = null;
-let queuedMoved = false;
+let playerAnim = null;
 let isEditorOpen = false;
 
 const TILE_META = {
@@ -465,6 +465,28 @@ function inBounds(x,y){ return x>=0 && y>=0 && x<W && y<H; }
 function chestOpen(){ return state.hearts.size === 0; }
 function enemyAt(x,y){ return state.enemies.find(e => e.x===x && e.y===y); }
 
+function setPlayerAnimation(fromX, fromY, toX, toY){
+  playerAnim = { fromX, fromY, toX, toY, startedAt: performance.now(), duration: PLAYER_MOVE_MS };
+}
+
+function clearPlayerAnimation(){
+  playerAnim = null;
+}
+
+function getPlayerDrawPosition(now = performance.now()){
+  if (!playerAnim) return { x: state.player.x, y: state.player.y };
+  const elapsed = now - playerAnim.startedAt;
+  const t = Math.max(0, Math.min(1, elapsed / Math.max(1, playerAnim.duration)));
+  if (t >= 1) {
+    playerAnim = null;
+    return { x: state.player.x, y: state.player.y };
+  }
+  return {
+    x: playerAnim.fromX + (playerAnim.toX - playerAnim.fromX) * t,
+    y: playerAnim.fromY + (playerAnim.toY - playerAnim.fromY) * t,
+  };
+}
+
 function parseLevel(){
   const base = Array.from({ length:H }, () => Array(W).fill('.'));
   const hearts = [];
@@ -519,11 +541,16 @@ function restore(s){
   state.frozenUntil = 0;
   state.medusaShot = null;
   state.resetFlashUntil = 0;
+  clearPlayerAnimation();
+}
+
+function pushUndoSnapshot(undoSnapshot){
+  state.undo.push(undoSnapshot);
+  if (state.undo.length > MAX_UNDO) state.undo.shift();
 }
 
 function pushUndo(){
-  state.undo.push(snapshot());
-  if (state.undo.length > MAX_UNDO) state.undo.shift();
+  pushUndoSnapshot(snapshot());
 }
 
 function passableForPlayer(x,y,ignorePushables=false){
@@ -606,8 +633,11 @@ function tryMovePlayer(dx,dy){
     return false;
   }
 
+  const fromX = state.player.x;
+  const fromY = state.player.y;
   state.player.x = tx;
   state.player.y = ty;
+  setPlayerAnimation(fromX, fromY, tx, ty);
   const heartKey = key(tx,ty);
   if (state.hearts.has(heartKey)) {
     state.hearts.delete(heartKey);
@@ -742,6 +772,11 @@ function clearPathInput(){
   dragPath = [];
 }
 
+function enqueueMove(dx, dy, undoSnapshot = snapshot()){
+  queuedMoves.push({ dx, dy, undoSnapshot });
+  moveAcc = MOVE_INTERVAL;
+}
+
 function queueDraggedPath(){
   if (dragPath.length < 2) return;
   const steps = [];
@@ -754,29 +789,16 @@ function queueDraggedPath(){
     steps.push([dx, dy]);
   }
   if (!steps.length) return;
-  queuedMoves = steps;
-  queuedSnapshot = snapshot();
-  queuedMoved = false;
-  moveAcc = MOVE_INTERVAL;
+  for (const [dx, dy] of steps) enqueueMove(dx, dy);
 }
 
 function processQueuedMove(){
   if (!queuedMoves.length || state.won || state.deadUntil || isPlayerFrozen()) return;
-  if (!queuedSnapshot) {
-    queuedMoves = [];
-    return;
+  const nextMove = queuedMoves.shift();
+  pushUndoSnapshot(nextMove.undoSnapshot);
+  if (!tryMovePlayer(nextMove.dx, nextMove.dy)) {
+    state.undo.pop();
   }
-  if (!queuedMoved) state.undo.push(queuedSnapshot);
-  const [dx,dy] = queuedMoves.shift();
-  if (!tryMovePlayer(dx,dy)) {
-    if (!queuedMoved && state.undo[state.undo.length - 1] === queuedSnapshot) state.undo.pop();
-    queuedMoves = [];
-    queuedSnapshot = null;
-    queuedMoved = false;
-    return;
-  }
-  queuedMoved = true;
-  if (!queuedMoves.length) queuedSnapshot = null;
 }
 
 canvas.addEventListener('pointerdown', e => {
@@ -785,8 +807,6 @@ canvas.addEventListener('pointerdown', e => {
   if (t.x === state.player.x && t.y === state.player.y) {
     activePointerId = e.pointerId;
     queuedMoves = [];
-    queuedSnapshot = null;
-    queuedMoved = false;
     dragPath = [{ x: state.player.x, y: state.player.y }];
     canvas.setPointerCapture(e.pointerId);
     return;
@@ -795,9 +815,15 @@ canvas.addEventListener('pointerdown', e => {
   const dx = t.x - state.player.x;
   const dy = t.y - state.player.y;
   if (Math.abs(dx) + Math.abs(dy) === 1) {
-    pushUndo();
-    if (interactAdjacent(Math.sign(dx), Math.sign(dy))) return;
-    if (!tryMovePlayer(Math.sign(dx), Math.sign(dy))) state.undo.pop();
+    const stepX = Math.sign(dx);
+    const stepY = Math.sign(dy);
+    state.player.facing = [stepX, stepY];
+    const undoSnapshot = snapshot();
+    if (interactAdjacent(stepX, stepY)) {
+      pushUndoSnapshot(undoSnapshot);
+      return;
+    }
+    enqueueMove(stepX, stepY, undoSnapshot);
     return;
   }
   if (dx === 0 || dy === 0) {
@@ -833,8 +859,7 @@ document.addEventListener('keydown', (e) => {
   if (!movement) return;
   e.preventDefault();
   const [dx, dy] = movement;
-  pushUndo();
-  if (!tryMovePlayer(dx, dy)) state.undo.pop();
+  enqueueMove(dx, dy);
 });
 
 function blockedForMedusaShot(x,y){
@@ -1072,10 +1097,11 @@ function draw(){
     ctx.stroke();
   }
 
-  drawSprite('player',state.player.x,state.player.y);
+  const playerDraw = getPlayerDrawPosition();
+  drawSprite('player', playerDraw.x, playerDraw.y);
   if (state.frozenUntil) {
-    const px = board.x + state.player.x * board.t;
-    const py = board.y + state.player.y * board.t;
+    const px = board.x + playerDraw.x * board.t;
+    const py = board.y + playerDraw.y * board.t;
     ctx.fillStyle = 'rgba(120, 210, 255, 0.4)';
     ctx.fillRect(px, py, board.t, board.t);
   }
@@ -1352,8 +1378,7 @@ function startLevel(){
   state.resetFlashUntil = 0;
   state.undo = [];
   queuedMoves = [];
-  queuedSnapshot = null;
-  queuedMoved = false;
+  clearPlayerAnimation();
   dragPath = [];
   activePointerId = null;
   setHudMessage('');
@@ -1364,8 +1389,7 @@ function resetLevel({ fromDeath = false } = {}){
   restore(state.initialSnapshot);
   state.undo = [];
   queuedMoves = [];
-  queuedSnapshot = null;
-  queuedMoved = false;
+  clearPlayerAnimation();
   dragPath = [];
   activePointerId = null;
   if (fromDeath) state.resetFlashUntil = performance.now() + DEATH_RESET_FLASH_MS;
