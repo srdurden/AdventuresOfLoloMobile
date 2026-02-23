@@ -707,7 +707,9 @@ function tryMovePlayer(dx,dy){
   }
   if (state.doorOpen && state.door && tx === state.door.x && ty === state.door.y) return winLevel(), true;
   if (fireballAt(tx, ty)) killPlayer();
-  resolveMedusaThreat(performance.now(), true);
+  const now = performance.now();
+  updateDragonThreat(now);
+  resolveMedusaThreat(now, true);
   return true;
 }
 
