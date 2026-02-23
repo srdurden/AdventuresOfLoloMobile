@@ -280,6 +280,7 @@ const PALETTE_ORDER = ['.','#','T','S','~','B','H','C','A','P'];
 let editorTile = 'P';
 let editorRows = LEVEL.map(r => r.split(''));
 let editorMouseDown = false;
+let editorActivePointerId = null;
 
 const state = {
   base: null,
@@ -799,10 +800,15 @@ function renderEditorGrid(){
       cell.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         editorMouseDown = true;
+        editorActivePointerId = e.pointerId;
+        editorGrid.setPointerCapture(e.pointerId);
         paintEditorCell(x, y);
       });
-      cell.addEventListener('pointerenter', () => {
-        if (editorMouseDown) paintEditorCell(x, y);
+      cell.addEventListener('pointerenter', (e) => {
+        if (!editorMouseDown) return;
+        if (e.pointerId !== editorActivePointerId) return;
+        if ((e.buttons & 1) !== 1) return;
+        paintEditorCell(x, y);
       });
       editorGrid.appendChild(cell);
     }
@@ -853,6 +859,7 @@ function closeEditor(){
   editorView.classList.remove('visible');
   editorView.setAttribute('aria-hidden', 'true');
   editorMouseDown = false;
+  editorActivePointerId = null;
 }
 
 function startLevel(){
@@ -898,12 +905,14 @@ document.getElementById('undoBtn').onclick = () => {
 document.getElementById('resetBtn').onclick = () => resetLevel();
 document.getElementById('editBtn').onclick = () => openEditor();
 
-document.addEventListener('pointerup', () => {
+function releaseEditorPointer(e){
+  if (e && editorActivePointerId !== null && e.pointerId !== editorActivePointerId) return;
   editorMouseDown = false;
-});
-document.addEventListener('pointercancel', () => {
-  editorMouseDown = false;
-});
+  editorActivePointerId = null;
+}
+
+document.addEventListener('pointerup', releaseEditorPointer);
+document.addEventListener('pointercancel', releaseEditorPointer);
 
 document.getElementById('editorBackBtn').onclick = () => closeEditor();
 document.getElementById('editorSaveBtn').onclick = () => {
