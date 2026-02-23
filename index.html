@@ -850,6 +850,10 @@ function hasLineOfSightToPlayer(medusa){
   return { dx: step, dy: 0 };
 }
 
+function isPlayerAlignedWithMedusa(medusa){
+  return medusa.x === state.player.x || medusa.y === state.player.y;
+}
+
 function medusaVisionTiles(medusa){
   const tiles = [];
   const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
@@ -892,7 +896,8 @@ function tick(){
     }
     const sight = hasLineOfSightToPlayer(e);
     const warning = isPlayerAdjacentToVision(e);
-    e.alert = Boolean(sight || warning);
+    const aligned = isPlayerAlignedWithMedusa(e);
+    e.alert = Boolean(aligned || warning);
     if (!sight) {
       e.charge = 0;
       continue;
