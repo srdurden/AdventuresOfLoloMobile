@@ -1253,7 +1253,7 @@ function renderEditorGrid(){
         editorDrag = { fromX: x, fromY: y, moved: false, tile: sourceTile, isMove: canMoveTile };
         editorGrid.setPointerCapture(e.pointerId);
         if (editorDrag.isMove) setEditorDropTarget(x, y);
-        if (!editorDrag.isMove) paintEditorFromPointerEvent(e);
+        if (!editorDrag.isMove) paintEditorCell(x, y);
       });
       editorGrid.appendChild(cell);
     }
