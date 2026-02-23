@@ -298,7 +298,7 @@ const LEVELS_RAW = [
 ##############`
 ];
 
-const ALLOWED = new Set(['#','.','P','H','C','B','~','A','M','T','S','D']);
+const ALLOWED = new Set(['#','V','.','P','H','C','B','~','A','M','T','S','D']);
 function parseLevelRows(raw) {
   const rows = raw.trim().split('\n').map(r => r.trim());
   const h = rows.length;
@@ -361,6 +361,7 @@ let isEditorOpen = false;
 
 const TILE_META = {
   '#': { label: 'Muro', color: '#8b4d1a', text: '#111' },
+  'V': { label: 'VACIO', color: '#000', text: '#fff' },
   '.': { label: 'Suelo', color: '#2b2b2b', text: '#fff' },
   'P': { label: 'Jugador', color: '#206bff', text: '#fff' },
   'H': { label: 'Corazón', color: '#ce1a1a', text: '#fff' },
@@ -373,7 +374,7 @@ const TILE_META = {
   'T': { label: 'Árbol', color: '#0c6515', text: '#fff' },
   'S': { label: 'Piedra', color: '#8a8a8a', text: '#111' },
 };
-const PALETTE_ORDER = ['.','#','T','S','~','B','H','C','D','A','M','P'];
+const PALETTE_ORDER = ['.','#','V','T','S','~','B','H','C','D','A','M','P'];
 let editorTile = 'P';
 let editorRows = LEVEL.map(r => r.split(''));
 let editorMouseDown = false;
@@ -505,7 +506,7 @@ function parseLevel(){
 
   for (let y=0; y<H; y++) for (let x=0; x<W; x++) {
     const ch = LEVEL[y][x];
-    if ('#.~TCDS'.includes(ch)) base[y][x] = ch;
+    if ('#V.~TCDS'.includes(ch)) base[y][x] = ch;
     if (ch === 'P') player = { x, y, facing:[1,0] };
     if (ch === 'H') hearts.push({ x, y });
     if (ch === 'A') enemies.push({ type:'ardilla', x, y, charge:0, alert:false });
@@ -567,7 +568,7 @@ function passableForPlayer(x,y,ignorePushables=false){
     if (has(state.eggs,x,y) && !has(state.filledWater,x,y)) return false;
   }
   const b = state.base[y][x];
-  if (b === '#' || b === 'T' || b === 'S') return false;
+  if (b === '#' || b === 'V' || b === 'T' || b === 'S') return false;
   if (b === '~' && !has(state.filledWater,x,y)) return false;
   if (b === 'C' && !chestOpen()) return false;
   if (b === 'D' && !state.doorOpen) return false;
@@ -603,7 +604,7 @@ function attemptPush(setRef, fromX, fromY, dx, dy){
   const ny = fromY + dy;
   if (!inBounds(nx,ny) || has(state.blocks,nx,ny) || has(state.eggs,nx,ny) || enemyAt(nx,ny)) return false;
   const t = state.base[ny][nx];
-  if (t === '#' || t === 'T' || t === 'C' || t === 'D' || t === 'S') return false;
+  if (t === '#' || t === 'V' || t === 'T' || t === 'C' || t === 'D' || t === 'S') return false;
   const fromKey = key(fromX,fromY);
   const toKey = key(nx,ny);
   const eggHatchAt = setRef === state.eggs ? state.eggTimers.get(fromKey) : null;
@@ -900,7 +901,7 @@ window.addEventListener('blur', clearKeyboardInput);
 
 function blockedForMedusaShot(x,y){
   const b = state.base[y][x];
-  return b === '#' || b === 'C' || b === 'D' || b === 'S' || has(state.blocks,x,y) || has(state.eggs,x,y);
+  return b === '#' || b === 'V' || b === 'C' || b === 'D' || b === 'S' || has(state.blocks,x,y) || has(state.eggs,x,y);
 }
 
 function hasLineOfSightToPlayer(medusa){
@@ -1038,6 +1039,12 @@ function draw(){
     for (let x=0; x<W; x++) {
       const b = state.base[y][x];
       if (b === '#') drawSprite('wall',x,y);
+      else if (b === 'V') {
+        const px = board.x + x * board.t;
+        const py = board.y + y * board.t;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(px, py, board.t, board.t);
+      }
       else if (b === '~') drawSprite('water',x,y);
       else if (b === 'T') drawSprite('tree',x,y);
       else if (b === 'S') drawSprite('stone',x,y);
@@ -1172,6 +1179,7 @@ function draw(){
 
 function spriteNameForTile(tile){
   if (tile === '#') return 'wall';
+  if (tile === 'V') return 'void';
   if (tile === 'T') return 'tree';
   if (tile === 'S') return 'stone';
   if (tile === '~') return 'water';
@@ -1193,9 +1201,14 @@ function applyEditorCellVisual(cell, tile, x, y){
   cell.title = `${meta.label} (${tile}) - [${x},${y}]`;
   const floorLayer = floorSprite?.src ? `url("${floorSprite.src}")` : '';
   const spriteLayer = sprite?.src ? `url("${sprite.src}")` : '';
-  if (tile === '.' || !spriteLayer) {
+  if (tile === 'V') {
+    cell.style.backgroundColor = '#000';
+    cell.style.backgroundImage = 'none';
+  } else if (tile === '.' || !spriteLayer) {
+    cell.style.backgroundColor = '#000';
     cell.style.backgroundImage = floorLayer || 'none';
   } else {
+    cell.style.backgroundColor = '#000';
     cell.style.backgroundImage = `${spriteLayer}, ${floorLayer}`;
   }
 }
