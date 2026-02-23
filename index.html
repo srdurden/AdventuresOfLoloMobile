@@ -63,11 +63,8 @@
       bottom: calc(env(safe-area-inset-bottom) + 8px);
       z-index: 3;
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
-    }
-    #editBtn {
-      grid-column: 1 / -1;
     }
     button {
       border: 2px solid #fff;
@@ -80,6 +77,11 @@
       font-family: 'Courier New', Courier, monospace;
       box-shadow: 2px 2px 0px #000;
       cursor: pointer;
+    }
+    #controls button {
+      min-height: 38px;
+      font-size: 13px;
+      padding: 4px;
     }
     button:active {
       transform: translate(2px, 2px);
@@ -192,6 +194,7 @@
         <button id="editorSaveBtn">Guardar pantalla</button>
         <button id="editorExportBtn">Exportar pantalla</button>
         <button id="editorImportBtn">Importar pantalla</button>
+        <button id="editorClearBtn">Borrar todo</button>
       </div>
       <p id="editorStatus">Editor listo. Elige una pieza y toca la cuadrícula para pintar.</p>
       <div class="editor-layout">
@@ -779,8 +782,28 @@ function validateEditorRows(rows){
 
 function paintEditorCell(x, y){
   if (!editorRows[y] || !editorRows[y][x]) return;
+  if (editorRows[y][x] === editorTile) return;
   editorRows[y][x] = editorTile;
-  renderEditorGrid();
+  const cell = editorGrid.querySelector(`.editor-cell[data-x="${x}"][data-y="${y}"]`);
+  if (cell) {
+    const meta = TILE_META[editorTile] ?? TILE_META['.'];
+    cell.textContent = editorTile;
+    cell.title = `${meta.label} (${editorTile}) - [${x},${y}]`;
+    cell.style.background = meta.color;
+    cell.style.color = meta.text;
+  }
+  editorText.value = editorToRaw(editorRows);
+}
+
+function paintEditorFromPointerEvent(e){
+  const rect = editorGrid.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const relX = (e.clientX - rect.left) / rect.width;
+  const relY = (e.clientY - rect.top) / rect.height;
+  if (relX < 0 || relX > 1 || relY < 0 || relY > 1) return;
+  const x = Math.max(0, Math.min(W - 1, Math.floor(relX * W)));
+  const y = Math.max(0, Math.min(H - 1, Math.floor(relY * H)));
+  paintEditorCell(x, y);
 }
 
 function renderEditorGrid(){
@@ -793,6 +816,8 @@ function renderEditorGrid(){
       const meta = TILE_META[tile] ?? TILE_META['.'];
       cell.className = 'editor-cell';
       cell.type = 'button';
+      cell.dataset.x = String(x);
+      cell.dataset.y = String(y);
       cell.textContent = tile;
       cell.title = `${meta.label} (${tile}) - [${x},${y}]`;
       cell.style.background = meta.color;
@@ -802,19 +827,20 @@ function renderEditorGrid(){
         editorMouseDown = true;
         editorActivePointerId = e.pointerId;
         editorGrid.setPointerCapture(e.pointerId);
-        paintEditorCell(x, y);
-      });
-      cell.addEventListener('pointerenter', (e) => {
-        if (!editorMouseDown) return;
-        if (e.pointerId !== editorActivePointerId) return;
-        if ((e.buttons & 1) !== 1) return;
-        paintEditorCell(x, y);
+        paintEditorFromPointerEvent(e);
       });
       editorGrid.appendChild(cell);
     }
   }
   editorText.value = editorToRaw(editorRows);
 }
+
+editorGrid.addEventListener('pointermove', (e) => {
+  if (!editorMouseDown) return;
+  if (e.pointerId !== editorActivePointerId) return;
+  if ((e.buttons & 1) !== 1) return;
+  paintEditorFromPointerEvent(e);
+});
 
 function renderPalette(){
   paletteGrid.innerHTML = '';
@@ -945,6 +971,12 @@ document.getElementById('editorImportBtn').onclick = () => {
   } catch (err) {
     setEditorStatus(`Importación inválida: ${err.message}`, true);
   }
+};
+
+document.getElementById('editorClearBtn').onclick = () => {
+  editorRows = editorRows.map(row => row.map(() => '.'));
+  renderEditorGrid();
+  setEditorStatus('Pantalla vaciada. Coloca al menos 1 jugador (P) antes de guardar.');
 };
 
 startLevel();
