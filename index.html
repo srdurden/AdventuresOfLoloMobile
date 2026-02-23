@@ -275,6 +275,7 @@ const setHudMessage = () => {};
 const MAX_UNDO = 200;
 const TICK = 100;
 const MOVE_INTERVAL = 75;
+const EGG_HATCH_MS = 10000;
 let lastTs = 0;
 let acc = 0;
 let moveAcc = 0;
@@ -314,6 +315,7 @@ const state = {
   filledWater: new Set(),
   enemies: [],
   eggs: new Set(),
+  eggTimers: new Map(),
   won: false,
   shots: 0,
   deadUntil: 0,
@@ -413,6 +415,7 @@ function snapshot(){
     shots: state.shots,
     blocks: arrFromSet(state.blocks),
     eggs: arrFromSet(state.eggs),
+    eggTimers: [...state.eggTimers.entries()].map(([pos, hatchAt]) => { const [x,y] = pos.split(',').map(Number); return { x, y, hatchAt }; }),
     filledWater: arrFromSet(state.filledWater),
     enemies: state.enemies.map(e => ({ ...e })),
   };
@@ -424,6 +427,7 @@ function restore(s){
   state.shots = s.shots ?? 0;
   state.blocks = setFromArr(s.blocks);
   state.eggs = setFromArr(s.eggs);
+  state.eggTimers = new Map((s.eggTimers ?? []).map(t => [key(t.x, t.y), t.hatchAt]));
   state.filledWater = setFromArr(s.filledWater);
   state.enemies = s.enemies.map(e => ({ ...e }));
   state.won = false;
@@ -463,9 +467,17 @@ function attemptPush(setRef, fromX, fromY, dx, dy){
   if (!inBounds(nx,ny) || has(state.blocks,nx,ny) || has(state.eggs,nx,ny) || enemyAt(nx,ny)) return false;
   const t = state.base[ny][nx];
   if (t === '#' || t === 'T' || t === 'C' || t === 'D' || t === 'S') return false;
-  setRef.delete(key(fromX,fromY));
-  if (t === '~' && !has(state.filledWater,nx,ny)) state.filledWater.add(key(nx,ny));
-  else setRef.add(key(nx,ny));
+  const fromKey = key(fromX,fromY);
+  const toKey = key(nx,ny);
+  const eggHatchAt = setRef === state.eggs ? state.eggTimers.get(fromKey) : null;
+  setRef.delete(fromKey);
+  if (setRef === state.eggs) state.eggTimers.delete(fromKey);
+  if (t === '~' && !has(state.filledWater,nx,ny)) {
+    state.filledWater.add(toKey);
+  } else {
+    setRef.add(toKey);
+    if (setRef === state.eggs && eggHatchAt != null) state.eggTimers.set(toKey, eggHatchAt);
+  }
   return true;
 }
 
@@ -508,15 +520,57 @@ function shoot(){
   const y = state.player.y + dy;
   if (!inBounds(x,y)) return false;
   const hit = enemyAt(x,y);
-  if (hit) {
+  if (hit && hit.type === 'ardilla') {
     state.enemies = state.enemies.filter(v => v !== hit);
-    state.eggs.add(key(x,y));
+    const eggPos = key(x,y);
+    state.eggs.add(eggPos);
+    state.eggTimers.set(eggPos, performance.now() + EGG_HATCH_MS);
     state.shots -= 1;
-    setHudMessage('¡Enemigo convertido en huevo!');
+    setHudMessage('¡Ardilla convertida en huevo!');
     navigator.vibrate?.(20);
     return true;
   }
-  setHudMessage('Acércate a un enemigo para disparar');
+  if (has(state.eggs,x,y)) {
+    const eggPos = key(x,y);
+    state.eggs.delete(eggPos);
+    state.eggTimers.delete(eggPos);
+    state.shots -= 1;
+    setHudMessage('¡Huevo eliminado!');
+    navigator.vibrate?.(15);
+    return true;
+  }
+  setHudMessage('Acércate a una ardilla o un huevo para disparar');
+  return false;
+}
+
+function interactAdjacent(dx,dy){
+  if (state.shots <= 0) {
+    setHudMessage('Sin disparos: recoge corazones');
+    return false;
+  }
+  const x = state.player.x + dx;
+  const y = state.player.y + dy;
+  if (!inBounds(x,y)) return false;
+  const hit = enemyAt(x,y);
+  if (hit && hit.type === 'ardilla') {
+    state.enemies = state.enemies.filter(v => v !== hit);
+    const eggPos = key(x,y);
+    state.eggs.add(eggPos);
+    state.eggTimers.set(eggPos, performance.now() + EGG_HATCH_MS);
+    state.shots -= 1;
+    setHudMessage('¡Ardilla convertida en huevo!');
+    navigator.vibrate?.(20);
+    return true;
+  }
+  if (has(state.eggs,x,y)) {
+    const eggPos = key(x,y);
+    state.eggs.delete(eggPos);
+    state.eggTimers.delete(eggPos);
+    state.shots -= 1;
+    setHudMessage('¡Huevo eliminado!');
+    navigator.vibrate?.(15);
+    return true;
+  }
   return false;
 }
 
@@ -627,6 +681,7 @@ canvas.addEventListener('pointerdown', e => {
   const dy = t.y - state.player.y;
   if (Math.abs(dx) + Math.abs(dy) === 1) {
     pushUndo();
+    if (interactAdjacent(Math.sign(dx), Math.sign(dy))) return;
     if (!tryMovePlayer(Math.sign(dx), Math.sign(dy))) state.undo.pop();
     return;
   }
@@ -658,8 +713,18 @@ function blockedForMedusaShot(x,y){
 }
 
 function tick(){
-  if (state.deadUntil && performance.now() >= state.deadUntil) return resetLevel();
+  const now = performance.now();
+  if (state.deadUntil && now >= state.deadUntil) return resetLevel();
   if (state.won) return;
+
+  for (const [pos, hatchAt] of state.eggTimers.entries()) {
+    if (now < hatchAt) continue;
+    const [x,y] = pos.split(',').map(Number);
+    state.eggTimers.delete(pos);
+    if (!state.eggs.has(pos)) continue;
+    state.eggs.delete(pos);
+    if (!enemyAt(x,y)) state.enemies.push({ type:'ardilla', x, y, charge:0 });
+  }
 
   for (const e of state.enemies) {
     if (e.type !== 'medusa') continue; // ardilla is passive, no lasers
@@ -917,6 +982,7 @@ function startLevel(){
   state.hearts = p.hearts;
   state.blocks = p.blocks;
   state.eggs = new Set();
+  state.eggTimers = new Map();
   state.filledWater = p.filledWater;
   state.enemies = p.enemies;
   state.won = false;
