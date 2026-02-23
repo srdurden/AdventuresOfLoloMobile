@@ -177,7 +177,7 @@
     <div id="boardWrap">
       <canvas id="gameCanvas"></canvas>
       <div id="hud">
-        <div class="pill">Nivel 1</div>
+        <div class="pill" id="hudLevel">Nivel 1</div>
         <div class="pill" id="hudHearts">❤ 0</div>
         <div class="pill" id="hudShots">✦ 0</div>
       </div>
@@ -217,7 +217,8 @@
 
 <script>
 // Mapa actualizado: Retirada la Medusa y añadida la Ardilla (A) en el centro.
-const DEFAULT_LEVEL_RAW = `##############
+const LEVELS_RAW = [
+`##############
 #......T.....#
 #......T.....#
 #......T.....#
@@ -236,9 +237,30 @@ const DEFAULT_LEVEL_RAW = `##############
 #......S.....#
 #......S.....#
 #......S.....#
-##############`;
+##############`,
+`##############
+#...H........#
+#.#######.##.#
+#.#.....#....#
+#.#.A...#.##.#
+#.#.....#....#
+#.#.###.#.##.#
+#.#.#C#.#....#
+#...#.#...##.#
+###.#.#####..#
+#P..#.....#D.#
+#.######..#..#
+#......#..#..#
+#.####.#..#..#
+#....#.#..#..#
+####.#.##.#..#
+#....#....#..#
+#.#########..#
+#............#
+##############`
+];
 
-const ALLOWED = new Set(['#','.','P','H','C','B','~','A','T','S']);
+const ALLOWED = new Set(['#','.','P','H','C','B','~','A','T','S','D']);
 function parseLevelRows(raw) {
   const rows = raw.trim().split('\n').map(r => r.trim());
   const h = rows.length;
@@ -251,7 +273,8 @@ function parseLevelRows(raw) {
   return rows;
 }
 
-let currentLevelRaw = DEFAULT_LEVEL_RAW;
+let currentLevelIndex = 0;
+let currentLevelRaw = LEVELS_RAW[currentLevelIndex];
 let LEVEL = parseLevelRows(currentLevelRaw);
 const H = LEVEL.length;
 const W = LEVEL[0].length;
@@ -265,6 +288,7 @@ const ctx = canvas.getContext('2d');
 const boardWrap = document.getElementById('boardWrap');
 const hudHearts = document.getElementById('hudHearts');
 const hudShots = document.getElementById('hudShots');
+const hudLevel = document.getElementById('hudLevel');
 const editorView = document.getElementById('editorView');
 const editorGrid = document.getElementById('editorGrid');
 const paletteGrid = document.getElementById('paletteGrid');
@@ -275,7 +299,7 @@ const setHudMessage = () => {};
 const MAX_UNDO = 200;
 const TICK = 100;
 const MOVE_INTERVAL = 75;
-const EGG_HATCH_MS = 10000;
+const EGG_HATCH_MS = 30000;
 let lastTs = 0;
 let acc = 0;
 let moveAcc = 0;
@@ -293,13 +317,14 @@ const TILE_META = {
   'P': { label: 'Jugador', color: '#206bff', text: '#fff' },
   'H': { label: 'Corazón', color: '#ce1a1a', text: '#fff' },
   'C': { label: 'Cofre', color: '#b0801a', text: '#111' },
+  'D': { label: 'Puerta', color: '#735124', text: '#fff' },
   'B': { label: 'Bloque', color: '#c89f6f', text: '#111' },
   '~': { label: 'Agua', color: '#0f4dd8', text: '#fff' },
   'A': { label: 'Ardilla', color: '#2d962d', text: '#fff' },
   'T': { label: 'Árbol', color: '#0c6515', text: '#fff' },
   'S': { label: 'Piedra', color: '#8a8a8a', text: '#111' },
 };
-const PALETTE_ORDER = ['.','#','T','S','~','B','H','C','A','P'];
+const PALETTE_ORDER = ['.','#','T','S','~','B','H','C','D','A','P'];
 let editorTile = 'P';
 let editorRows = LEVEL.map(r => r.split(''));
 let editorMouseDown = false;
@@ -317,6 +342,7 @@ const state = {
   eggs: new Set(),
   eggTimers: new Map(),
   won: false,
+  doorOpen: false,
   shots: 0,
   deadUntil: 0,
   undo: [],
@@ -418,6 +444,7 @@ function snapshot(){
     eggTimers: [...state.eggTimers.entries()].map(([pos, hatchAt]) => { const [x,y] = pos.split(',').map(Number); return { x, y, hatchAt }; }),
     filledWater: arrFromSet(state.filledWater),
     enemies: state.enemies.map(e => ({ ...e })),
+    doorOpen: state.doorOpen,
   };
 }
 
@@ -430,6 +457,7 @@ function restore(s){
   state.eggTimers = new Map((s.eggTimers ?? []).map(t => [key(t.x, t.y), t.hatchAt]));
   state.filledWater = setFromArr(s.filledWater);
   state.enemies = s.enemies.map(e => ({ ...e }));
+  state.doorOpen = Boolean(s.doorOpen);
   state.won = false;
   state.deadUntil = 0;
 }
@@ -446,6 +474,7 @@ function passableForPlayer(x,y,ignorePushables=false){
   if (b === '#' || b === 'T' || b === 'S') return false;
   if (b === '~' && !has(state.filledWater,x,y)) return false;
   if (b === 'C' && !chestOpen()) return false;
+  if (b === 'D' && !state.doorOpen) return false;
   return !enemyAt(x,y);
 }
 
@@ -457,8 +486,14 @@ function killPlayer(){
 
 function winLevel(){
   state.won = true;
-  setHudMessage('¡Completado!');
+  setHudMessage('¡Pantalla completada!');
   navigator.vibrate?.([30,30,60]);
+  window.setTimeout(() => {
+    currentLevelIndex = (currentLevelIndex + 1) % LEVELS_RAW.length;
+    currentLevelRaw = LEVELS_RAW[currentLevelIndex];
+    startLevel();
+    resize();
+  }, 450);
 }
 
 function attemptPush(setRef, fromX, fromY, dx, dy){
@@ -505,7 +540,11 @@ function tryMovePlayer(dx,dy){
     state.shots += 1;
     setHudMessage('¡Ganaste 1 disparo!');
   }
-  if (chestOpen() && state.chest && tx === state.chest.x && ty === state.chest.y) return winLevel(), true;
+  if (!state.doorOpen && chestOpen() && state.chest && tx === state.chest.x && ty === state.chest.y) {
+    state.doorOpen = true;
+    setHudMessage('¡Puerta abierta!');
+  }
+  if (state.doorOpen && state.door && tx === state.door.x && ty === state.door.y) return winLevel(), true;
   return true;
 }
 
@@ -707,6 +746,21 @@ function handlePointerEnd(e){
 canvas.addEventListener('pointerup', handlePointerEnd);
 canvas.addEventListener('pointercancel', handlePointerEnd);
 
+document.addEventListener('keydown', (e) => {
+  if (isEditorOpen || state.won || state.deadUntil) return;
+  const movement = {
+    ArrowUp: [0, -1],
+    ArrowDown: [0, 1],
+    ArrowLeft: [-1, 0],
+    ArrowRight: [1, 0],
+  }[e.key];
+  if (!movement) return;
+  e.preventDefault();
+  const [dx, dy] = movement;
+  pushUndo();
+  if (!tryMovePlayer(dx, dy)) state.undo.pop();
+});
+
 function blockedForMedusaShot(x,y){
   const b = state.base[y][x];
   return b === '#' || b === 'C' || b === 'D' || has(state.blocks,x,y) || has(state.eggs,x,y);
@@ -796,7 +850,15 @@ function draw(){
       else if (b === 'T') drawSprite('tree',x,y);
       else if (b === 'S') drawSprite('stone',x,y);
       else if (b === 'C') drawSprite(chestOpen() ? 'chest_open' : 'chest',x,y);
-      else if (b === 'D') drawSprite('door',x,y);
+      else if (b === 'D') {
+        drawSprite('door',x,y);
+        if (!state.doorOpen) {
+          const px = board.x + x * board.t;
+          const py = board.y + y * board.t;
+          ctx.fillStyle = 'rgba(20, 12, 4, 0.6)';
+          ctx.fillRect(px, py, board.t, board.t);
+        }
+      }
     }
   }
 
@@ -826,7 +888,10 @@ function draw(){
 
   hudHearts.textContent = `❤ ${state.hearts.size}`;
   hudShots.textContent = `✦ ${state.shots}`;
-  if (!state.won && state.hearts.size === 0) setHudMessage('¡Abre el cofre para terminar!');
+  hudLevel.textContent = `Nivel ${currentLevelIndex + 1}`;
+  if (!state.won && state.hearts.size === 0 && !state.doorOpen) {
+    setHudMessage('¡Pasa por el cofre abierto para abrir la puerta!');
+  }
 }
 
 function frame(ts){
@@ -986,6 +1051,7 @@ function startLevel(){
   state.filledWater = p.filledWater;
   state.enemies = p.enemies;
   state.won = false;
+  state.doorOpen = false;
   state.shots = 0;
   state.deadUntil = 0;
   state.undo = [];
