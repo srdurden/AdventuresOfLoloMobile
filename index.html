@@ -378,6 +378,7 @@ const MAX_UNDO = 200;
 const TICK = 100;
 const MOVE_INTERVAL = 75;
 const DRAG_PATH_MOVE_INTERVAL = 110;
+const MAX_DRAG_PATH_STEPS = 5;
 const PLAYER_MOVE_MS = MOVE_INTERVAL;
 const EGG_HATCH_MS = 30000;
 const MEDUSA_FREEZE_BEFORE_SHOT_MS = 70;
@@ -573,6 +574,14 @@ function getPlayerDrawPosition(now = performance.now()){
   };
 }
 
+function isFireballTouchingPlayer(fireball, now = performance.now()){
+  const playerPos = getPlayerDrawPosition(now);
+  const firePos = getFireballRenderPosition(fireball, now);
+  const dx = firePos.x - playerPos.x;
+  const dy = firePos.y - playerPos.y;
+  return (dx * dx + dy * dy) <= 0.22;
+}
+
 function parseLevel(){
   const base = Array.from({ length:H }, () => Array(W).fill('.'));
   const hearts = [];
@@ -766,7 +775,7 @@ function tryMovePlayer(dx,dy){
     setHudMessage('¡Puerta abierta!');
   }
   if (state.doorOpen && state.door && tx === state.door.x && ty === state.door.y) return winLevel(), true;
-  if (fireballAt(tx, ty)) killPlayer();
+  if (state.fireballs.some(fireball => isFireballTouchingPlayer(fireball))) killPlayer();
   const now = performance.now();
   updateDragonThreat(now);
   resolveMedusaThreat(now, true);
@@ -872,6 +881,7 @@ function appendStepToPath(path, tile){
   let cx = last.x;
   let cy = last.y;
   while (cx !== tile.x || cy !== tile.y) {
+    if (path.length - 1 >= MAX_DRAG_PATH_STEPS) break;
     const dx = tile.x - cx;
     const dy = tile.y - cy;
 
@@ -1050,7 +1060,7 @@ function spawnDragonFireball(dragon, now){
   }
   const fireball = { x, y, dx, dy, lastStepAt: now };
   state.fireballs.push(fireball);
-  if (x === state.player.x && y === state.player.y) killPlayer();
+  if (isFireballTouchingPlayer(fireball, now)) killPlayer();
 }
 
 function updateDragonThreat(now = performance.now()){
@@ -1083,7 +1093,7 @@ function advanceDragonFireballs(now = performance.now()){
       if (!inBounds(Math.round(fireball.x), Math.round(fireball.y))) break;
       const tx = Math.round(fireball.x);
       const ty = Math.round(fireball.y);
-      if (tx === state.player.x && ty === state.player.y) {
+      if (isFireballTouchingPlayer(fireball, fireball.lastStepAt)) {
         killPlayer();
         break;
       }
@@ -1095,7 +1105,7 @@ function advanceDragonFireballs(now = performance.now()){
     if (!inBounds(Math.round(fireball.x), Math.round(fireball.y))) continue;
     const tx = Math.round(fireball.x);
     const ty = Math.round(fireball.y);
-    if (tx === state.player.x && ty === state.player.y) continue;
+    if (isFireballTouchingPlayer(fireball, now)) continue;
     if (stepped && blockedForDragonSight(tx, ty)) continue;
     next.push(fireball);
   }
