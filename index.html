@@ -374,7 +374,6 @@ const editorText = document.getElementById('editorText');
 const editorStatus = document.getElementById('editorStatus');
 const setHudMessage = () => {};
 
-const MAX_UNDO = 200;
 const TICK = 100;
 const MOVE_INTERVAL = 75;
 const DRAG_PATH_MOVE_INTERVAL = 110;
@@ -668,7 +667,6 @@ function triggerEnemyExplosion(){
 
 function pushUndoSnapshot(undoSnapshot){
   state.undo.push(undoSnapshot);
-  if (state.undo.length > MAX_UNDO) state.undo.shift();
 }
 
 function pushUndo(){
@@ -1800,6 +1798,8 @@ function resetLevel({ fromDeath = false } = {}){
 
 document.getElementById('undoBtn').onclick = () => {
   if (!state.undo.length || state.won) return;
+  queuedMoves = [];
+  clearPathInput();
   restore(state.undo.pop());
 };
 document.getElementById('resetBtn').onclick = () => resetLevel();
