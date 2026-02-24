@@ -393,6 +393,7 @@ let board = { x: 0, y: 0, t: 20 };
 let activePointerId = null;
 let dragPath = [];
 let queuedMoves = [];
+let activePointerTile = null;
 const KEY_DIRECTIONS = {
   ArrowUp: [0, -1],
   ArrowDown: [0, 1],
@@ -862,6 +863,12 @@ function appendStepToPath(path, tile){
   }
   if (last.x === tile.x && last.y === tile.y) return;
 
+  const existingIdx = path.findIndex(p => p.x === tile.x && p.y === tile.y);
+  if (existingIdx >= 0) {
+    path.length = existingIdx + 1;
+    return;
+  }
+
   let cx = last.x;
   let cy = last.y;
   while (cx !== tile.x || cy !== tile.y) {
@@ -890,6 +897,25 @@ function appendStepToPath(path, tile){
 function clearPathInput(){
   activePointerId = null;
   dragPath = [];
+  activePointerTile = null;
+}
+
+function getDragAvailableTiles(){
+  if (!dragPath.length) return [];
+  const tip = dragPath[dragPath.length - 1];
+  const options = [];
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+  for (const [dx, dy] of dirs) {
+    const nx = tip.x + dx;
+    const ny = tip.y + dy;
+    if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+    if (canDragThrough(nx, ny)) options.push({ x: nx, y: ny });
+  }
+  if (dragPath.length > 1) {
+    const prev = dragPath[dragPath.length - 2];
+    if (!options.some(v => v.x === prev.x && v.y === prev.y)) options.push({ x: prev.x, y: prev.y });
+  }
+  return options;
 }
 
 function clearKeyboardInput(){
@@ -932,6 +958,7 @@ canvas.addEventListener('pointerdown', e => {
     activePointerId = e.pointerId;
     queuedMoves = [];
     dragPath = [{ x: state.player.x, y: state.player.y }];
+    activePointerTile = t;
     canvas.setPointerCapture(e.pointerId);
     return;
   }
@@ -960,6 +987,7 @@ canvas.addEventListener('pointerdown', e => {
 canvas.addEventListener('pointermove', e => {
   if (e.pointerId !== activePointerId || !dragPath.length) return;
   const tile = tapToTile(e.clientX, e.clientY);
+  activePointerTile = tile;
   appendStepToPath(dragPath, tile);
 });
 
@@ -1419,6 +1447,26 @@ function draw(){
       else ctx.lineTo(cx, cy);
     }
     ctx.stroke();
+  }
+
+  if (dragPath.length) {
+    const dragAvailableTiles = getDragAvailableTiles();
+    ctx.fillStyle = 'rgba(116, 255, 140, 0.3)';
+    for (const tile of dragAvailableTiles) {
+      const px = board.x + tile.x * board.t;
+      const py = board.y + tile.y * board.t;
+      ctx.fillRect(px, py, board.t, board.t);
+    }
+  }
+
+  if (activePointerTile) {
+    const px = board.x + activePointerTile.x * board.t;
+    const py = board.y + activePointerTile.y * board.t;
+    ctx.fillStyle = 'rgba(255, 246, 114, 0.45)';
+    ctx.fillRect(px, py, board.t, board.t);
+    ctx.strokeStyle = 'rgba(255, 246, 114, 0.95)';
+    ctx.lineWidth = Math.max(2, board.t * 0.12);
+    ctx.strokeRect(px + 1, py + 1, board.t - 2, board.t - 2);
   }
 
   const playerDraw = getPlayerDrawPosition();
