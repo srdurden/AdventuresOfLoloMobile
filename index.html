@@ -847,6 +847,20 @@ function interactAdjacent(dx,dy){
   return false;
 }
 
+function getAdjacentShootableTargets(){
+  if (state.shots <= 1 || isPlayerFrozen()) return [];
+  const targets = [];
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+  for (const [dx,dy] of dirs) {
+    const x = state.player.x + dx;
+    const y = state.player.y + dy;
+    if (!inBounds(x,y)) continue;
+    const hit = enemyAt(x,y);
+    if (hit && hit.type === 'ardilla') targets.push({ x, y });
+  }
+  return targets;
+}
+
 function tapToTile(clientX, clientY){
   const rect = canvas.getBoundingClientRect();
   const x = (clientX - rect.left - board.x) / board.t;
@@ -1371,6 +1385,31 @@ function draw(){
       ctx.fillRect(px - board.t * 0.4, py - board.t * 0.4, board.t * 1.8, board.t * 1.8);
       drawSprite('medusa_alert', e.x, e.y);
     } else drawSprite(e.type, e.x, e.y);
+  }
+
+  const adjacentShootableTargets = getAdjacentShootableTargets();
+  if (adjacentShootableTargets.length) {
+    const pulse = 0.45 + Math.abs(Math.sin(now * 0.013)) * 0.55;
+    for (const target of adjacentShootableTargets) {
+      const px = board.x + target.x * board.t;
+      const py = board.y + target.y * board.t;
+      const glow = ctx.createRadialGradient(
+        px + board.t * 0.5,
+        py + board.t * 0.5,
+        board.t * 0.12,
+        px + board.t * 0.5,
+        py + board.t * 0.5,
+        board.t * (0.65 + pulse * 0.55)
+      );
+      glow.addColorStop(0, `rgba(255, 82, 82, ${0.26 + pulse * 0.26})`);
+      glow.addColorStop(0.6, `rgba(255, 36, 36, ${0.22 + pulse * 0.22})`);
+      glow.addColorStop(1, 'rgba(255, 24, 24, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(px - board.t * 0.6, py - board.t * 0.6, board.t * 2.2, board.t * 2.2);
+      ctx.strokeStyle = `rgba(255, 98, 98, ${0.5 + pulse * 0.35})`;
+      ctx.lineWidth = Math.max(1.5, board.t * 0.08);
+      ctx.strokeRect(px + 1, py + 1, board.t - 2, board.t - 2);
+    }
   }
 
   for (const explosion of state.explosions) {
