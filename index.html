@@ -1335,7 +1335,7 @@ function draw(){
       else if (b === 'S') drawSprite('stone',x,y);
       else if (b === 'C') {
         drawSprite(chestOpen() ? 'chest_open' : 'chest',x,y);
-        if (chestOpen()) {
+        if (chestOpen() && !state.keyCollected) {
           const px = board.x + x * board.t;
           const py = board.y + y * board.t;
           const pulse = 0.5 + Math.abs(Math.sin(now * 0.01)) * 0.5;
