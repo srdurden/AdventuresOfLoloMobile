@@ -397,7 +397,6 @@ const setHudMessage = () => {};
 const TICK = 100;
 const MOVE_INTERVAL = 75;
 const DRAG_PATH_MOVE_INTERVAL = 110;
-const MAX_DRAG_PATH_STEPS = 5;
 const PLAYER_MOVE_MS = MOVE_INTERVAL;
 const EGG_HATCH_MS = 10000;
 const MEDUSA_FREEZE_BEFORE_SHOT_MS = 70;
@@ -414,6 +413,7 @@ let activePointerId = null;
 let dragPath = [];
 let queuedMoves = [];
 let activePointerTile = null;
+let dragFreezeNow = null;
 const KEY_DIRECTIONS = {
   ArrowUp: [0, -1],
   ArrowDown: [0, 1],
@@ -913,7 +913,6 @@ function appendStepToPath(path, tile){
   let cx = last.x;
   let cy = last.y;
   while (cx !== tile.x || cy !== tile.y) {
-    if (path.length - 1 >= MAX_DRAG_PATH_STEPS) break;
     const dx = tile.x - cx;
     const dy = tile.y - cy;
 
@@ -936,10 +935,19 @@ function appendStepToPath(path, tile){
   }
 }
 
+
+function isPlanningDragActive(){
+  return activePointerId !== null && dragPath.length > 0;
+}
+
+function getRenderNow(){
+  return dragFreezeNow ?? performance.now();
+}
 function clearPathInput(){
   activePointerId = null;
   dragPath = [];
   activePointerTile = null;
+  dragFreezeNow = null;
 }
 
 function getDragAvailableTiles(){
@@ -1002,6 +1010,7 @@ canvas.addEventListener('pointerdown', e => {
     queuedMoves = [];
     dragPath = [{ x: state.player.x, y: state.player.y }];
     activePointerTile = t;
+    dragFreezeNow = performance.now();
     canvas.setPointerCapture(e.pointerId);
     return;
   }
@@ -1297,7 +1306,7 @@ function draw(){
   
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, w, h);
-  const now = performance.now();
+  const now = getRenderNow();
 
   // Capa 0: Suelo en todas partes
   for (let y=0; y<H; y++) {
@@ -1389,7 +1398,7 @@ function draw(){
     if (e.type === 'medusa' && e.alert) {
       const px = board.x + e.x * board.t;
       const py = board.y + e.y * board.t;
-      const t = performance.now() * 0.012;
+      const t = now * 0.012;
       const pulse = 0.45 + Math.abs(Math.sin(t)) * 0.55;
       const radius = board.t * (0.5 + pulse * 0.32);
       const glow = ctx.createRadialGradient(
@@ -1467,7 +1476,7 @@ function draw(){
   }
 
   if (state.medusaShot) {
-    const { fromX, fromY, toX, toY, chargeRatio = 1, ts = performance.now(), life = MEDUSA_SHOT_FLASH_MS } = state.medusaShot;
+    const { fromX, fromY, toX, toY, chargeRatio = 1, ts = now, life = MEDUSA_SHOT_FLASH_MS } = state.medusaShot;
     const fromPx = board.x + (fromX + 0.5) * board.t;
     const fromPy = board.y + (fromY + 0.5) * board.t;
     const toPx = board.x + (toX + 0.5) * board.t;
@@ -1537,7 +1546,7 @@ function draw(){
     ctx.strokeRect(px + 1, py + 1, board.t - 2, board.t - 2);
   }
 
-  const playerDraw = getPlayerDrawPosition();
+  const playerDraw = getPlayerDrawPosition(now);
   drawSprite('player', playerDraw.x, playerDraw.y);
   if (state.frozenUntil) {
     const px = board.x + playerDraw.x * board.t;
@@ -1547,13 +1556,12 @@ function draw(){
   }
 
   if (state.deadUntil) {
-    const blink = 0.25 + Math.abs(Math.sin(performance.now() * 0.04)) * 0.35;
+    const blink = 0.25 + Math.abs(Math.sin(now * 0.04)) * 0.35;
     ctx.fillStyle = `rgba(255, 44, 44, ${blink})`;
     ctx.fillRect(board.x, board.y, board.t * W, board.t * H);
   }
 
   if (state.resetFlashUntil) {
-    const now = performance.now();
     const remain = state.resetFlashUntil - now;
     if (remain <= 0) state.resetFlashUntil = 0;
     else {
@@ -1665,18 +1673,20 @@ function frame(ts){
   if (!lastTs) lastTs = ts;
   const dt = Math.min(50, ts - lastTs);
   lastTs = ts;
-  acc += dt;
-  moveAcc += dt;
-  while (queuedMoves.length) {
-    const intervalMs = queuedMoves[0].intervalMs ?? MOVE_INTERVAL;
-    if (moveAcc < intervalMs) break;
-    const processed = processQueuedMove();
-    if (!processed) break;
-    moveAcc -= intervalMs;
-  }
-  while (acc >= TICK) {
-    tick();
-    acc -= TICK;
+  if (!isPlanningDragActive()) {
+    acc += dt;
+    moveAcc += dt;
+    while (queuedMoves.length) {
+      const intervalMs = queuedMoves[0].intervalMs ?? MOVE_INTERVAL;
+      if (moveAcc < intervalMs) break;
+      const processed = processQueuedMove();
+      if (!processed) break;
+      moveAcc -= intervalMs;
+    }
+    while (acc >= TICK) {
+      tick();
+      acc -= TICK;
+    }
   }
   draw();
   requestAnimationFrame(frame);
