@@ -399,7 +399,7 @@ const MOVE_INTERVAL = 75;
 const DRAG_PATH_MOVE_INTERVAL = 110;
 const MAX_DRAG_PATH_STEPS = 5;
 const PLAYER_MOVE_MS = MOVE_INTERVAL;
-const EGG_HATCH_MS = 30000;
+const EGG_HATCH_MS = 10000;
 const MEDUSA_FREEZE_BEFORE_SHOT_MS = 70;
 const MEDUSA_SHOT_FLASH_MS = 90;
 const DRAGON_FIREBALL_STEP_MS = 100;
@@ -781,8 +781,8 @@ function tryMovePlayer(dx,dy){
   const heartKey = key(tx,ty);
   if (state.hearts.has(heartKey)) {
     state.hearts.delete(heartKey);
-    state.shots += 1;
-    setHudMessage('¡Ganaste 1 disparo!');
+    state.shots += 2;
+    setHudMessage('¡Ganaste 2 disparos!');
   }
   if (!state.doorOpen && chestOpen() && state.chest && tx === state.chest.x && ty === state.chest.y) {
     if (!state.keyCollected) {
@@ -868,7 +868,7 @@ function interactAdjacent(dx,dy){
 }
 
 function getAdjacentShootableTargets(){
-  if (state.shots <= 1 || isPlayerFrozen()) return [];
+  if (state.shots <= 0 || isPlayerFrozen()) return [];
   const targets = [];
   const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
   for (const [dx,dy] of dirs) {
@@ -876,7 +876,7 @@ function getAdjacentShootableTargets(){
     const y = state.player.y + dy;
     if (!inBounds(x,y)) continue;
     const hit = enemyAt(x,y);
-    if (hit && hit.type === 'ardilla') targets.push({ x, y });
+    if ((hit && hit.type === 'ardilla') || has(state.eggs,x,y)) targets.push({ x, y });
   }
   return targets;
 }
