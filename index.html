@@ -221,7 +221,7 @@
       <div id="levelDropdown" aria-hidden="true"></div>
     </div>
     <div id="controls">
-      <button id="undoBtn">Deshacer</button>
+      <button id="undoBtn">ATRÁS</button>
       <button id="resetBtn">Reiniciar</button>
       <button id="editBtn">Editar pantalla</button>
     </div>
@@ -943,7 +943,7 @@ function getDragAvailableTiles(){
 function clearKeyboardInput(){
 }
 
-function enqueueMove(dx, dy, undoSnapshot = snapshot(), intervalMs = MOVE_INTERVAL){
+function enqueueMove(dx, dy, undoSnapshot = null, intervalMs = MOVE_INTERVAL){
   queuedMoves.push({ dx, dy, undoSnapshot, intervalMs });
   if (queuedMoves.length === 1) moveAcc = intervalMs;
 }
@@ -960,13 +960,14 @@ function queueDraggedPath(){
     steps.push([dx, dy]);
   }
   if (!steps.length) return;
-  for (const [dx, dy] of steps) enqueueMove(dx, dy, snapshot(), DRAG_PATH_MOVE_INTERVAL);
+  for (const [dx, dy] of steps) enqueueMove(dx, dy, null, DRAG_PATH_MOVE_INTERVAL);
 }
 
 function processQueuedMove(){
   if (!queuedMoves.length || state.won || state.deadUntil || isPlayerFrozen()) return false;
   const nextMove = queuedMoves.shift();
-  pushUndoSnapshot(nextMove.undoSnapshot);
+  const undoSnapshot = nextMove.undoSnapshot ?? snapshot();
+  pushUndoSnapshot(undoSnapshot);
   if (!tryMovePlayer(nextMove.dx, nextMove.dy)) {
     state.undo.pop();
   }
