@@ -396,6 +396,8 @@ const setHudMessage = () => {};
 
 const TICK = 100;
 const MOVE_INTERVAL = 75;
+const KEYBOARD_HALF_STEP_INTERVAL = 58;
+const KEYBOARD_HALF_STEP_MS = 52;
 const DRAG_PATH_MOVE_INTERVAL = 110;
 const PLAYER_MOVE_MS = MOVE_INTERVAL;
 const EGG_HATCH_MS = 10000;
@@ -421,6 +423,10 @@ const KEY_DIRECTIONS = {
   ArrowRight: [1, 0],
 };
 let playerAnim = null;
+let keyboardOffset = { x: 0, y: 0 };
+let keyboardHoldAcc = 0;
+let activeKeyboardDirKey = null;
+const pressedMovementKeys = new Set();
 let isEditorOpen = false;
 
 const TILE_META = {
@@ -575,17 +581,21 @@ function setPlayerAnimation(fromX, fromY, toX, toY){
   playerAnim = { fromX, fromY, toX, toY, startedAt: performance.now(), duration: PLAYER_MOVE_MS };
 }
 
+function setPlayerAnimationCustom(fromX, fromY, toX, toY, duration){
+  playerAnim = { fromX, fromY, toX, toY, startedAt: performance.now(), duration };
+}
+
 function clearPlayerAnimation(){
   playerAnim = null;
 }
 
 function getPlayerDrawPosition(now = performance.now()){
-  if (!playerAnim) return { x: state.player.x, y: state.player.y };
+  if (!playerAnim) return { x: state.player.x + keyboardOffset.x, y: state.player.y + keyboardOffset.y };
   const elapsed = now - playerAnim.startedAt;
   const t = Math.max(0, Math.min(1, elapsed / Math.max(1, playerAnim.duration)));
   if (t >= 1) {
     playerAnim = null;
-    return { x: state.player.x, y: state.player.y };
+    return { x: state.player.x + keyboardOffset.x, y: state.player.y + keyboardOffset.y };
   }
   return {
     x: playerAnim.fromX + (playerAnim.toX - playerAnim.fromX) * t,
@@ -665,6 +675,7 @@ function restore(s){
   state.resetFlashUntil = 0;
   state.keyCollected = Boolean(s.keyCollected);
   state.explosions = (s.explosions ?? []).map(explosion => ({ ...explosion }));
+  keyboardOffset = { x: 0, y: 0 };
   clearPlayerAnimation();
 }
 
@@ -969,6 +980,61 @@ function getDragAvailableTiles(){
 }
 
 function clearKeyboardInput(){
+  keyboardHoldAcc = 0;
+  activeKeyboardDirKey = null;
+  pressedMovementKeys.clear();
+}
+
+function canPushAt(fromX, fromY, dx, dy){
+  const nx = fromX + dx;
+  const ny = fromY + dy;
+  if (!inBounds(nx,ny) || has(state.blocks,nx,ny) || has(state.eggs,nx,ny) || enemyAt(nx,ny)) return false;
+  const t = state.base[ny][nx];
+  return !(t === '#' || t === 'V' || t === 'T' || t === 'C' || t === 'D' || t === 'S');
+}
+
+function canAdvanceKeyboard(dx, dy){
+  const tx = state.player.x + dx;
+  const ty = state.player.y + dy;
+  if (!inBounds(tx,ty) || enemyAt(tx,ty)) return false;
+  if (has(state.blocks,tx,ty)) return canPushAt(tx, ty, dx, dy);
+  if (has(state.eggs,tx,ty) && !has(state.filledWater,tx,ty)) return canPushAt(tx, ty, dx, dy);
+  return passableForPlayer(tx,ty,true);
+}
+
+function performKeyboardHalfStep(dx, dy){
+  if (state.won || state.deadUntil || isPlayerFrozen() || isEditorOpen) return false;
+  if (queuedMoves.length) queuedMoves = [];
+  if (keyboardOffset.x !== 0 || keyboardOffset.y !== 0) {
+    const continuingX = dx !== 0 && keyboardOffset.y === 0 && Math.sign(keyboardOffset.x || dx) === dx;
+    const continuingY = dy !== 0 && keyboardOffset.x === 0 && Math.sign(keyboardOffset.y || dy) === dy;
+    if (!continuingX && !continuingY) return false;
+  }
+  const fromAbsX = state.player.x + keyboardOffset.x;
+  const fromAbsY = state.player.y + keyboardOffset.y;
+  const nextOffsetX = keyboardOffset.x + dx * 0.5;
+  const nextOffsetY = keyboardOffset.y + dy * 0.5;
+  const isCrossingTile = Math.abs(nextOffsetX) >= 1 || Math.abs(nextOffsetY) >= 1;
+
+  if ((keyboardOffset.x === 0 && keyboardOffset.y === 0) && !canAdvanceKeyboard(dx, dy)) return false;
+
+  if (isCrossingTile) {
+    const undoSnapshot = snapshot();
+    pushUndoSnapshot(undoSnapshot);
+    if (!tryMovePlayer(dx, dy)) {
+      state.undo.pop();
+      keyboardOffset = { x: 0, y: 0 };
+      setPlayerAnimationCustom(fromAbsX, fromAbsY, state.player.x, state.player.y, KEYBOARD_HALF_STEP_MS);
+      return false;
+    }
+    keyboardOffset = { x: 0, y: 0 };
+    setPlayerAnimationCustom(fromAbsX, fromAbsY, state.player.x, state.player.y, KEYBOARD_HALF_STEP_MS);
+    return true;
+  }
+
+  keyboardOffset = { x: nextOffsetX, y: nextOffsetY };
+  setPlayerAnimationCustom(fromAbsX, fromAbsY, state.player.x + keyboardOffset.x, state.player.y + keyboardOffset.y, KEYBOARD_HALF_STEP_MS);
+  return true;
 }
 
 function enqueueMove(dx, dy, undoSnapshot = null, intervalMs = MOVE_INTERVAL){
@@ -1057,14 +1123,24 @@ document.addEventListener('keydown', (e) => {
   if (!movement) return;
   e.preventDefault();
   if (isEditorOpen || state.won || state.deadUntil || isPlayerFrozen()) return;
-  if (e.repeat || queuedMoves.length) return;
+  if (e.repeat && pressedMovementKeys.has(e.key)) return;
+  pressedMovementKeys.add(e.key);
+  activeKeyboardDirKey = e.key;
+  keyboardHoldAcc = 0;
   const [dx, dy] = movement;
-  const undoSnapshot = snapshot();
-  pushUndoSnapshot(undoSnapshot);
-  if (!tryMovePlayer(dx, dy)) state.undo.pop();
+  performKeyboardHalfStep(dx, dy);
 });
 
-document.addEventListener('keyup', clearKeyboardInput);
+document.addEventListener('keyup', (e) => {
+  if (!KEY_DIRECTIONS[e.key]) return;
+  pressedMovementKeys.delete(e.key);
+  if (activeKeyboardDirKey === e.key) {
+    const remaining = [...pressedMovementKeys];
+    activeKeyboardDirKey = remaining.length ? remaining[remaining.length - 1] : null;
+  }
+  keyboardHoldAcc = 0;
+});
+
 window.addEventListener('blur', clearKeyboardInput);
 
 function blockedForDragonSight(x,y){
@@ -1436,9 +1512,33 @@ function draw(){
       glow.addColorStop(1, 'rgba(255, 24, 24, 0)');
       ctx.fillStyle = glow;
       ctx.fillRect(px - board.t * 0.6, py - board.t * 0.6, board.t * 2.2, board.t * 2.2);
-      ctx.strokeStyle = `rgba(255, 98, 98, ${0.5 + pulse * 0.35})`;
-      ctx.lineWidth = Math.max(1.5, board.t * 0.08);
-      ctx.strokeRect(px + 1, py + 1, board.t - 2, board.t - 2);
+      const centerX = px + board.t * 0.5;
+      const centerY = py + board.t * 0.5;
+      const ringRadius = board.t * (0.28 + pulse * 0.07);
+      const ringWidth = Math.max(1.5, board.t * 0.08);
+      ctx.strokeStyle = `rgba(255, 98, 98, ${0.58 + pulse * 0.32})`;
+      ctx.lineWidth = ringWidth;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      const armInner = ringRadius + ringWidth * 0.4;
+      const armOuter = board.t * 0.47;
+      ctx.beginPath();
+      ctx.moveTo(centerX - armOuter, centerY);
+      ctx.lineTo(centerX - armInner, centerY);
+      ctx.moveTo(centerX + armInner, centerY);
+      ctx.lineTo(centerX + armOuter, centerY);
+      ctx.moveTo(centerX, centerY - armOuter);
+      ctx.lineTo(centerX, centerY - armInner);
+      ctx.moveTo(centerX, centerY + armInner);
+      ctx.lineTo(centerX, centerY + armOuter);
+      ctx.stroke();
+
+      ctx.fillStyle = `rgba(255, 190, 190, ${0.65 + pulse * 0.25})`;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, Math.max(1.2, board.t * 0.045), 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
@@ -1676,6 +1776,19 @@ function frame(ts){
   if (!isPlanningDragActive()) {
     acc += dt;
     moveAcc += dt;
+    if (activeKeyboardDirKey && !state.won && !state.deadUntil && !isPlayerFrozen() && !isEditorOpen) {
+      keyboardHoldAcc += dt;
+      const movement = KEY_DIRECTIONS[activeKeyboardDirKey];
+      while (movement && keyboardHoldAcc >= KEYBOARD_HALF_STEP_INTERVAL) {
+        const [dx, dy] = movement;
+        const stepped = performKeyboardHalfStep(dx, dy);
+        keyboardHoldAcc -= KEYBOARD_HALF_STEP_INTERVAL;
+        if (!stepped) {
+          keyboardHoldAcc = 0;
+          break;
+        }
+      }
+    }
     while (queuedMoves.length) {
       const intervalMs = queuedMoves[0].intervalMs ?? MOVE_INTERVAL;
       if (moveAcc < intervalMs) break;
@@ -1847,6 +1960,8 @@ function startLevel(){
   state.explosions = [];
   state.undo = [];
   queuedMoves = [];
+  keyboardOffset = { x: 0, y: 0 };
+  clearKeyboardInput();
   clearPlayerAnimation();
   dragPath = [];
   activePointerId = null;
@@ -1858,6 +1973,8 @@ function resetLevel({ fromDeath = false } = {}){
   restore(state.initialSnapshot);
   state.undo = [];
   queuedMoves = [];
+  keyboardOffset = { x: 0, y: 0 };
+  clearKeyboardInput();
   clearPlayerAnimation();
   dragPath = [];
   activePointerId = null;
@@ -1870,6 +1987,8 @@ document.getElementById('undoBtn').onclick = () => {
   if (!state.undo.length || state.won) return;
   queuedMoves = [];
   clearPathInput();
+  clearKeyboardInput();
+  keyboardOffset = { x: 0, y: 0 };
   restore(state.undo.pop());
 };
 document.getElementById('resetBtn').onclick = () => resetLevel();
