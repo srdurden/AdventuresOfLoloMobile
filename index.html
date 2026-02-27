@@ -792,8 +792,8 @@ function tryMovePlayer(dx,dy){
   const heartKey = key(tx,ty);
   if (state.hearts.has(heartKey)) {
     state.hearts.delete(heartKey);
-    state.shots += 2;
-    setHudMessage('¡Ganaste 2 disparos!');
+    state.shots += 1;
+    setHudMessage('¡Ganaste 1 disparo!');
   }
   if (!state.doorOpen && chestOpen() && state.chest && tx === state.chest.x && ty === state.chest.y) {
     if (!state.keyCollected) {
