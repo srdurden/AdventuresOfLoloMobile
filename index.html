@@ -934,12 +934,6 @@ function appendStepToPath(path, tile){
   }
   if (last.x === tile.x && last.y === tile.y) return;
 
-  const existingIdx = path.findIndex(p => p.x === tile.x && p.y === tile.y);
-  if (existingIdx >= 0) {
-    path.length = existingIdx + 1;
-    return;
-  }
-
   let cx = last.x;
   let cy = last.y;
   while (cx !== tile.x || cy !== tile.y) {
