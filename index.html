@@ -1061,6 +1061,15 @@ function queueDraggedPath(now = performance.now()){
   }
 }
 
+function rebaseDragPathFromPlayer(now = performance.now()){
+  if (!isPlanningDragActive()) return;
+  dragPath = [{ x: state.player.x, y: state.player.y }];
+  dragQueuedStepIndex = 0;
+  lastDragStepReadyAt = now;
+  if (activePointerTile) appendStepToPath(dragPath, activePointerTile);
+  queueDraggedPath(now);
+}
+
 function processQueuedMove(){
   if (!queuedMoves.length || state.won || state.deadUntil || isPlayerFrozen()) return false;
   const nextMove = queuedMoves.shift();
@@ -1068,6 +1077,10 @@ function processQueuedMove(){
   pushUndoSnapshot(undoSnapshot);
   if (!tryMovePlayer(nextMove.dx, nextMove.dy)) {
     state.undo.pop();
+    if (isPlanningDragActive()) {
+      queuedMoves = [];
+      rebaseDragPathFromPlayer();
+    }
   }
   return true;
 }
