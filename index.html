@@ -395,10 +395,11 @@ const editorStatus = document.getElementById('editorStatus');
 const setHudMessage = () => {};
 
 const TICK = 100;
-const MOVE_INTERVAL = 75;
-const KEYBOARD_HALF_STEP_INTERVAL = 58;
-const KEYBOARD_HALF_STEP_MS = 52;
-const DRAG_PATH_MOVE_INTERVAL = 110;
+const MOVE_INTERVAL = 150;
+const KEYBOARD_HALF_STEP_INTERVAL = 116;
+const KEYBOARD_HALF_STEP_MS = 104;
+const DRAG_PATH_MOVE_INTERVAL = 220;
+const DRAG_PATH_DELAY_MS = 250;
 const PLAYER_MOVE_MS = MOVE_INTERVAL;
 const EGG_HATCH_MS = 10000;
 const MEDUSA_FREEZE_BEFORE_SHOT_MS = 70;
@@ -416,6 +417,8 @@ let dragPath = [];
 let queuedMoves = [];
 let activePointerTile = null;
 let dragFreezeNow = null;
+let dragQueuedStepIndex = 0;
+let lastDragStepReadyAt = 0;
 const KEY_DIRECTIONS = {
   ArrowUp: [0, -1],
   ArrowDown: [0, 1],
@@ -968,13 +971,15 @@ function isPlanningDragActive(){
 }
 
 function getRenderNow(){
-  return dragFreezeNow ?? performance.now();
+  return performance.now();
 }
 function clearPathInput(){
   activePointerId = null;
   dragPath = [];
   activePointerTile = null;
   dragFreezeNow = null;
+  dragQueuedStepIndex = 0;
+  lastDragStepReadyAt = 0;
 }
 
 function getDragAvailableTiles(){
@@ -1035,24 +1040,25 @@ function performKeyboardHalfStep(dx, dy){
   return true;
 }
 
-function enqueueMove(dx, dy, undoSnapshot = null, intervalMs = MOVE_INTERVAL){
-  queuedMoves.push({ dx, dy, undoSnapshot, intervalMs });
-  if (queuedMoves.length === 1) moveAcc = intervalMs;
+function enqueueMove(dx, dy, undoSnapshot = null, intervalMs = MOVE_INTERVAL, readyAt = null){
+  queuedMoves.push({ dx, dy, undoSnapshot, intervalMs, readyAt });
+  if (queuedMoves.length === 1 && readyAt === null) moveAcc = intervalMs;
 }
 
-function queueDraggedPath(){
+function queueDraggedPath(now = performance.now()){
   if (dragPath.length < 2) return;
-  const steps = [];
-  for (let i = 1; i < dragPath.length; i++) {
-    const prev = dragPath[i - 1];
-    const next = dragPath[i];
+  while (dragQueuedStepIndex < dragPath.length - 1) {
+    const prev = dragPath[dragQueuedStepIndex];
+    const next = dragPath[dragQueuedStepIndex + 1];
     const dx = next.x - prev.x;
     const dy = next.y - prev.y;
-    if (Math.abs(dx) + Math.abs(dy) !== 1) continue;
-    steps.push([dx, dy]);
+    if (Math.abs(dx) + Math.abs(dy) === 1) {
+      const readyAt = Math.max(lastDragStepReadyAt + DRAG_PATH_MOVE_INTERVAL, now + DRAG_PATH_DELAY_MS);
+      enqueueMove(dx, dy, null, DRAG_PATH_MOVE_INTERVAL, readyAt);
+      lastDragStepReadyAt = readyAt;
+    }
+    dragQueuedStepIndex += 1;
   }
-  if (!steps.length) return;
-  for (const [dx, dy] of steps) enqueueMove(dx, dy, null, DRAG_PATH_MOVE_INTERVAL);
 }
 
 function processQueuedMove(){
@@ -1073,8 +1079,9 @@ canvas.addEventListener('pointerdown', e => {
     activePointerId = e.pointerId;
     queuedMoves = [];
     dragPath = [{ x: state.player.x, y: state.player.y }];
+    dragQueuedStepIndex = 0;
+    lastDragStepReadyAt = 0;
     activePointerTile = t;
-    dragFreezeNow = performance.now();
     canvas.setPointerCapture(e.pointerId);
     return;
   }
@@ -1105,6 +1112,7 @@ canvas.addEventListener('pointermove', e => {
   const tile = tapToTile(e.clientX, e.clientY);
   activePointerTile = tile;
   appendStepToPath(dragPath, tile);
+  queueDraggedPath();
 });
 
 function handlePointerEnd(e){
@@ -1779,33 +1787,38 @@ function frame(ts){
   if (!lastTs) lastTs = ts;
   const dt = Math.min(50, ts - lastTs);
   lastTs = ts;
-  if (!isPlanningDragActive()) {
-    acc += dt;
-    moveAcc += dt;
-    if (activeKeyboardDirKey && !state.won && !state.deadUntil && !isPlayerFrozen() && !isEditorOpen) {
-      keyboardHoldAcc += dt;
-      const movement = KEY_DIRECTIONS[activeKeyboardDirKey];
-      while (movement && keyboardHoldAcc >= KEYBOARD_HALF_STEP_INTERVAL) {
-        const [dx, dy] = movement;
-        const stepped = performKeyboardHalfStep(dx, dy);
-        keyboardHoldAcc -= KEYBOARD_HALF_STEP_INTERVAL;
-        if (!stepped) {
-          keyboardHoldAcc = 0;
-          break;
-        }
+  acc += dt;
+  moveAcc += dt;
+  if (activeKeyboardDirKey && !state.won && !state.deadUntil && !isPlayerFrozen() && !isEditorOpen) {
+    keyboardHoldAcc += dt;
+    const movement = KEY_DIRECTIONS[activeKeyboardDirKey];
+    while (movement && keyboardHoldAcc >= KEYBOARD_HALF_STEP_INTERVAL) {
+      const [dx, dy] = movement;
+      const stepped = performKeyboardHalfStep(dx, dy);
+      keyboardHoldAcc -= KEYBOARD_HALF_STEP_INTERVAL;
+      if (!stepped) {
+        keyboardHoldAcc = 0;
+        break;
       }
     }
-    while (queuedMoves.length) {
-      const intervalMs = queuedMoves[0].intervalMs ?? MOVE_INTERVAL;
-      if (moveAcc < intervalMs) break;
+  }
+  while (queuedMoves.length) {
+    const nextMove = queuedMoves[0];
+    if (typeof nextMove.readyAt === 'number') {
+      if (ts < nextMove.readyAt) break;
       const processed = processQueuedMove();
       if (!processed) break;
-      moveAcc -= intervalMs;
+      continue;
     }
-    while (acc >= TICK) {
-      tick();
-      acc -= TICK;
-    }
+    const intervalMs = nextMove.intervalMs ?? MOVE_INTERVAL;
+    if (moveAcc < intervalMs) break;
+    const processed = processQueuedMove();
+    if (!processed) break;
+    moveAcc -= intervalMs;
+  }
+  while (acc >= TICK) {
+    tick();
+    acc -= TICK;
   }
   draw();
   requestAnimationFrame(frame);
