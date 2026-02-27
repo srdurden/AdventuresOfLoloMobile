@@ -878,6 +878,22 @@ function interactAdjacent(dx,dy){
   return false;
 }
 
+function tryKeyboardShot(){
+  const [facingDx, facingDy] = state.player.facing;
+  if (interactAdjacent(facingDx, facingDy)) return true;
+
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+  for (const [dx, dy] of dirs) {
+    if (dx === facingDx && dy === facingDy) continue;
+    if (interactAdjacent(dx, dy)) {
+      state.player.facing = [dx, dy];
+      return true;
+    }
+  }
+
+  return shoot();
+}
+
 function getAdjacentShootableTargets(){
   if (state.shots <= 0 || isPlayerFrozen()) return [];
   const targets = [];
@@ -1167,7 +1183,7 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     if (isEditorOpen || state.won || state.deadUntil || isPlayerFrozen()) return;
     pushUndo();
-    if (!shoot()) state.undo.pop();
+    if (!tryKeyboardShot()) state.undo.pop();
     return;
   }
 
