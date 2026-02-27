@@ -878,6 +878,22 @@ function interactAdjacent(dx,dy){
   return false;
 }
 
+function tryKeyboardShot(){
+  const [facingDx, facingDy] = state.player.facing;
+  if (interactAdjacent(facingDx, facingDy)) return true;
+
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+  for (const [dx, dy] of dirs) {
+    if (dx === facingDx && dy === facingDy) continue;
+    if (interactAdjacent(dx, dy)) {
+      state.player.facing = [dx, dy];
+      return true;
+    }
+  }
+
+  return shoot();
+}
+
 function getAdjacentShootableTargets(){
   if (state.shots <= 0 || isPlayerFrozen()) return [];
   const targets = [];
@@ -1032,6 +1048,21 @@ function performKeyboardHalfStep(dx, dy){
     const pendingDx = keyboardOffset.x !== 0 ? Math.sign(keyboardOffset.x) : 0;
     const pendingDy = keyboardOffset.y !== 0 ? Math.sign(keyboardOffset.y) : 0;
     const isContinuingPendingDirection = dx === pendingDx && dy === pendingDy;
+    const isReversingPendingDirection = dx === -pendingDx && dy === -pendingDy;
+
+    if (isReversingPendingDirection) {
+      const fromAbsX = state.player.x + keyboardOffset.x;
+      const fromAbsY = state.player.y + keyboardOffset.y;
+      keyboardOffset = {
+        x: keyboardOffset.x + dx * 0.5,
+        y: keyboardOffset.y + dy * 0.5,
+      };
+      if (Math.abs(keyboardOffset.x) < 0.001) keyboardOffset.x = 0;
+      if (Math.abs(keyboardOffset.y) < 0.001) keyboardOffset.y = 0;
+      setPlayerAnimationCustom(fromAbsX, fromAbsY, state.player.x + keyboardOffset.x, state.player.y + keyboardOffset.y, KEYBOARD_HALF_STEP_MS);
+      state.player.facing = [dx, dy];
+      return true;
+    }
 
     if (!isContinuingPendingDirection) {
       if (!settleKeyboardOffsetToTile()) return false;
@@ -1148,6 +1179,14 @@ canvas.addEventListener('pointerup', handlePointerEnd);
 canvas.addEventListener('pointercancel', handlePointerEnd);
 
 document.addEventListener('keydown', (e) => {
+  if (e.key === ' ' || e.code === 'Space') {
+    e.preventDefault();
+    if (isEditorOpen || state.won || state.deadUntil || isPlayerFrozen()) return;
+    pushUndo();
+    if (!tryKeyboardShot()) state.undo.pop();
+    return;
+  }
+
   const movement = KEY_DIRECTIONS[e.key];
   if (!movement) return;
   e.preventDefault();
