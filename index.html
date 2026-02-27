@@ -1021,79 +1021,17 @@ function canAdvanceKeyboard(dx, dy){
 function performKeyboardHalfStep(dx, dy){
   if (state.won || state.deadUntil || isPlayerFrozen() || isEditorOpen) return false;
   if (queuedMoves.length) queuedMoves = [];
-
-  const settleKeyboardOffsetToTile = () => {
-    const settleDx = keyboardOffset.x !== 0 ? Math.sign(keyboardOffset.x) : 0;
-    const settleDy = keyboardOffset.y !== 0 ? Math.sign(keyboardOffset.y) : 0;
-    if (settleDx === 0 && settleDy === 0) return true;
-
-    const fromAbsX = state.player.x + keyboardOffset.x;
-    const fromAbsY = state.player.y + keyboardOffset.y;
-    const undoSnapshot = snapshot();
-    pushUndoSnapshot(undoSnapshot);
-
-    if (!tryMovePlayer(settleDx, settleDy)) {
-      state.undo.pop();
-      keyboardOffset = { x: 0, y: 0 };
-      setPlayerAnimationCustom(fromAbsX, fromAbsY, state.player.x, state.player.y, KEYBOARD_HALF_STEP_MS);
-      return false;
-    }
-
-    keyboardOffset = { x: 0, y: 0 };
-    setPlayerAnimationCustom(fromAbsX, fromAbsY, state.player.x, state.player.y, KEYBOARD_HALF_STEP_MS);
-    return true;
-  };
-
-  if (keyboardOffset.x !== 0 || keyboardOffset.y !== 0) {
-    const pendingDx = keyboardOffset.x !== 0 ? Math.sign(keyboardOffset.x) : 0;
-    const pendingDy = keyboardOffset.y !== 0 ? Math.sign(keyboardOffset.y) : 0;
-    const isContinuingPendingDirection = dx === pendingDx && dy === pendingDy;
-    const isReversingPendingDirection = dx === -pendingDx && dy === -pendingDy;
-
-    if (isReversingPendingDirection) {
-      const fromAbsX = state.player.x + keyboardOffset.x;
-      const fromAbsY = state.player.y + keyboardOffset.y;
-      keyboardOffset = {
-        x: keyboardOffset.x + dx * 0.5,
-        y: keyboardOffset.y + dy * 0.5,
-      };
-      if (Math.abs(keyboardOffset.x) < 0.001) keyboardOffset.x = 0;
-      if (Math.abs(keyboardOffset.y) < 0.001) keyboardOffset.y = 0;
-      setPlayerAnimationCustom(fromAbsX, fromAbsY, state.player.x + keyboardOffset.x, state.player.y + keyboardOffset.y, KEYBOARD_HALF_STEP_MS);
-      state.player.facing = [dx, dy];
-      return true;
-    }
-
-    if (!isContinuingPendingDirection) {
-      if (!settleKeyboardOffsetToTile()) return false;
-      if (!canAdvanceKeyboard(dx, dy)) return false;
-    }
+  keyboardOffset = { x: 0, y: 0 };
+  if (!canAdvanceKeyboard(dx, dy)) return false;
+  const fromAbsX = state.player.x;
+  const fromAbsY = state.player.y;
+  const undoSnapshot = snapshot();
+  pushUndoSnapshot(undoSnapshot);
+  if (!tryMovePlayer(dx, dy)) {
+    state.undo.pop();
+    return false;
   }
-
-  const fromAbsX = state.player.x + keyboardOffset.x;
-  const fromAbsY = state.player.y + keyboardOffset.y;
-  const nextOffsetX = keyboardOffset.x + dx * 0.5;
-  const nextOffsetY = keyboardOffset.y + dy * 0.5;
-  const isCrossingTile = Math.abs(nextOffsetX) >= 1 || Math.abs(nextOffsetY) >= 1;
-
-  if ((keyboardOffset.x === 0 && keyboardOffset.y === 0) && !canAdvanceKeyboard(dx, dy)) return false;
-
-  if (isCrossingTile) {
-    const undoSnapshot = snapshot();
-    pushUndoSnapshot(undoSnapshot);
-    if (!tryMovePlayer(dx, dy)) {
-      state.undo.pop();
-      keyboardOffset = { x: 0, y: 0 };
-      setPlayerAnimationCustom(fromAbsX, fromAbsY, state.player.x, state.player.y, KEYBOARD_HALF_STEP_MS);
-      return false;
-    }
-    keyboardOffset = { x: 0, y: 0 };
-    setPlayerAnimationCustom(fromAbsX, fromAbsY, state.player.x, state.player.y, KEYBOARD_HALF_STEP_MS);
-    return true;
-  }
-
-  keyboardOffset = { x: nextOffsetX, y: nextOffsetY };
-  setPlayerAnimationCustom(fromAbsX, fromAbsY, state.player.x + keyboardOffset.x, state.player.y + keyboardOffset.y, KEYBOARD_HALF_STEP_MS);
+  setPlayerAnimationCustom(fromAbsX, fromAbsY, state.player.x, state.player.y, KEYBOARD_HALF_STEP_MS);
   return true;
 }
 
