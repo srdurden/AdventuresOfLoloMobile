@@ -1164,7 +1164,7 @@ canvas.addEventListener('pointermove', e => {
 
 function handlePointerEnd(e){
   if (e.pointerId !== activePointerId) return;
-  queueDraggedPath();
+  queuedMoves = [];
   clearPathInput();
 }
 
