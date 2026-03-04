@@ -462,6 +462,7 @@ const TICK = 100;
 const MOVE_INTERVAL = 150;
 const KEYBOARD_HALF_STEP_INTERVAL = 116;
 const KEYBOARD_HALF_STEP_MS = 104;
+const KEYBOARD_REPEAT_INITIAL_DELAY = 220;
 const DRAG_PATH_MOVE_INTERVAL = 220;
 const DRAG_PATH_DELAY_MS = 100;
 const PLAYER_MOVE_MS = MOVE_INTERVAL;
@@ -492,6 +493,7 @@ const KEY_DIRECTIONS = {
 let playerAnim = null;
 let keyboardOffset = { x: 0, y: 0 };
 let keyboardHoldAcc = 0;
+let keyboardRepeatDelayMs = 0;
 let activeKeyboardDirKey = null;
 const pressedMovementKeys = new Set();
 let directionalHoldInterval = null;
@@ -1067,6 +1069,7 @@ function getDragAvailableTiles(){
 
 function clearKeyboardInput(){
   keyboardHoldAcc = 0;
+  keyboardRepeatDelayMs = 0;
   activeKeyboardDirKey = null;
   pressedMovementKeys.clear();
 }
@@ -1290,6 +1293,7 @@ document.addEventListener('keydown', (e) => {
   pressedMovementKeys.add(e.key);
   activeKeyboardDirKey = e.key;
   keyboardHoldAcc = 0;
+  keyboardRepeatDelayMs = KEYBOARD_REPEAT_INITIAL_DELAY;
   const [dx, dy] = movement;
   performKeyboardHalfStep(dx, dy);
 });
@@ -1300,6 +1304,7 @@ document.addEventListener('keyup', (e) => {
   if (activeKeyboardDirKey === e.key) {
     const remaining = [...pressedMovementKeys];
     activeKeyboardDirKey = remaining.length ? remaining[remaining.length - 1] : null;
+    keyboardRepeatDelayMs = activeKeyboardDirKey ? KEYBOARD_REPEAT_INITIAL_DELAY : 0;
   }
   keyboardHoldAcc = 0;
 });
@@ -1960,7 +1965,12 @@ function frame(ts){
   acc += dt;
   moveAcc += dt;
   if (activeKeyboardDirKey && !state.won && !state.deadUntil && !isPlayerFrozen() && !isEditorOpen) {
-    keyboardHoldAcc += dt;
+    let repeatDt = dt;
+    if (keyboardRepeatDelayMs > 0) {
+      keyboardRepeatDelayMs -= dt;
+      repeatDt = keyboardRepeatDelayMs < 0 ? -keyboardRepeatDelayMs : 0;
+    }
+    keyboardHoldAcc += repeatDt;
     const movement = KEY_DIRECTIONS[activeKeyboardDirKey];
     while (movement && keyboardHoldAcc >= KEYBOARD_HALF_STEP_INTERVAL) {
       const [dx, dy] = movement;
