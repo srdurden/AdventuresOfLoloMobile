@@ -552,6 +552,8 @@ let directionalHoldInterval = null;
 let activeDirectionalButton = null;
 let activeDirectionalPointerId = null;
 let directionalPointerStart = null;
+let directionalPointerMoved = false;
+let directionalPointerTriggered = false;
 let isEditorOpen = false;
 
 const TILE_META = {
@@ -1175,6 +1177,8 @@ function clearDirectionalHold(){
     directionalHoldInterval = null;
   }
   directionalPointerStart = null;
+  directionalPointerMoved = false;
+  directionalPointerTriggered = false;
   activeDirectionalButton = null;
   activeDirectionalPointerId = null;
 }
@@ -1209,6 +1213,26 @@ function getDirectionalButtonFromDelta(dx, dy){
     return dx > 0 ? moveRightBtn : moveLeftBtn;
   }
   return dy > 0 ? moveDownBtn : moveUpBtn;
+}
+
+function getNearestDirectionalButton(clientX, clientY){
+  const buttons = [moveUpBtn, moveDownBtn, moveLeftBtn, moveRightBtn].filter(Boolean);
+  if (!buttons.length) return null;
+  let nearestButton = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+  for (const button of buttons) {
+    const rect = button.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const dx = centerX - clientX;
+    const dy = centerY - clientY;
+    const distance = (dx * dx) + (dy * dy);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestButton = button;
+    }
+  }
+  return nearestButton;
 }
 
 function enqueueMove(dx, dy, undoSnapshot = null, intervalMs = MOVE_INTERVAL, readyAt = null){
@@ -2209,9 +2233,12 @@ directionalControls?.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   directionalControls.setPointerCapture(e.pointerId);
   directionalPointerStart = { x: e.clientX, y: e.clientY };
+  directionalPointerMoved = false;
+  directionalPointerTriggered = false;
   if (button) {
     triggerDirectionalButton(button);
     setDirectionalHold(button, e.pointerId);
+    directionalPointerTriggered = true;
     return;
   }
   activeDirectionalPointerId = e.pointerId;
@@ -2225,21 +2252,31 @@ directionalControls?.addEventListener('pointermove', (e) => {
   const buttonFromTouch = getDirectionalButtonFromPoint(e.clientX, e.clientY);
   const pointerDx = e.clientX - (directionalPointerStart?.x ?? e.clientX);
   const pointerDy = e.clientY - (directionalPointerStart?.y ?? e.clientY);
+  if (Math.abs(pointerDx) >= 8 || Math.abs(pointerDy) >= 8) directionalPointerMoved = true;
   const button = buttonFromTouch ?? getDirectionalButtonFromDelta(pointerDx, pointerDy);
   if (!button || button === activeDirectionalButton) return;
   triggerDirectionalButton(button);
   setDirectionalHold(button, e.pointerId);
+  directionalPointerTriggered = true;
 });
 
 directionalControls?.addEventListener('pointerup', (e) => {
   if (activeDirectionalPointerId !== e.pointerId) return;
+  if (!directionalPointerTriggered && !directionalPointerMoved) {
+    const nearestButton = getNearestDirectionalButton(e.clientX, e.clientY);
+    triggerDirectionalButton(nearestButton);
+  }
   directionalPointerStart = null;
+  directionalPointerMoved = false;
+  directionalPointerTriggered = false;
   clearDirectionalHold();
 });
 
 directionalControls?.addEventListener('pointercancel', (e) => {
   if (activeDirectionalPointerId !== e.pointerId) return;
   directionalPointerStart = null;
+  directionalPointerMoved = false;
+  directionalPointerTriggered = false;
   clearDirectionalHold();
 });
 
