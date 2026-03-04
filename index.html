@@ -131,6 +131,14 @@
       box-shadow: 2px 2px 0 #000;
       background: #0d3350;
       transition: background 120ms ease, border-color 120ms ease;
+      text-decoration: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+    .dir-btn:focus,
+    .dir-btn:focus-visible {
+      outline: none;
+      text-decoration: none;
     }
     .dir-btn:active {
       background: #21689b;
@@ -1134,6 +1142,11 @@ function clearDirectionalHold(){
   directionalPointerTriggered = false;
   activeDirectionalButton = null;
   activeDirectionalPointerId = null;
+}
+
+function clearDirectionalFocus(){
+  const active = document.activeElement;
+  if (active?.classList?.contains('dir-btn')) active.blur();
 }
 
 function triggerDirectionalButton(button){
@@ -2229,6 +2242,7 @@ directionalControls?.addEventListener('pointerdown', (e) => {
   directionalPointerMoved = false;
   directionalPointerTriggered = false;
   if (button) {
+    clearDirectionalFocus();
     triggerDirectionalButton(button);
     setDirectionalHold(button, e.pointerId);
     directionalPointerTriggered = true;
@@ -2262,6 +2276,7 @@ directionalControls?.addEventListener('pointerup', (e) => {
   directionalPointerStart = null;
   directionalPointerMoved = false;
   directionalPointerTriggered = false;
+  clearDirectionalFocus();
   clearDirectionalHold();
 });
 
@@ -2270,6 +2285,7 @@ directionalControls?.addEventListener('pointercancel', (e) => {
   directionalPointerStart = null;
   directionalPointerMoved = false;
   directionalPointerTriggered = false;
+  clearDirectionalFocus();
   clearDirectionalHold();
 });
 
