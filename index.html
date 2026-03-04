@@ -22,7 +22,7 @@
     }
     #boardWrap {
       position: absolute;
-      inset: 82px 24px 176px;
+      inset: 72px 12px 156px;
       overflow: hidden;
       background: #000;
       border: 2px solid #2f2f2f;
@@ -226,9 +226,9 @@
       color: #00d4ff;
     }
     #editorGrid {
-      --editor-cell-size: clamp(14px, 4.4vw, 20px);
+      --editor-cell-size: clamp(18px, 6vw, 30px);
       display: grid;
-      grid-template-columns: repeat(20, var(--editor-cell-size));
+      grid-template-columns: repeat(13, var(--editor-cell-size));
       width: fit-content;
       margin: 0 auto;
       gap: 0;
@@ -313,7 +313,7 @@
         </section>
         <section class="editor-card">
           <h3>Cadena de texto de la pantalla</h3>
-          <p>Puedes exportar para copiarla o importar pegando aquí una nueva pantalla (20x20).</p>
+          <p>Puedes exportar para copiarla o importar pegando aquí una nueva pantalla (13x13).</p>
           <textarea id="editorText" spellcheck="false"></textarea>
         </section>
       </div>
@@ -324,159 +324,100 @@
 // Mapa actualizado: Retirada la Medusa y añadida la Ardilla (A) en el centro.
 const LEVELS_RAW = [
 
-`VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-######D######V
-#TTTT...TTTT#V
-#TTT.....TTT#V
-#TT.H...C.TT#V
-#T.........T#V
-#SSSSSBSSSSS#V
-#TTTTT.TTTTT#V
-#.SMS...SMS.#V
-#..TT...TT..#V
-#.SMS...SMS.#V
-#...T...T...#V
-#T.T#.P.#T.T#V
-#############V
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV`,
+`######D######
+#TTTT...TTTT#
+#TTT.....TTT#
+#TT.H...C.TT#
+#T.........T#
+#SSSSSBSSSSS#
+#TTTTT.TTTTT#
+#.SMS...SMS.#
+#..TT...TT..#
+#.SMS...SMS.#
+#...T...T...#
+#T.T#.P.#T.T#
+#############`,
 
-`VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-#######D#####V
-#HSSSSS.SSTT#V
-#.SSSSS.SSTT#V
-#.TTTSS.SSST#V
-#.......SSST#V
-#TTTTSS.SSTH#V
-#......AS...#V
-#P..........#V
-#.TT....TT..#V
-#TTTT...TTT.#V
-#STTSC...TT.#V
-#SSSSSS.....#V
-#############V
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV`,
+`#######D#####
+#HSSSSS.SSTT#
+#.SSSSS.SSTT#
+#.TTTSS.SSST#
+#.......SSST#
+#TTTTSS.SSTH#
+#......AS...#
+#P..........#
+#.TT....TT..#
+#TTTT...TTT.#
+#STTSC...TT.#
+#SSSSSS.....#
+#############`,
 
-`VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-######D######V
-#TTTTT.TTTTT#V
-#TTT..C..TTT#V
-#TT.......TT#V
-#~~~~~~~~~~~#V
-#T....A....T#V
-#T.........T#V
-#~~~~~R~~~~~#V
-#~~~~~R~~~~~#V
-#TT........T#V
-#TTT..H..TTT#V
-#TTTT.P.TTTT#V
-#############V
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV`,
+`######D######
+#TTTTT.TTTTT#
+#TTT..C..TTT#
+#TT.......TT#
+#~~~~~~~~~~~#
+#T....A....T#
+#T.........T#
+#~~~~~R~~~~~#
+#~~~~~R~~~~~#
+#TT........T#
+#TTT..H..TTT#
+#TTTT.P.TTTT#
+#############`,
 
-`VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-######D######V
-#...........#V
-#...........#V
-#..TTTTTTT..#V
-#..TH.A..B..#V
-#T.T..A..B.T#V
-#HBTTTTTTTBC#V
-#T.B..A..T.T#V
-#..B..A.HT..#V
-#..TTTTTTT..#V
-#...........#V
-#P..........#V
-#############V
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV`,
+`######D######
+#...........#
+#...........#
+#..TTTTTTT..#
+#..TH.A..B..#
+#T.T..A..B.T#
+#HBTTTTTTTBC#
+#T.B..A..T.T#
+#..B..A.HT..#
+#..TTTTTTT..#
+#...........#
+#P..........#
+#############`,
 
-`VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-#########D###V
-#SSSSSSSS.SS#V
-#SS.HTCTH.SS#V
-#T.........T#V
-#...........#V
-#..M..H..M..#V
-#...B...B...#V
-#..T.B.B.T..#V
-#H.........H#V
-#T.H.......T#V
-#SS.......SS#V
-#...S.P.SSSS#V
-#############V
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV`,
+`#########D###
+#SSSSSSSS.SS#
+#SS.HTCTH.SS#
+#T.........T#
+#...........#
+#..M..H..M..#
+#...B...B...#
+#..T.B.B.T..#
+#H.........H#
+#T.H.......T#
+#SS.......SS#
+#...S.P.SSSS#
+#############`,
 
-`VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-##########D##V
-#...U.SSS...#V
-#.H...SSS.H.#V
-#......TT...#V
-#~~~~R~~~~R~#V
-#~~~~R~~~~R~#V
-#C.TT......~#V
-#..TT...TT.~#V
-#.....SSTT.~#V
-#E....SSH..~#V
-#......B...~#V
-#H...P.~~~~~#V
-#############V
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV
-VVVVVVVVVVVVVV`,
-
-`##############
-#............#
-#............#
-#............#
-#............#
-#............#
-#............#
-#............#
-#P...........#
-#............#
-#............#
-#............#
-#............#
-#............#
-#............#
-#............#
-#............#
-#............#
-#............#
-##############`
+`##########D##
+#...U.SSS...#
+#.H...SSS.H.#
+#......TT...#
+#~~~~R~~~~R~#
+#~~~~R~~~~R~#
+#C.TT......~#
+#..TT...TT.~#
+#.....SSTT.~#
+#E....SSH..~#
+#......B...~#
+#H...P.~~~~~#
+#############`
 ];
+const LEVEL_SIZE = 13;
 const ALLOWED = new Set(['#','V','.','P','H','C','B','~','R','A','M','T','S','D','N','U','E','O']);
 function parseLevelRows(raw) {
   const rows = raw.trim().split('\n').map(r => r.trim());
   const h = rows.length;
   const w = rows[0]?.length ?? 0;
   if (!h || !w) throw new Error('Nivel inválido: vacío.');
+  if (h !== LEVEL_SIZE || w !== LEVEL_SIZE) {
+    throw new Error(`Nivel inválido: debe ser de ${LEVEL_SIZE}x${LEVEL_SIZE}.`);
+  }
   for (const row of rows) {
     if (row.length !== w) throw new Error('Nivel inválido: ancho inconsistente.');
     for (const ch of row) if (!ALLOWED.has(ch)) throw new Error('Tile inválido: ' + ch);
