@@ -2191,11 +2191,17 @@ document.getElementById('editBtn').onclick = () => openEditor();
 
 directionalControls?.addEventListener('pointerdown', (e) => {
   const button = e.target.closest('.dir-btn');
-  if (!button) return;
   e.preventDefault();
   directionalControls.setPointerCapture(e.pointerId);
-  triggerDirectionalButton(button);
-  setDirectionalHold(button, e.pointerId);
+  if (button) {
+    triggerDirectionalButton(button);
+    setDirectionalHold(button, e.pointerId);
+    return;
+  }
+  activeDirectionalPointerId = e.pointerId;
+  activeDirectionalButton = null;
+  clearInterval(directionalHoldInterval);
+  directionalHoldInterval = null;
 });
 
 directionalControls?.addEventListener('pointermove', (e) => {
