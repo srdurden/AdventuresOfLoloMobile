@@ -1215,24 +1215,18 @@ function getDirectionalButtonFromDelta(dx, dy){
   return dy > 0 ? moveDownBtn : moveUpBtn;
 }
 
-function getNearestDirectionalButton(clientX, clientY){
-  const buttons = [moveUpBtn, moveDownBtn, moveLeftBtn, moveRightBtn].filter(Boolean);
-  if (!buttons.length) return null;
-  let nearestButton = null;
-  let nearestDistance = Number.POSITIVE_INFINITY;
-  for (const button of buttons) {
-    const rect = button.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const dx = centerX - clientX;
-    const dy = centerY - clientY;
-    const distance = (dx * dx) + (dy * dy);
-    if (distance < nearestDistance) {
-      nearestDistance = distance;
-      nearestButton = button;
-    }
+function getDirectionalButtonFromControlCenter(clientX, clientY){
+  if (!directionalControls) return null;
+  const rect = directionalControls.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const dx = clientX - centerX;
+  const dy = clientY - centerY;
+  if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return null;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0 ? moveRightBtn : moveLeftBtn;
   }
-  return nearestButton;
+  return dy >= 0 ? moveDownBtn : moveUpBtn;
 }
 
 function enqueueMove(dx, dy, undoSnapshot = null, intervalMs = MOVE_INTERVAL, readyAt = null){
@@ -2263,8 +2257,8 @@ directionalControls?.addEventListener('pointermove', (e) => {
 directionalControls?.addEventListener('pointerup', (e) => {
   if (activeDirectionalPointerId !== e.pointerId) return;
   if (!directionalPointerTriggered && !directionalPointerMoved) {
-    const nearestButton = getNearestDirectionalButton(e.clientX, e.clientY);
-    triggerDirectionalButton(nearestButton);
+    const fallbackButton = getDirectionalButtonFromControlCenter(e.clientX, e.clientY);
+    triggerDirectionalButton(fallbackButton);
   }
   directionalPointerStart = null;
   directionalPointerMoved = false;
