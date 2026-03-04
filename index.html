@@ -257,6 +257,11 @@
       outline-offset: -2px;
       box-shadow: inset 0 0 0 2px rgba(0, 212, 255, 0.35);
     }
+    .editor-cell.hover-target {
+      outline: 2px dashed #ffe066;
+      outline-offset: -2px;
+      box-shadow: inset 0 0 0 2px rgba(255, 224, 102, 0.2);
+    }
     #editorText {
       width: 100%;
       min-height: 150px;
@@ -524,6 +529,7 @@ let editorMouseDown = false;
 let editorActivePointerId = null;
 let editorDrag = null;
 let editorDropTarget = null;
+let editorHoverTarget = null;
 
 const state = {
   base: null,
@@ -1914,6 +1920,24 @@ function clearEditorDropTarget(){
   editorDropTarget = null;
 }
 
+function setEditorHoverTarget(x, y){
+  if (editorHoverTarget && editorHoverTarget.x === x && editorHoverTarget.y === y) return;
+  if (editorHoverTarget) {
+    const prev = editorGrid.querySelector(`.editor-cell[data-x="${editorHoverTarget.x}"][data-y="${editorHoverTarget.y}"]`);
+    prev?.classList.remove('hover-target');
+  }
+  editorHoverTarget = { x, y };
+  const next = editorGrid.querySelector(`.editor-cell[data-x="${x}"][data-y="${y}"]`);
+  next?.classList.add('hover-target');
+}
+
+function clearEditorHoverTarget(){
+  if (!editorHoverTarget) return;
+  const prev = editorGrid.querySelector(`.editor-cell[data-x="${editorHoverTarget.x}"][data-y="${editorHoverTarget.y}"]`);
+  prev?.classList.remove('hover-target');
+  editorHoverTarget = null;
+}
+
 function getEditorTileFromPointerEvent(e, clamp=false){
   const rect = editorGrid.getBoundingClientRect();
   if (!rect.width || !rect.height) return null;
@@ -1988,6 +2012,7 @@ function validateEditorRows(rows){
 }
 
 function paintEditorCell(x, y){
+  if (!editorTile) return;
   if (!editorRows[y] || !editorRows[y][x]) return;
   if (editorRows[y][x] === editorTile) return;
   editorRows[y][x] = editorTile;
@@ -2035,10 +2060,16 @@ function renderEditorGrid(){
     }
   }
   clearEditorDropTarget();
+  clearEditorHoverTarget();
   editorText.value = editorToRaw(editorRows);
 }
 
 editorGrid.addEventListener('pointermove', (e) => {
+  if (!editorMouseDown && editorTile) {
+    const hoverTile = getEditorTileFromPointerEvent(e);
+    if (hoverTile) setEditorHoverTarget(hoverTile.x, hoverTile.y);
+    else clearEditorHoverTarget();
+  }
   if (!editorMouseDown) return;
   if (e.pointerId !== editorActivePointerId) return;
   if ((e.buttons & 1) !== 1) return;
@@ -2048,6 +2079,10 @@ editorGrid.addEventListener('pointermove', (e) => {
     else clearEditorDropTarget();
   }
   paintEditorFromPointerEvent(e);
+});
+
+editorGrid.addEventListener('pointerleave', () => {
+  clearEditorHoverTarget();
 });
 
 function renderPalette(){
@@ -2061,9 +2096,18 @@ function renderPalette(){
     btn.style.background = meta.color;
     btn.style.color = meta.text;
     btn.onclick = () => {
-      editorTile = tile;
+      if (editorTile === tile) {
+        editorTile = null;
+      } else {
+        editorTile = tile;
+      }
       renderPalette();
-      setEditorStatus(`Pieza activa: ${meta.label} (${tile}).`);
+      if (editorTile) {
+        setEditorStatus(`Pieza activa: ${meta.label} (${tile}).`);
+      } else {
+        clearEditorHoverTarget();
+        setEditorStatus('Ninguna pieza seleccionada. Elige una para pintar.');
+      }
     };
     paletteGrid.appendChild(btn);
   }
@@ -2085,6 +2129,7 @@ function openEditor(){
   editorView.classList.add('visible');
   editorView.setAttribute('aria-hidden', 'false');
   loadEditorFromRaw(currentLevelRaw);
+  editorTile = editorTile ?? 'P';
   renderPalette();
   setEditorStatus('Editor abierto. Arrastra el dedo para pintar rápido.');
 }
