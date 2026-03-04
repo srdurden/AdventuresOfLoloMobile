@@ -105,31 +105,58 @@
     }
     .dir-btn {
       position: absolute;
-      width: clamp(54px, 13vw, 76px);
-      aspect-ratio: 1;
+      border: 0;
       min-height: auto;
-      border-radius: 999px;
-      border: 2px solid rgba(255, 255, 255, 0.8);
-      background: radial-gradient(circle at 35% 25%, rgba(255,255,255,0.45), rgba(20,20,20,0.92));
-      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
-      color: #fff;
-      font-size: clamp(24px, 5.5vw, 34px);
+      color: rgba(255, 255, 255, 0.85);
+      font-size: clamp(18px, 4.8vw, 28px);
+      font-weight: bold;
+      font-family: 'Courier New', Courier, monospace;
+      pointer-events: auto;
+      user-select: none;
       display: flex;
       align-items: center;
       justify-content: center;
-      pointer-events: auto;
-      backdrop-filter: blur(2px);
-      user-select: none;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+      box-shadow: none;
+      background: transparent;
+      transition: background 120ms ease;
     }
     .dir-btn:active {
-      transform: translateY(2px) scale(0.98);
-      background: radial-gradient(circle at 35% 25%, rgba(255,255,255,0.3), rgba(40,40,40,0.95));
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+      transform: none;
+      box-shadow: none;
     }
-    #moveUpBtn { top: calc(env(safe-area-inset-top) + 12px); left: 50%; transform: translateX(-50%); }
-    #moveDownBtn { bottom: calc(env(safe-area-inset-bottom) + 72px); left: 50%; transform: translateX(-50%); }
-    #moveLeftBtn { left: 8px; top: 50%; transform: translateY(-50%); }
-    #moveRightBtn { right: 8px; top: 50%; transform: translateY(-50%); }
+    #moveUpBtn,
+    #moveDownBtn {
+      left: 72px;
+      right: 72px;
+      height: 62px;
+    }
+    #moveUpBtn {
+      top: calc(env(safe-area-inset-top) + 2px);
+      background: linear-gradient(to bottom, rgba(86, 170, 255, 0.34), rgba(86, 170, 255, 0));
+    }
+    #moveDownBtn {
+      bottom: calc(env(safe-area-inset-bottom) + 54px);
+      background: linear-gradient(to top, rgba(86, 170, 255, 0.34), rgba(86, 170, 255, 0));
+    }
+    #moveLeftBtn,
+    #moveRightBtn {
+      top: calc(env(safe-area-inset-top) + 64px);
+      bottom: calc(env(safe-area-inset-bottom) + 116px);
+      width: 68px;
+    }
+    #moveLeftBtn {
+      left: 0;
+      background: linear-gradient(to right, rgba(86, 170, 255, 0.34), rgba(86, 170, 255, 0));
+    }
+    #moveRightBtn {
+      right: 0;
+      background: linear-gradient(to left, rgba(86, 170, 255, 0.34), rgba(86, 170, 255, 0));
+    }
+    #moveUpBtn:active { background: linear-gradient(to bottom, rgba(86, 170, 255, 0.5), rgba(86, 170, 255, 0.15)); }
+    #moveDownBtn:active { background: linear-gradient(to top, rgba(86, 170, 255, 0.5), rgba(86, 170, 255, 0.15)); }
+    #moveLeftBtn:active { background: linear-gradient(to right, rgba(86, 170, 255, 0.5), rgba(86, 170, 255, 0.15)); }
+    #moveRightBtn:active { background: linear-gradient(to left, rgba(86, 170, 255, 0.5), rgba(86, 170, 255, 0.15)); }
     button {
       border: 2px solid #fff;
       min-height: 46px;
@@ -257,10 +284,10 @@
       <div id="levelDropdown" aria-hidden="true"></div>
     </div>
     <div id="directionalControls" aria-label="Controles direccionales">
-      <button id="moveUpBtn" class="dir-btn" aria-label="Mover arriba">▲</button>
-      <button id="moveLeftBtn" class="dir-btn" aria-label="Mover izquierda">◀</button>
-      <button id="moveRightBtn" class="dir-btn" aria-label="Mover derecha">▶</button>
-      <button id="moveDownBtn" class="dir-btn" aria-label="Mover abajo">▼</button>
+      <button id="moveUpBtn" class="dir-btn" aria-label="Mover arriba">↑</button>
+      <button id="moveLeftBtn" class="dir-btn" aria-label="Mover izquierda">←</button>
+      <button id="moveRightBtn" class="dir-btn" aria-label="Mover derecha">→</button>
+      <button id="moveDownBtn" class="dir-btn" aria-label="Mover abajo">↓</button>
     </div>
     <div id="controls">
       <button id="undoBtn">ATRÁS</button>
