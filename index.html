@@ -203,16 +203,16 @@
       gap: 8px;
       margin-bottom: 0;
     }
+    .editor-primary-actions {
+      margin-bottom: 12px;
+    }
+    .editor-primary-actions .editor-save {
+      border-color: #00d4ff;
+      color: #00d4ff;
+    }
     .editor-actions button {
       min-height: 42px;
       font-size: 13px;
-    }
-    #editorStatus {
-      margin: 0 0 10px;
-      font-size: 14px;
-      border: 1px dashed #666;
-      padding: 6px;
-      min-height: 34px;
     }
     .editor-layout {
       display: grid;
@@ -307,7 +307,10 @@
     </div>
 
     <div id="editorView" aria-hidden="true">
-      <p id="editorStatus">Editor listo. Elige una pieza y toca la cuadrícula para pintar.</p>
+      <div class="editor-actions editor-primary-actions">
+        <button id="editorBackBtn">Volver al juego</button>
+        <button id="editorSaveBtn" class="editor-save">Guardar pantalla</button>
+      </div>
       <div class="editor-layout">
         <section class="editor-card">
           <h3>Diseño de la pantalla</h3>
@@ -318,8 +321,6 @@
           <div id="paletteGrid" class="palette-grid"></div>
         </section>
         <div class="editor-actions">
-          <button id="editorBackBtn">Volver al juego</button>
-          <button id="editorSaveBtn">Guardar pantalla</button>
           <button id="editorExportBtn">Exportar pantalla</button>
           <button id="editorImportBtn">Importar pantalla</button>
           <button id="editorClearBtn">Borrar todo</button>
@@ -458,7 +459,6 @@ const editorView = document.getElementById('editorView');
 const editorGrid = document.getElementById('editorGrid');
 const paletteGrid = document.getElementById('paletteGrid');
 const editorText = document.getElementById('editorText');
-const editorStatus = document.getElementById('editorStatus');
 const moveUpBtn = document.getElementById('moveUpBtn');
 const moveDownBtn = document.getElementById('moveDownBtn');
 const moveLeftBtn = document.getElementById('moveLeftBtn');
@@ -835,6 +835,7 @@ function attemptPush(setRef, fromX, fromY, dx, dy){
   if (!inBounds(nx,ny) || has(state.blocks,nx,ny) || has(state.eggs,nx,ny) || enemyAt(nx,ny)) return false;
   const t = state.base[ny][nx];
   if (t === '#' || t === 'V' || t === 'T' || t === 'C' || t === 'D' || t === 'S') return false;
+  if (setRef === state.eggs && t === 'H') return false;
   const fromKey = key(fromX,fromY);
   const toKey = key(nx,ny);
   const eggHatchAt = setRef === state.eggs ? state.eggTimers.get(fromKey) : null;
@@ -2021,9 +2022,7 @@ function frame(ts){
 }
 
 function setEditorStatus(message, isError=false) {
-  editorStatus.textContent = message;
-  editorStatus.style.borderColor = isError ? '#d33' : '#666';
-  editorStatus.style.color = isError ? '#ff9f9f' : '#fff';
+  console[isError ? 'warn' : 'info'](`[Editor] ${message}`);
 }
 
 function editorToRaw(rows){
