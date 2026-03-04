@@ -680,11 +680,14 @@ function getPlayerDrawPosition(now = performance.now()){
 }
 
 function isFireballTouchingPlayer(fireball, now = performance.now()){
+  const fireTileX = Math.round(fireball.x);
+  const fireTileY = Math.round(fireball.y);
+  if (fireTileX === state.player.x && fireTileY === state.player.y) return true;
+
   const playerPos = getPlayerDrawPosition(now);
-  const firePos = getFireballRenderPosition(fireball, now);
-  const dx = firePos.x - playerPos.x;
-  const dy = firePos.y - playerPos.y;
-  return (dx * dx + dy * dy) <= 0.22;
+  const dx = fireTileX - playerPos.x;
+  const dy = fireTileY - playerPos.y;
+  return (dx * dx + dy * dy) <= 0.35;
 }
 
 function parseLevel(){
