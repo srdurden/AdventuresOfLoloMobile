@@ -22,7 +22,7 @@
     }
     #boardWrap {
       position: absolute;
-      inset: 28px 24px 176px;
+      inset: 82px 24px 176px;
       overflow: hidden;
       background: #000;
       border: 2px solid #2f2f2f;
@@ -100,6 +100,11 @@
       align-items: center;
     }
     #controls {
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      top: calc(env(safe-area-inset-top) + 8px);
+      z-index: 4;
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
@@ -281,11 +286,11 @@
         <button id="moveRightBtn" class="dir-btn" data-dx="1" data-dy="0" aria-label="Mover derecha">→</button>
         <button id="moveDownBtn" class="dir-btn" data-dx="0" data-dy="1" aria-label="Mover abajo">↓</button>
       </div>
-      <div id="controls">
-        <button id="undoBtn">ATRÁS</button>
-        <button id="resetBtn">Reiniciar</button>
-        <button id="editBtn">Editar pantalla</button>
-      </div>
+    </div>
+    <div id="controls">
+      <button id="undoBtn">ATRÁS</button>
+      <button id="resetBtn">Reiniciar</button>
+      <button id="editBtn">Editar pantalla</button>
     </div>
 
     <div id="editorView" aria-hidden="true">
@@ -546,6 +551,7 @@ const pressedMovementKeys = new Set();
 let directionalHoldInterval = null;
 let activeDirectionalButton = null;
 let activeDirectionalPointerId = null;
+let directionalPointerStart = null;
 let isEditorOpen = false;
 
 const TILE_META = {
@@ -1168,6 +1174,7 @@ function clearDirectionalHold(){
     clearInterval(directionalHoldInterval);
     directionalHoldInterval = null;
   }
+  directionalPointerStart = null;
   activeDirectionalButton = null;
   activeDirectionalPointerId = null;
 }
@@ -1194,6 +1201,14 @@ function setDirectionalHold(button, pointerId){
 function getDirectionalButtonFromPoint(clientX, clientY){
   const target = document.elementFromPoint(clientX, clientY);
   return target?.closest?.('.dir-btn') ?? null;
+}
+
+function getDirectionalButtonFromDelta(dx, dy){
+  if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return null;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    return dx > 0 ? moveRightBtn : moveLeftBtn;
+  }
+  return dy > 0 ? moveDownBtn : moveUpBtn;
 }
 
 function enqueueMove(dx, dy, undoSnapshot = null, intervalMs = MOVE_INTERVAL, readyAt = null){
@@ -2193,6 +2208,7 @@ directionalControls?.addEventListener('pointerdown', (e) => {
   const button = e.target.closest('.dir-btn');
   e.preventDefault();
   directionalControls.setPointerCapture(e.pointerId);
+  directionalPointerStart = { x: e.clientX, y: e.clientY };
   if (button) {
     triggerDirectionalButton(button);
     setDirectionalHold(button, e.pointerId);
@@ -2206,7 +2222,10 @@ directionalControls?.addEventListener('pointerdown', (e) => {
 
 directionalControls?.addEventListener('pointermove', (e) => {
   if (activeDirectionalPointerId !== e.pointerId) return;
-  const button = getDirectionalButtonFromPoint(e.clientX, e.clientY);
+  const buttonFromTouch = getDirectionalButtonFromPoint(e.clientX, e.clientY);
+  const pointerDx = e.clientX - (directionalPointerStart?.x ?? e.clientX);
+  const pointerDy = e.clientY - (directionalPointerStart?.y ?? e.clientY);
+  const button = buttonFromTouch ?? getDirectionalButtonFromDelta(pointerDx, pointerDy);
   if (!button || button === activeDirectionalButton) return;
   triggerDirectionalButton(button);
   setDirectionalHold(button, e.pointerId);
@@ -2214,11 +2233,13 @@ directionalControls?.addEventListener('pointermove', (e) => {
 
 directionalControls?.addEventListener('pointerup', (e) => {
   if (activeDirectionalPointerId !== e.pointerId) return;
+  directionalPointerStart = null;
   clearDirectionalHold();
 });
 
 directionalControls?.addEventListener('pointercancel', (e) => {
   if (activeDirectionalPointerId !== e.pointerId) return;
+  directionalPointerStart = null;
   clearDirectionalHold();
 });
 
