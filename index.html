@@ -94,9 +94,10 @@
       bottom: calc(env(safe-area-inset-bottom) + 8px);
       z-index: 3;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+      grid-template-columns: minmax(0, 1fr);
       gap: 8px;
-      align-items: stretch;
+      justify-items: center;
+      align-items: center;
     }
     #controls {
       display: grid;
@@ -108,6 +109,7 @@
       grid-template-columns: repeat(3, minmax(0, 1fr));
       grid-template-rows: repeat(2, minmax(0, 1fr));
       gap: 8px;
+      width: min(360px, 100%);
     }
     .dir-btn {
       border: 2px solid #7dc6ff;
@@ -158,6 +160,10 @@
       min-height: 38px;
       font-size: 13px;
       padding: 4px;
+    }
+    #controls {
+      width: min(420px, 100%);
+      justify-self: center;
     }
     button:active {
       transform: translate(2px, 2px);
@@ -270,10 +276,10 @@
     </div>
     <div id="bottomPanel">
       <div id="directionalControls" aria-label="Controles direccionales">
-        <button id="moveUpBtn" class="dir-btn" aria-label="Mover arriba">↑</button>
-        <button id="moveLeftBtn" class="dir-btn" aria-label="Mover izquierda">←</button>
-        <button id="moveRightBtn" class="dir-btn" aria-label="Mover derecha">→</button>
-        <button id="moveDownBtn" class="dir-btn" aria-label="Mover abajo">↓</button>
+        <button id="moveUpBtn" class="dir-btn" data-dx="0" data-dy="-1" aria-label="Mover arriba">↑</button>
+        <button id="moveLeftBtn" class="dir-btn" data-dx="-1" data-dy="0" aria-label="Mover izquierda">←</button>
+        <button id="moveRightBtn" class="dir-btn" data-dx="1" data-dy="0" aria-label="Mover derecha">→</button>
+        <button id="moveDownBtn" class="dir-btn" data-dx="0" data-dy="1" aria-label="Mover abajo">↓</button>
       </div>
       <div id="controls">
         <button id="undoBtn">ATRÁS</button>
@@ -498,6 +504,7 @@ const moveUpBtn = document.getElementById('moveUpBtn');
 const moveDownBtn = document.getElementById('moveDownBtn');
 const moveLeftBtn = document.getElementById('moveLeftBtn');
 const moveRightBtn = document.getElementById('moveRightBtn');
+const directionalControls = document.getElementById('directionalControls');
 const setHudMessage = () => {};
 
 const TICK = 100;
@@ -537,6 +544,8 @@ let keyboardHoldAcc = 0;
 let activeKeyboardDirKey = null;
 const pressedMovementKeys = new Set();
 let directionalHoldInterval = null;
+let activeDirectionalButton = null;
+let activeDirectionalPointerId = null;
 let isEditorOpen = false;
 
 const TILE_META = {
@@ -1155,24 +1164,36 @@ function performDirectionalMove(dx, dy){
 }
 
 function clearDirectionalHold(){
-  if (!directionalHoldInterval) return;
-  clearInterval(directionalHoldInterval);
-  directionalHoldInterval = null;
+  if (directionalHoldInterval) {
+    clearInterval(directionalHoldInterval);
+    directionalHoldInterval = null;
+  }
+  activeDirectionalButton = null;
+  activeDirectionalPointerId = null;
 }
 
-function bindDirectionalButton(button, dx, dy){
-  if (!button) return;
-  const trigger = () => performDirectionalMove(dx, dy);
+function triggerDirectionalButton(button){
+  if (!button) return false;
+  const dx = Number(button.dataset.dx);
+  const dy = Number(button.dataset.dy);
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) return false;
+  return performDirectionalMove(dx, dy);
+}
 
-  button.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    trigger();
-    clearDirectionalHold();
-    directionalHoldInterval = setInterval(trigger, 165);
-  });
-  button.addEventListener('pointerup', clearDirectionalHold);
-  button.addEventListener('pointercancel', clearDirectionalHold);
-  button.addEventListener('pointerleave', clearDirectionalHold);
+function setDirectionalHold(button, pointerId){
+  if (!button) return;
+  activeDirectionalButton = button;
+  activeDirectionalPointerId = pointerId;
+  clearInterval(directionalHoldInterval);
+  directionalHoldInterval = setInterval(() => {
+    if (!activeDirectionalButton) return;
+    triggerDirectionalButton(activeDirectionalButton);
+  }, 165);
+}
+
+function getDirectionalButtonFromPoint(clientX, clientY){
+  const target = document.elementFromPoint(clientX, clientY);
+  return target?.closest?.('.dir-btn') ?? null;
 }
 
 function enqueueMove(dx, dy, undoSnapshot = null, intervalMs = MOVE_INTERVAL, readyAt = null){
@@ -2164,10 +2185,37 @@ document.getElementById('undoBtn').onclick = () => {
 document.getElementById('resetBtn').onclick = () => resetLevel();
 document.getElementById('editBtn').onclick = () => openEditor();
 
-bindDirectionalButton(moveUpBtn, 0, -1);
-bindDirectionalButton(moveDownBtn, 0, 1);
-bindDirectionalButton(moveLeftBtn, -1, 0);
-bindDirectionalButton(moveRightBtn, 1, 0);
+[moveUpBtn, moveDownBtn, moveLeftBtn, moveRightBtn].forEach((button) => {
+  if (button) button.style.touchAction = 'none';
+});
+
+directionalControls?.addEventListener('pointerdown', (e) => {
+  const button = e.target.closest('.dir-btn');
+  if (!button) return;
+  e.preventDefault();
+  directionalControls.setPointerCapture(e.pointerId);
+  triggerDirectionalButton(button);
+  setDirectionalHold(button, e.pointerId);
+});
+
+directionalControls?.addEventListener('pointermove', (e) => {
+  if (activeDirectionalPointerId !== e.pointerId) return;
+  const button = getDirectionalButtonFromPoint(e.clientX, e.clientY);
+  if (!button || button === activeDirectionalButton) return;
+  triggerDirectionalButton(button);
+  setDirectionalHold(button, e.pointerId);
+});
+
+directionalControls?.addEventListener('pointerup', (e) => {
+  if (activeDirectionalPointerId !== e.pointerId) return;
+  clearDirectionalHold();
+});
+
+directionalControls?.addEventListener('pointercancel', (e) => {
+  if (activeDirectionalPointerId !== e.pointerId) return;
+  clearDirectionalHold();
+});
+
 
 function releaseEditorPointer(e){
   if (e && editorActivePointerId !== null && e.pointerId !== editorActivePointerId) return;
