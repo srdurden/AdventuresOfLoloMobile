@@ -22,9 +22,12 @@
     }
     #boardWrap {
       position: absolute;
-      inset: 0;
+      inset: 28px 24px 84px;
       overflow: hidden;
       background: #000;
+      border: 2px solid #2f2f2f;
+      border-radius: 18px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
     }
     #gameCanvas { 
       width: 100%; 
@@ -94,6 +97,66 @@
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
     }
+    #directionalControls {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      pointer-events: none;
+    }
+    .dir-btn {
+      position: absolute;
+      border: 0;
+      min-height: auto;
+      color: rgba(255, 255, 255, 0.85);
+      font-size: clamp(18px, 4.8vw, 28px);
+      font-weight: bold;
+      font-family: 'Courier New', Courier, monospace;
+      pointer-events: auto;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+      box-shadow: none;
+      background: transparent;
+      transition: background 120ms ease;
+    }
+    .dir-btn:active {
+      transform: none;
+      box-shadow: none;
+    }
+    #moveUpBtn,
+    #moveDownBtn {
+      left: 72px;
+      right: 72px;
+      height: 62px;
+    }
+    #moveUpBtn {
+      top: calc(env(safe-area-inset-top) + 2px);
+      background: linear-gradient(to bottom, rgba(86, 170, 255, 0.34), rgba(86, 170, 255, 0));
+    }
+    #moveDownBtn {
+      bottom: calc(env(safe-area-inset-bottom) + 54px);
+      background: linear-gradient(to top, rgba(86, 170, 255, 0.34), rgba(86, 170, 255, 0));
+    }
+    #moveLeftBtn,
+    #moveRightBtn {
+      top: calc(env(safe-area-inset-top) + 64px);
+      bottom: calc(env(safe-area-inset-bottom) + 116px);
+      width: 68px;
+    }
+    #moveLeftBtn {
+      left: 0;
+      background: linear-gradient(to right, rgba(86, 170, 255, 0.34), rgba(86, 170, 255, 0));
+    }
+    #moveRightBtn {
+      right: 0;
+      background: linear-gradient(to left, rgba(86, 170, 255, 0.34), rgba(86, 170, 255, 0));
+    }
+    #moveUpBtn:active { background: linear-gradient(to bottom, rgba(86, 170, 255, 0.5), rgba(86, 170, 255, 0.15)); }
+    #moveDownBtn:active { background: linear-gradient(to top, rgba(86, 170, 255, 0.5), rgba(86, 170, 255, 0.15)); }
+    #moveLeftBtn:active { background: linear-gradient(to right, rgba(86, 170, 255, 0.5), rgba(86, 170, 255, 0.15)); }
+    #moveRightBtn:active { background: linear-gradient(to left, rgba(86, 170, 255, 0.5), rgba(86, 170, 255, 0.15)); }
     button {
       border: 2px solid #fff;
       min-height: 46px;
@@ -219,6 +282,12 @@
         <div class="pill" id="hudShots">✦ 0</div>
       </div>
       <div id="levelDropdown" aria-hidden="true"></div>
+    </div>
+    <div id="directionalControls" aria-label="Controles direccionales">
+      <button id="moveUpBtn" class="dir-btn" aria-label="Mover arriba">↑</button>
+      <button id="moveLeftBtn" class="dir-btn" aria-label="Mover izquierda">←</button>
+      <button id="moveRightBtn" class="dir-btn" aria-label="Mover derecha">→</button>
+      <button id="moveDownBtn" class="dir-btn" aria-label="Mover abajo">↓</button>
     </div>
     <div id="controls">
       <button id="undoBtn">ATRÁS</button>
@@ -438,6 +507,10 @@ const editorGrid = document.getElementById('editorGrid');
 const paletteGrid = document.getElementById('paletteGrid');
 const editorText = document.getElementById('editorText');
 const editorStatus = document.getElementById('editorStatus');
+const moveUpBtn = document.getElementById('moveUpBtn');
+const moveDownBtn = document.getElementById('moveDownBtn');
+const moveLeftBtn = document.getElementById('moveLeftBtn');
+const moveRightBtn = document.getElementById('moveRightBtn');
 const setHudMessage = () => {};
 
 const TICK = 100;
@@ -476,6 +549,7 @@ let keyboardOffset = { x: 0, y: 0 };
 let keyboardHoldAcc = 0;
 let activeKeyboardDirKey = null;
 const pressedMovementKeys = new Set();
+let directionalHoldInterval = null;
 let isEditorOpen = false;
 
 const TILE_META = {
@@ -1080,6 +1154,40 @@ function performKeyboardHalfStep(dx, dy){
   return true;
 }
 
+function performDirectionalMove(dx, dy){
+  if (state.won || state.deadUntil || isPlayerFrozen() || isEditorOpen) return false;
+  if (queuedMoves.length) queuedMoves = [];
+  state.player.facing = [dx, dy];
+  const undoSnapshot = snapshot();
+  if (interactAdjacent(dx, dy)) {
+    pushUndoSnapshot(undoSnapshot);
+    return true;
+  }
+  enqueueMove(dx, dy, undoSnapshot);
+  return true;
+}
+
+function clearDirectionalHold(){
+  if (!directionalHoldInterval) return;
+  clearInterval(directionalHoldInterval);
+  directionalHoldInterval = null;
+}
+
+function bindDirectionalButton(button, dx, dy){
+  if (!button) return;
+  const trigger = () => performDirectionalMove(dx, dy);
+
+  button.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    trigger();
+    clearDirectionalHold();
+    directionalHoldInterval = setInterval(trigger, 165);
+  });
+  button.addEventListener('pointerup', clearDirectionalHold);
+  button.addEventListener('pointercancel', clearDirectionalHold);
+  button.addEventListener('pointerleave', clearDirectionalHold);
+}
+
 function enqueueMove(dx, dy, undoSnapshot = null, intervalMs = MOVE_INTERVAL, readyAt = null){
   queuedMoves.push({ dx, dy, undoSnapshot, intervalMs, readyAt });
   if (queuedMoves.length === 1 && readyAt === null) moveAcc = intervalMs;
@@ -1208,7 +1316,10 @@ document.addEventListener('keyup', (e) => {
   keyboardHoldAcc = 0;
 });
 
-window.addEventListener('blur', clearKeyboardInput);
+window.addEventListener('blur', () => {
+  clearKeyboardInput();
+  clearDirectionalHold();
+});
 
 function blockedForDragonSight(x,y){
   const b = state.base[y][x];
@@ -2065,6 +2176,11 @@ document.getElementById('undoBtn').onclick = () => {
 };
 document.getElementById('resetBtn').onclick = () => resetLevel();
 document.getElementById('editBtn').onclick = () => openEditor();
+
+bindDirectionalButton(moveUpBtn, 0, -1);
+bindDirectionalButton(moveDownBtn, 0, 1);
+bindDirectionalButton(moveLeftBtn, -1, 0);
+bindDirectionalButton(moveRightBtn, 1, 0);
 
 function releaseEditorPointer(e){
   if (e && editorActivePointerId !== null && e.pointerId !== editorActivePointerId) return;
