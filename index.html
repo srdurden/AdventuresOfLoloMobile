@@ -193,7 +193,7 @@
       display: grid;
       grid-template-columns: repeat(2, minmax(120px, 1fr));
       gap: 8px;
-      margin-bottom: 10px;
+      margin-bottom: 0;
     }
     .editor-actions button {
       min-height: 42px;
@@ -294,23 +294,23 @@
     </div>
 
     <div id="editorView" aria-hidden="true">
-      <div class="editor-actions">
-        <button id="editorBackBtn">Volver al juego</button>
-        <button id="editorSaveBtn">Guardar pantalla</button>
-        <button id="editorExportBtn">Exportar pantalla</button>
-        <button id="editorImportBtn">Importar pantalla</button>
-        <button id="editorClearBtn">Borrar todo</button>
-      </div>
       <p id="editorStatus">Editor listo. Elige una pieza y toca la cuadrícula para pintar.</p>
       <div class="editor-layout">
+        <section class="editor-card">
+          <h3>Diseño de la pantalla</h3>
+          <div id="editorGrid"></div>
+        </section>
         <section class="editor-card">
           <h3>Paleta de piezas</h3>
           <div id="paletteGrid" class="palette-grid"></div>
         </section>
-        <section class="editor-card">
-          <h3>Diseño de pantalla</h3>
-          <div id="editorGrid"></div>
-        </section>
+        <div class="editor-actions">
+          <button id="editorBackBtn">Volver al juego</button>
+          <button id="editorSaveBtn">Guardar pantalla</button>
+          <button id="editorExportBtn">Exportar pantalla</button>
+          <button id="editorImportBtn">Importar pantalla</button>
+          <button id="editorClearBtn">Borrar todo</button>
+        </div>
         <section class="editor-card">
           <h3>Cadena de texto de la pantalla</h3>
           <p>Puedes exportar para copiarla o importar pegando aquí una nueva pantalla (13x13).</p>
