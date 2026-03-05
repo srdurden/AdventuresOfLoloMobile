@@ -2519,6 +2519,15 @@ function releaseEditorPalettePointer(e){
   clearEditorHoverTarget();
 }
 
+function releaseEditorPalettePointer(e){
+  if (!editorPaletteDrag) return;
+  if (e.pointerId !== editorPaletteDrag.pointerId) return;
+  if (paletteGrid.hasPointerCapture?.(e.pointerId)) {
+    paletteGrid.releasePointerCapture(e.pointerId);
+  }
+  editorPaletteDrag = null;
+}
+
 document.addEventListener('pointerup', releaseEditorPointer);
 document.addEventListener('pointercancel', releaseEditorPointer);
 
