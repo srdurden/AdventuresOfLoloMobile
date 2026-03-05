@@ -1396,17 +1396,32 @@ function canRockyOccupy(x, y, rocky, allowPlayer = false){
 }
 
 function isRockyNearPlayer(rocky){
-  return Math.max(Math.abs(rocky.x - state.player.x), Math.abs(rocky.y - state.player.y)) <= ROCKY_BLOCK_DISTANCE;
+  if (rocky.x === state.player.x) {
+    return Math.abs(rocky.y - state.player.y) <= ROCKY_BLOCK_DISTANCE;
+  }
+  if (rocky.y === state.player.y) {
+    return Math.abs(rocky.x - state.player.x) <= ROCKY_BLOCK_DISTANCE;
+  }
+  return false;
 }
 
 function getRockyChargeDir(rocky){
-  if (rocky.x !== state.player.x) return null;
-  const step = Math.sign(state.player.y - rocky.y);
-  if (!step) return null;
-  for (let y = rocky.y + step; y !== state.player.y; y += step) {
-    if (!canRockyOccupy(rocky.x, y, rocky)) return null;
+  let dx = 0;
+  let dy = 0;
+  if (rocky.x === state.player.x) {
+    dy = Math.sign(state.player.y - rocky.y);
+  } else if (rocky.y === state.player.y) {
+    dx = Math.sign(state.player.x - rocky.x);
+  } else {
+    return null;
   }
-  return [0, step];
+
+  if (!dx && !dy) return null;
+
+  for (let x = rocky.x + dx, y = rocky.y + dy; x !== state.player.x || y !== state.player.y; x += dx, y += dy) {
+    if (!canRockyOccupy(x, y, rocky)) return null;
+  }
+  return [dx, dy];
 }
 
 function tryRockyPushPlayer(chargeDir){
@@ -1426,7 +1441,7 @@ function updateRocky(rocky, now){
   if (chargeDir) {
     rocky.mode = 'charge';
     rocky.dir = [...chargeDir];
-  } else if (rocky.y === state.player.y || isRockyNearPlayer(rocky)) {
+  } else if (isRockyNearPlayer(rocky)) {
     rocky.mode = 'block';
   } else if (rocky.mode !== 'charge') {
     rocky.mode = 'patrol';
