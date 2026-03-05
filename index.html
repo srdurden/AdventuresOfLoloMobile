@@ -560,6 +560,7 @@ let editorActivePointerId = null;
 let editorDrag = null;
 let editorDropTarget = null;
 let editorHoverTarget = null;
+let editorPaletteDrag = null;
 
 const state = {
   base: null,
@@ -2149,6 +2150,10 @@ function getEditorTileFromPointerEvent(e, clamp=false){
   return { x, y };
 }
 
+function getEditorTileFromClientPoint(clientX, clientY, clamp=false){
+  return getEditorTileFromPointerEvent({ clientX, clientY }, clamp);
+}
+
 function frame(ts){
   if (!lastTs) lastTs = ts;
   const dt = Math.min(50, ts - lastTs);
@@ -2306,20 +2311,17 @@ function renderPalette(){
     }
     btn.title = `${meta.label} (${tile})`;
     btn.setAttribute('aria-label', `${meta.label} (${tile})`);
-    btn.onclick = () => {
-      if (editorTile === tile) {
-        editorTile = null;
-      } else {
-        editorTile = tile;
-      }
-      renderPalette();
-      if (editorTile) {
-        setEditorStatus(`Pieza activa: ${meta.label} (${tile}).`);
-      } else {
-        clearEditorHoverTarget();
-        setEditorStatus('Ninguna pieza seleccionada. Arrastra una pieza del tablero para moverla.');
-      }
-    };
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      editorPaletteDrag = {
+        pointerId: e.pointerId,
+        tile,
+        moved: false,
+        startX: e.clientX,
+        startY: e.clientY,
+      };
+      paletteGrid.setPointerCapture?.(e.pointerId);
+    });
     paletteGrid.appendChild(btn);
   }
 }
@@ -2353,7 +2355,9 @@ function closeEditor(){
   editorMouseDown = false;
   editorActivePointerId = null;
   editorDrag = null;
+  editorPaletteDrag = null;
   clearEditorDropTarget();
+  clearEditorHoverTarget();
 }
 
 function startLevel(){
@@ -2476,7 +2480,8 @@ directionalControls?.addEventListener('pointercancel', (e) => {
 
 
 function releaseEditorPointer(e){
-  if (e && editorActivePointerId !== null && e.pointerId !== editorActivePointerId) return;
+  if (editorActivePointerId === null) return;
+  if (e && e.pointerId !== editorActivePointerId) return;
   if (editorDrag && editorDrag.isMove && editorDrag.moved && e) {
     const target = getEditorTileFromPointerEvent(e, true);
     if (target) moveEditorTile(editorDrag.fromX, editorDrag.fromY, target.x, target.y);
@@ -2485,10 +2490,58 @@ function releaseEditorPointer(e){
   editorActivePointerId = null;
   editorDrag = null;
   clearEditorDropTarget();
+  clearEditorHoverTarget();
+}
+
+function releaseEditorPalettePointer(e){
+  if (!editorPaletteDrag) return;
+  if (e.pointerId !== editorPaletteDrag.pointerId) return;
+  const { tile, moved } = editorPaletteDrag;
+  const target = getEditorTileFromClientPoint(e.clientX, e.clientY);
+  if (!moved) {
+    if (editorTile === tile) {
+      editorTile = null;
+      clearEditorHoverTarget();
+      setEditorStatus('Ninguna pieza seleccionada. Arrastra una pieza del tablero para moverla.');
+    } else {
+      editorTile = tile;
+      const meta = TILE_META[tile] ?? { label: tile };
+      setEditorStatus(`Pieza activa: ${meta.label} (${tile}).`);
+    }
+    renderPalette();
+  } else if (target) {
+    if (editorTile !== tile) {
+      editorTile = tile;
+      renderPalette();
+    }
+    paintEditorCell(target.x, target.y);
+  }
+  if (paletteGrid.hasPointerCapture?.(e.pointerId)) {
+    paletteGrid.releasePointerCapture(e.pointerId);
+  }
+  editorPaletteDrag = null;
+  clearEditorHoverTarget();
 }
 
 document.addEventListener('pointerup', releaseEditorPointer);
 document.addEventListener('pointercancel', releaseEditorPointer);
+
+document.addEventListener('pointermove', (e) => {
+  if (!editorPaletteDrag || e.pointerId !== editorPaletteDrag.pointerId) return;
+  if ((e.buttons & 1) !== 1) return;
+  const moveX = Math.abs(e.clientX - editorPaletteDrag.startX);
+  const moveY = Math.abs(e.clientY - editorPaletteDrag.startY);
+  if (moveX > 4 || moveY > 4) editorPaletteDrag.moved = true;
+  const target = getEditorTileFromClientPoint(e.clientX, e.clientY);
+  if (!target) {
+    clearEditorHoverTarget();
+    return;
+  }
+  setEditorHoverTarget(target.x, target.y);
+});
+
+document.addEventListener('pointerup', releaseEditorPalettePointer);
+document.addEventListener('pointercancel', releaseEditorPalettePointer);
 
 document.getElementById('editorBackBtn').onclick = () => closeEditor();
 document.getElementById('editorSaveBtn').onclick = () => {
