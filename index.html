@@ -438,7 +438,7 @@ const LEVELS_RAW = [
 #############`
 ];
 const LEVEL_SIZE = 13;
-const ALLOWED = new Set(['#','V','.','P','H','C','B','~','R','A','M','T','S','D','N','U','E','O']);
+const ALLOWED = new Set(['#','V','.','P','H','C','B','~','R','A','M','K','T','S','D','N','U','E','O']);
 function parseLevelRows(raw) {
   const rows = raw.trim().split('\n').map(r => r.trim());
   const h = rows.length;
@@ -497,6 +497,8 @@ const DRAGON_FIREBALL_STEP_MS = 100;
 const DRAGON_FIRE_COOLDOWN_MS = 1000;
 const DEATH_RESET_FLASH_MS = 320;
 const EXPLOSION_FLASH_MS = 420;
+const ROCKY_BLOCK_DISTANCE = 2;
+const ROCKY_DIRS = [[1,0],[0,1],[-1,0],[0,-1]];
 let lastTs = 0;
 let acc = 0;
 let moveAcc = 0;
@@ -541,6 +543,7 @@ const TILE_META = {
   'R': { label: 'Puente', color: '#9b632f', text: '#fff' },
   'A': { label: 'Ardilla', color: '#2d962d', text: '#fff' },
   'M': { label: 'Medusa', color: '#8742c8', text: '#fff' },
+  'K': { label: 'Rocky', color: '#8f8f8f', text: '#111' },
   'N': { label: 'Dragón Norte', color: '#d800d8', text: '#fff' },
   'U': { label: 'Dragón Sur', color: '#d800d8', text: '#fff' },
   'E': { label: 'Dragón Este', color: '#d800d8', text: '#fff' },
@@ -548,7 +551,7 @@ const TILE_META = {
   'T': { label: 'Árbol', color: '#0c6515', text: '#fff' },
   'S': { label: 'Piedra', color: '#8a8a8a', text: '#111' },
 };
-const PALETTE_ORDER = ['.','#','V','T','S','~','R','B','H','C','D','A','M','N','U','E','O','P'];
+const PALETTE_ORDER = ['.','#','V','T','S','~','R','B','H','C','D','A','M','K','N','U','E','O','P'];
 let editorTile = null;
 let editorRows = LEVEL.map(r => r.split(''));
 let editorMouseDown = false;
@@ -596,6 +599,7 @@ function initSprites() {
     chest_open: ['transparent', '#000000', '#F83800', '#FFFFFF', '#880000'],
     ardilla: ['transparent', '#000000', '#00A800', '#F83800', '#FFFFFF'],
     medusa: ['transparent', '#000000', '#6B6B6B', '#D0D0D0', '#CC33FF', '#FFFFFF', '#58d1ff'],
+    rocky: ['transparent', '#000000', '#8f8f8f', '#bebebe', '#ffffff'],
     dragon_n: ['transparent', '#2a002a', '#d800d8', '#e0e0e0', '#000000'],
     dragon_s: ['transparent', '#2a002a', '#d800d8', '#e0e0e0', '#000000'],
     dragon_e: ['transparent', '#2a002a', '#d800d8', '#e0e0e0', '#000000'],
@@ -621,6 +625,7 @@ function initSprites() {
     chest_open: "0000000000000000\n1111111111111111\n1333333333333331\n1222222222222221\n1222222222222221\n1333333333333331\n1111111111111111\n1444444444444441\n1444444444444441\n1111111111111111\n1222222222222221\n1222222222222221\n1333333333333331\n1111111111111111\n0000000000000000\n0000000000000000",
     ardilla: "0000000111000000\n0000001333100000\n0000013333310000\n0000122222210000\n0001412222221000\n0001412222221000\n0001442211221000\n0001222211221000\n0000122222210000\n0000122222210000\n0000012222100000\n0000012221000000\n0000122221000000\n0001222221100000\n0012222222210000\n0011111111110000",
     medusa: "0011111111111100\n0122233223322210\n1223322332233221\n1233223333223321\n1333333333333331\n0133111111113310\n0133144114413310\n0133111111113310\n0013333113333100\n0013333113333100\n0001331111331000\n0000111111110000\n0000013333100000\n0011114444111100\n0144541111454410\n1444444444444441",
+    rocky: "0011111111111100\n0122222222222210\n1223333333333221\n1230003333000321\n1230003333000321\n1233333333333321\n1233333333333321\n1233333333333321\n1233334334333321\n1233333333333321\n1233333333333321\n1233333333333321\n1233333333333321\n1222222222222221\n0011111111111100\n0003333300033330",
     egg: "0000001111000000\n0000112222110000\n0001222222221000\n0012222222223100\n0122222222223310\n0122222222223310\n1222222222223331\n1222222222223331\n1222222222223331\n1222222222223331\n1222222222223331\n0122222222223310\n0132222222223310\n0013322222233100\n0001133333331000\n0000111111110000",
     door: "0000000000000000\n0001111001111000\n0012221001222100\n0122221001222210\n0122221001222210\n0111111001111110\n0122221001222210\n0122221001222210\n0122221001222210\n0111111001111110\n0122221001222210\n0122221001222210\n0122231001322210\n0122221001222210\n0111111001111110\n0000000000000000",
     water: waterBaseArt,
@@ -731,6 +736,7 @@ function parseLevel(){
     if (ch === 'H') hearts.push({ x, y });
     if (ch === 'A') enemies.push({ type:'ardilla', x, y, charge:0, alert:false });
     if (ch === 'M') enemies.push({ type:'medusa', x, y, charge:0, alert:false });
+    if (ch === 'K') enemies.push({ type:'rocky', x, y, dir:[1,0], mode:'patrol' });
     if (ch === 'N') enemies.push({ type:'dragon', x, y, dir:[0,-1], coolDownUntil:0, wasSeeingPlayer:false });
     if (ch === 'U') enemies.push({ type:'dragon', x, y, dir:[0,1], coolDownUntil:0, wasSeeingPlayer:false });
     if (ch === 'E') enemies.push({ type:'dragon', x, y, dir:[1,0], coolDownUntil:0, wasSeeingPlayer:false });
@@ -909,6 +915,7 @@ function tryMovePlayer(dx,dy){
     setHudMessage('¡Puerta abierta!');
   }
   if (state.doorOpen && state.door && tx === state.door.x && ty === state.door.y) return winLevel(), true;
+  runRockyTurn();
   if (state.fireballs.some(fireball => isFireballTouchingPlayer(fireball))) killPlayer();
   const now = performance.now();
   updateDragonThreat(now);
@@ -1354,6 +1361,131 @@ function blockedForDragonSight(x,y){
   if (has(state.blocks,x,y) || has(state.eggs,x,y)) return true;
   if (enemyAt(x,y)) return true;
   return false;
+}
+
+
+function sameDir(a, b){
+  return a && b && a[0] === b[0] && a[1] === b[1];
+}
+
+function rotateRockyRight(dir){
+  const idx = ROCKY_DIRS.findIndex(v => sameDir(v, dir));
+  const next = idx >= 0 ? (idx + 1) % ROCKY_DIRS.length : 0;
+  return [...ROCKY_DIRS[next]];
+}
+
+function isRockyBaseBlocked(x,y){
+  const b = state.base[y][x];
+  if (b === '#' || b === 'V' || b === 'T' || b === 'S') return true;
+  if (b === '~' && !has(state.filledWater,x,y)) return true;
+  if (b === 'C' || b === 'D') return true;
+  return false;
+}
+
+function enemyAtExcluding(x, y, ignored){
+  return state.enemies.find(e => e !== ignored && e.x === x && e.y === y);
+}
+
+function canRockyOccupy(x, y, rocky, allowPlayer = false){
+  if (!inBounds(x, y)) return false;
+  if (isRockyBaseBlocked(x, y)) return false;
+  if (has(state.blocks, x, y) || has(state.eggs, x, y)) return false;
+  if (enemyAtExcluding(x, y, rocky)) return false;
+  if (!allowPlayer && state.player.x === x && state.player.y === y) return false;
+  return true;
+}
+
+function isRockyNearPlayer(rocky){
+  return Math.max(Math.abs(rocky.x - state.player.x), Math.abs(rocky.y - state.player.y)) <= ROCKY_BLOCK_DISTANCE;
+}
+
+function getRockyChargeDir(rocky){
+  if (rocky.x !== state.player.x) return null;
+  const step = Math.sign(state.player.y - rocky.y);
+  if (!step) return null;
+  for (let y = rocky.y + step; y !== state.player.y; y += step) {
+    if (!canRockyOccupy(rocky.x, y, rocky)) return null;
+  }
+  return [0, step];
+}
+
+function tryRockyPushPlayer(chargeDir){
+  const nx = state.player.x + chargeDir[0];
+  const ny = state.player.y + chargeDir[1];
+  if (!passableForPlayer(nx, ny)) return false;
+  const fromX = state.player.x;
+  const fromY = state.player.y;
+  state.player.x = nx;
+  state.player.y = ny;
+  setPlayerAnimation(fromX, fromY, nx, ny);
+  return true;
+}
+
+function updateRocky(rocky){
+  const chargeDir = getRockyChargeDir(rocky);
+  if (chargeDir) {
+    rocky.mode = 'charge';
+    rocky.dir = [...chargeDir];
+  } else if (rocky.y === state.player.y || isRockyNearPlayer(rocky)) {
+    rocky.mode = 'block';
+  } else if (rocky.mode !== 'charge') {
+    rocky.mode = 'patrol';
+  }
+
+  if (rocky.mode === 'charge') {
+    const [dx, dy] = rocky.dir || [0, 1];
+    const tx = rocky.x + dx;
+    const ty = rocky.y + dy;
+    if (tx === state.player.x && ty === state.player.y) {
+      if (!tryRockyPushPlayer([dx, dy])) {
+        rocky.mode = 'block';
+        return;
+      }
+      rocky.x = tx;
+      rocky.y = ty;
+      return;
+    }
+    if (!canRockyOccupy(tx, ty, rocky)) {
+      rocky.mode = 'patrol';
+      return;
+    }
+    rocky.x = tx;
+    rocky.y = ty;
+    return;
+  }
+
+  if (rocky.mode === 'block') {
+    const sideBySide = Math.abs(rocky.x - state.player.x) === 1 && rocky.y === state.player.y;
+    if (sideBySide && state.player.facing && state.player.facing[0] === 0 && state.player.facing[1] !== 0) {
+      const [, dy] = state.player.facing;
+      const tx = rocky.x;
+      const ty = rocky.y + dy;
+      if (canRockyOccupy(tx, ty, rocky)) {
+        rocky.y = ty;
+      }
+    }
+    return;
+  }
+
+  if (!rocky.dir || !ROCKY_DIRS.some(v => sameDir(v, rocky.dir))) rocky.dir = [1, 0];
+  for (let i = 0; i < 4; i++) {
+    const [dx, dy] = rocky.dir;
+    const tx = rocky.x + dx;
+    const ty = rocky.y + dy;
+    if (canRockyOccupy(tx, ty, rocky)) {
+      rocky.x = tx;
+      rocky.y = ty;
+      return;
+    }
+    rocky.dir = rotateRockyRight(rocky.dir);
+  }
+}
+
+function runRockyTurn(){
+  for (const enemy of state.enemies) {
+    if (enemy.type !== 'rocky') continue;
+    updateRocky(enemy);
+  }
 }
 
 function isPlayerInDragonFireDirection(dragon){
@@ -1900,6 +2032,7 @@ function spriteNameForTile(tile){
   if (tile === 'D') return 'door';
   if (tile === 'A') return 'ardilla';
   if (tile === 'M') return 'medusa';
+  if (tile === 'K') return 'rocky';
   if (tile === 'N') return 'dragon_n';
   if (tile === 'U') return 'dragon_s';
   if (tile === 'E') return 'dragon_e';
