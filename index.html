@@ -1390,6 +1390,7 @@ function enemyAtExcluding(x, y, ignored){
 function canRockyOccupy(x, y, rocky, allowPlayer = false){
   if (!inBounds(x, y)) return false;
   if (isRockyBaseBlocked(x, y)) return false;
+  if (has(state.hearts, x, y)) return false;
   if (has(state.blocks, x, y) || has(state.eggs, x, y)) return false;
   if (enemyAtExcluding(x, y, rocky)) return false;
   if (!allowPlayer && state.player.x === x && state.player.y === y) return false;
