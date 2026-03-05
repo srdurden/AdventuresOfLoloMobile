@@ -24,10 +24,10 @@
       position: absolute;
       inset: 72px 12px 156px;
       overflow: hidden;
-      background: #000;
-      border: 2px solid #2f2f2f;
-      border-radius: 18px;
-      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
     }
     #gameCanvas { 
       width: 100%; 
@@ -229,7 +229,7 @@
     }
     .palette-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(62px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(31px, 1fr));
       gap: 6px;
     }
     .palette-tile.active {
@@ -237,7 +237,7 @@
       color: #00d4ff;
     }
     .palette-tile {
-      min-height: 62px;
+      min-height: 31px;
       padding: 4px;
       display: flex;
       align-items: center;
@@ -327,7 +327,6 @@
       </div>
       <div class="editor-layout">
         <section class="editor-board-section">
-          <h3>Diseño de la pantalla</h3>
           <div id="editorGrid"></div>
         </section>
         <section class="editor-card">
@@ -546,7 +545,7 @@ const TILE_META = {
   'S': { label: 'Piedra', color: '#8a8a8a', text: '#111' },
 };
 const PALETTE_ORDER = ['.','#','V','T','S','~','R','B','H','C','D','A','M','N','U','E','O','P'];
-let editorTile = 'P';
+let editorTile = null;
 let editorRows = LEVEL.map(r => r.split(''));
 let editorMouseDown = false;
 let editorActivePointerId = null;
@@ -2179,8 +2178,9 @@ function openEditor(){
   editorView.classList.add('visible');
   editorView.setAttribute('aria-hidden', 'false');
   loadEditorFromRaw(currentLevelRaw);
+  editorTile = null;
   renderPalette();
-  setEditorStatus('Editor abierto. Arrastra el dedo para pintar rápido.');
+  setEditorStatus('Editor abierto. Ninguna pieza seleccionada. Arrastra una pieza del tablero para moverla o elige una en la paleta.');
 }
 
 function closeEditor(){
