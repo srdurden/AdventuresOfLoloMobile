@@ -2313,21 +2313,13 @@ function renderPalette(){
     btn.setAttribute('aria-label', `${meta.label} (${tile})`);
     btn.addEventListener('pointerdown', (e) => {
       e.preventDefault();
-      editorPaletteDrag = {
-        pointerId: e.pointerId,
-        startX: e.clientX,
-        startY: e.clientY,
-      };
+      editorPaletteDrag = { pointerId: e.pointerId };
       paletteGrid.setPointerCapture?.(e.pointerId);
       if (editorTile !== tile) {
         editorTile = tile;
         renderPalette();
       }
       setEditorStatus(`Pieza activa: ${meta.label} (${tile}).`);
-      const target = getEditorTileFromClientPoint(e.clientX, e.clientY);
-      if (target) {
-        paintEditorCell(target.x, target.y);
-      }
     });
 
     btn.onclick = () => {
@@ -2377,7 +2369,9 @@ function closeEditor(){
   editorMouseDown = false;
   editorActivePointerId = null;
   editorDrag = null;
+  editorPaletteDrag = null;
   clearEditorDropTarget();
+  clearEditorHoverTarget();
 }
 
 function startLevel(){
@@ -2500,7 +2494,8 @@ directionalControls?.addEventListener('pointercancel', (e) => {
 
 
 function releaseEditorPointer(e){
-  if (e && editorActivePointerId !== null && e.pointerId !== editorActivePointerId) return;
+  if (editorActivePointerId === null) return;
+  if (e && e.pointerId !== editorActivePointerId) return;
   if (editorDrag && editorDrag.isMove && editorDrag.moved && e) {
     const target = getEditorTileFromPointerEvent(e, true);
     if (target) moveEditorTile(editorDrag.fromX, editorDrag.fromY, target.x, target.y);
@@ -2509,6 +2504,19 @@ function releaseEditorPointer(e){
   editorActivePointerId = null;
   editorDrag = null;
   clearEditorDropTarget();
+  clearEditorHoverTarget();
+}
+
+function releaseEditorPalettePointer(e){
+  if (!editorPaletteDrag) return;
+  if (e.pointerId !== editorPaletteDrag.pointerId) return;
+  const target = getEditorTileFromClientPoint(e.clientX, e.clientY);
+  if (target) paintEditorCell(target.x, target.y);
+  if (paletteGrid.hasPointerCapture?.(e.pointerId)) {
+    paletteGrid.releasePointerCapture(e.pointerId);
+  }
+  editorPaletteDrag = null;
+  clearEditorHoverTarget();
 }
 
 function releaseEditorPalettePointer(e){
@@ -2527,8 +2535,10 @@ document.addEventListener('pointermove', (e) => {
   if (!editorPaletteDrag || e.pointerId !== editorPaletteDrag.pointerId) return;
   if ((e.buttons & 1) !== 1) return;
   const target = getEditorTileFromClientPoint(e.clientX, e.clientY);
-  if (!target) return;
-  paintEditorCell(target.x, target.y);
+  if (!target) {
+    clearEditorHoverTarget();
+    return;
+  }
   setEditorHoverTarget(target.x, target.y);
 });
 
