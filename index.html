@@ -2321,11 +2321,6 @@ function renderPalette(){
         startY: e.clientY,
       };
       paletteGrid.setPointerCapture?.(e.pointerId);
-      if (editorTile !== tile) {
-        editorTile = tile;
-        renderPalette();
-      }
-      setEditorStatus(`Pieza activa: ${meta.label} (${tile}).`);
     });
     paletteGrid.appendChild(btn);
   }
