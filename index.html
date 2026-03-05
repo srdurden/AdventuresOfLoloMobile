@@ -1417,6 +1417,7 @@ function getRockyChargeDir(rocky){
   }
 
   if (!dx && !dy) return null;
+  if (!rocky.dir || !sameDir(rocky.dir, [dx, dy])) return null;
 
   for (let x = rocky.x + dx, y = rocky.y + dy; x !== state.player.x || y !== state.player.y; x += dx, y += dy) {
     if (!canRockyOccupy(x, y, rocky)) return null;
