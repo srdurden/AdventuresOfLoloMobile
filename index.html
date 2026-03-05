@@ -235,7 +235,8 @@
       gap: 6px;
     }
     .palette-tile.active {
-      border-color: #00d4ff;
+      outline: 2px solid #00d4ff;
+      outline-offset: 0;
       color: #00d4ff;
     }
     .palette-tile {
@@ -250,6 +251,8 @@
       background-position: center;
       background-size: 100% 100%;
       font-size: 0;
+      border: 0;
+      box-shadow: none;
     }
     #editorGrid {
       display: grid;
