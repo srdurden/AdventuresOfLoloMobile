@@ -237,8 +237,10 @@
       color: #00d4ff;
     }
     .palette-tile {
-      min-height: 31px;
-      padding: 4px;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      min-height: 0;
+      padding: 0;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -329,10 +331,7 @@
         <section class="editor-board-section">
           <div id="editorGrid"></div>
         </section>
-        <section class="editor-card">
-          <h3>Paleta de piezas</h3>
-          <div id="paletteGrid" class="palette-grid"></div>
-        </section>
+        <div id="paletteGrid" class="palette-grid"></div>
         <div class="editor-actions">
           <button id="editorImportBtn">Cargar pantalla</button>
           <button id="editorClearBtn">Borrar todo</button>
