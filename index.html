@@ -915,7 +915,6 @@ function tryMovePlayer(dx,dy){
     setHudMessage('¡Puerta abierta!');
   }
   if (state.doorOpen && state.door && tx === state.door.x && ty === state.door.y) return winLevel(), true;
-  runRockyTurn();
   if (state.fireballs.some(fireball => isFireballTouchingPlayer(fireball))) killPlayer();
   const now = performance.now();
   updateDragonThreat(now);
@@ -1675,6 +1674,7 @@ function tick(){
 
   state.explosions = state.explosions.filter(explosion => now - explosion.startedAt < explosion.life);
 
+  runRockyTurn();
   updateDragonThreat(now);
   advanceDragonFireballs(now);
   resolveMedusaThreat(now);
