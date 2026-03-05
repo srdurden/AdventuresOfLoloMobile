@@ -185,6 +185,7 @@
     }
 
     #editorView {
+      --editor-cell-size: clamp(18px, 6vw, 30px);
       position: fixed;
       inset: 0;
       z-index: 10;
@@ -229,7 +230,8 @@
     }
     .palette-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(31px, 1fr));
+      grid-template-columns: repeat(auto-fit, var(--editor-cell-size));
+      justify-content: center;
       gap: 6px;
     }
     .palette-tile.active {
@@ -237,8 +239,8 @@
       color: #00d4ff;
     }
     .palette-tile {
-      width: 100%;
-      aspect-ratio: 1 / 1;
+      width: var(--editor-cell-size);
+      height: var(--editor-cell-size);
       min-height: 0;
       padding: 0;
       display: flex;
@@ -246,11 +248,10 @@
       justify-content: center;
       background-repeat: no-repeat;
       background-position: center;
-      background-size: 88% 88%;
+      background-size: 100% 100%;
       font-size: 0;
     }
     #editorGrid {
-      --editor-cell-size: clamp(18px, 6vw, 30px);
       display: grid;
       grid-template-columns: repeat(13, var(--editor-cell-size));
       width: fit-content;
