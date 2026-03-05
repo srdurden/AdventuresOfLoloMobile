@@ -499,6 +499,7 @@ const DEATH_RESET_FLASH_MS = 320;
 const EXPLOSION_FLASH_MS = 420;
 const ROCKY_BLOCK_DISTANCE = 2;
 const ROCKY_DIRS = [[1,0],[0,1],[-1,0],[0,-1]];
+const ROCKY_PATROL_STEP_MS = KEYBOARD_HALF_STEP_INTERVAL * 2;
 let lastTs = 0;
 let acc = 0;
 let moveAcc = 0;
@@ -1420,7 +1421,7 @@ function tryRockyPushPlayer(chargeDir){
   return true;
 }
 
-function updateRocky(rocky){
+function updateRocky(rocky, now){
   const chargeDir = getRockyChargeDir(rocky);
   if (chargeDir) {
     rocky.mode = 'charge';
@@ -1466,6 +1467,9 @@ function updateRocky(rocky){
     return;
   }
 
+  if ((rocky.nextPatrolAt ?? 0) > now) return;
+  rocky.nextPatrolAt = now + ROCKY_PATROL_STEP_MS;
+
   if (!rocky.dir || !ROCKY_DIRS.some(v => sameDir(v, rocky.dir))) rocky.dir = [1, 0];
   for (let i = 0; i < 4; i++) {
     const [dx, dy] = rocky.dir;
@@ -1480,10 +1484,10 @@ function updateRocky(rocky){
   }
 }
 
-function runRockyTurn(){
+function runRockyTurn(now = performance.now()){
   for (const enemy of state.enemies) {
     if (enemy.type !== 'rocky') continue;
-    updateRocky(enemy);
+    updateRocky(enemy, now);
   }
 }
 
@@ -1674,7 +1678,7 @@ function tick(){
 
   state.explosions = state.explosions.filter(explosion => now - explosion.startedAt < explosion.life);
 
-  runRockyTurn();
+  runRockyTurn(now);
   updateDragonThreat(now);
   advanceDragonFireballs(now);
   resolveMedusaThreat(now);
