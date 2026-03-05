@@ -1449,6 +1449,8 @@ function updateRocky(rocky, now){
   }
 
   if (rocky.mode === 'charge') {
+    if ((rocky.nextChargeAt ?? 0) > now) return;
+    rocky.nextChargeAt = now + PLAYER_MOVE_MS;
     const [dx, dy] = rocky.dir || [0, 1];
     const tx = rocky.x + dx;
     const ty = rocky.y + dy;
@@ -1471,6 +1473,7 @@ function updateRocky(rocky, now){
   }
 
   if (rocky.mode === 'block') {
+    rocky.nextChargeAt = 0;
     const sideBySide = Math.abs(rocky.x - state.player.x) === 1 && rocky.y === state.player.y;
     if (sideBySide && state.player.facing && state.player.facing[0] === 0 && state.player.facing[1] !== 0) {
       const [, dy] = state.player.facing;
@@ -1483,6 +1486,7 @@ function updateRocky(rocky, now){
     return;
   }
 
+  rocky.nextChargeAt = 0;
   if ((rocky.nextPatrolAt ?? 0) > now) return;
   rocky.nextPatrolAt = now + ROCKY_PATROL_STEP_MS;
 
