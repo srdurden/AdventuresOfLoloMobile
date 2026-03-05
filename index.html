@@ -219,6 +219,9 @@
       grid-template-columns: 1fr;
       gap: 12px;
     }
+    .editor-board-section h3 {
+      margin: 0 0 8px;
+    }
     .editor-card {
       border: 2px solid #666;
       padding: 8px;
@@ -232,6 +235,17 @@
     .palette-tile.active {
       border-color: #00d4ff;
       color: #00d4ff;
+    }
+    .palette-tile {
+      min-height: 62px;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 88% 88%;
+      font-size: 0;
     }
     #editorGrid {
       --editor-cell-size: clamp(18px, 6vw, 30px);
@@ -312,7 +326,7 @@
         <button id="editorSaveBtn" class="editor-save">Guardar pantalla</button>
       </div>
       <div class="editor-layout">
-        <section class="editor-card">
+        <section class="editor-board-section">
           <h3>Diseño de la pantalla</h3>
           <div id="editorGrid"></div>
         </section>
@@ -321,13 +335,12 @@
           <div id="paletteGrid" class="palette-grid"></div>
         </section>
         <div class="editor-actions">
-          <button id="editorExportBtn">Exportar pantalla</button>
-          <button id="editorImportBtn">Importar pantalla</button>
+          <button id="editorImportBtn">Cargar pantalla</button>
           <button id="editorClearBtn">Borrar todo</button>
         </div>
         <section class="editor-card">
           <h3>Cadena de texto de la pantalla</h3>
-          <p>Puedes exportar para copiarla o importar pegando aquí una nueva pantalla (13x13).</p>
+          <p>Pega aquí un nivel (13x13) y pulsa "Cargar pantalla" para importarlo.</p>
           <textarea id="editorText" spellcheck="false"></textarea>
         </section>
       </div>
@@ -339,13 +352,13 @@
 const LEVELS_RAW = [
 
 `######D######
-#TTTT...TTTT#
+#TTTT.A.TTTT#
 #TTT.....TTT#
-#TT.H...C.TT#
+#TTH.....CTT#
 #T.........T#
-#SSSSSBSSSSS#
+#SSSSS.SSSSS#
 #TTTTT.TTTTT#
-#.SMS...SMS.#
+#.SMS.B.SMS.#
 #..TT...TT..#
 #.SMS...SMS.#
 #...T...T...#
@@ -2075,7 +2088,7 @@ function renderEditorGrid(){
         editorMouseDown = true;
         editorActivePointerId = e.pointerId;
         const sourceTile = editorRows[y][x];
-        const canMoveTile = sourceTile !== '.' && sourceTile === editorTile;
+        const canMoveTile = sourceTile !== '.' && (!editorTile || sourceTile === editorTile);
         editorDrag = { fromX: x, fromY: y, moved: false, tile: sourceTile, isMove: canMoveTile };
         editorGrid.setPointerCapture(e.pointerId);
         if (editorDrag.isMove) setEditorDropTarget(x, y);
@@ -2117,9 +2130,21 @@ function renderPalette(){
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = `palette-tile ${tile === editorTile ? 'active' : ''}`;
-    btn.textContent = `${tile} ${meta.label}`;
-    btn.style.background = meta.color;
-    btn.style.color = meta.text;
+    const sprite = sprites[spriteNameForTile(tile)] ?? sprites.floor;
+    const floorLayer = sprites.floor?.src ? `url("${sprites.floor.src}")` : '';
+    const spriteLayer = sprite?.src ? `url("${sprite.src}")` : '';
+    if (tile === 'V') {
+      btn.style.backgroundColor = '#000';
+      btn.style.backgroundImage = 'none';
+    } else if (tile === '.' || !spriteLayer) {
+      btn.style.backgroundColor = '#000';
+      btn.style.backgroundImage = floorLayer || 'none';
+    } else {
+      btn.style.backgroundColor = '#000';
+      btn.style.backgroundImage = `${spriteLayer}, ${floorLayer}`;
+    }
+    btn.title = `${meta.label} (${tile})`;
+    btn.setAttribute('aria-label', `${meta.label} (${tile})`);
     btn.onclick = () => {
       if (editorTile === tile) {
         editorTile = null;
@@ -2131,7 +2156,7 @@ function renderPalette(){
         setEditorStatus(`Pieza activa: ${meta.label} (${tile}).`);
       } else {
         clearEditorHoverTarget();
-        setEditorStatus('Ninguna pieza seleccionada. Elige una para pintar.');
+        setEditorStatus('Ninguna pieza seleccionada. Arrastra una pieza del tablero para moverla.');
       }
     };
     paletteGrid.appendChild(btn);
@@ -2154,7 +2179,6 @@ function openEditor(){
   editorView.classList.add('visible');
   editorView.setAttribute('aria-hidden', 'false');
   loadEditorFromRaw(currentLevelRaw);
-  editorTile = editorTile ?? 'P';
   renderPalette();
   setEditorStatus('Editor abierto. Arrastra el dedo para pintar rápido.');
 }
@@ -2314,17 +2338,6 @@ document.getElementById('editorSaveBtn').onclick = () => {
     closeEditor();
   } catch (err) {
     setEditorStatus(`No se pudo guardar: ${err.message}`, true);
-  }
-};
-
-document.getElementById('editorExportBtn').onclick = async () => {
-  const raw = editorToRaw(editorRows);
-  editorText.value = raw;
-  try {
-    await navigator.clipboard.writeText(raw);
-    setEditorStatus('Pantalla exportada y copiada al portapapeles.');
-  } catch {
-    setEditorStatus('Pantalla exportada. Copia el texto manualmente desde la caja.');
   }
 };
 
