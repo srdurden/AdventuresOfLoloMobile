@@ -1397,13 +1397,23 @@ function canRockyOccupy(x, y, rocky, allowPlayer = false){
 }
 
 function isRockyNearPlayer(rocky){
+  let dx = 0;
+  let dy = 0;
   if (rocky.x === state.player.x) {
-    return Math.abs(rocky.y - state.player.y) <= ROCKY_BLOCK_DISTANCE;
+    dy = Math.sign(state.player.y - rocky.y);
+    if (Math.abs(rocky.y - state.player.y) > ROCKY_BLOCK_DISTANCE) return false;
+  } else if (rocky.y === state.player.y) {
+    dx = Math.sign(state.player.x - rocky.x);
+    if (Math.abs(rocky.x - state.player.x) > ROCKY_BLOCK_DISTANCE) return false;
+  } else {
+    return false;
   }
-  if (rocky.y === state.player.y) {
-    return Math.abs(rocky.x - state.player.x) <= ROCKY_BLOCK_DISTANCE;
+
+  if (rocky.dir && (dx || dy) && (rocky.dir[0] !== dx || rocky.dir[1] !== dy)) {
+    return false;
   }
-  return false;
+
+  return true;
 }
 
 function getRockyChargeDir(rocky){
