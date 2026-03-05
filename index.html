@@ -560,6 +560,7 @@ let editorActivePointerId = null;
 let editorDrag = null;
 let editorDropTarget = null;
 let editorHoverTarget = null;
+let editorPaletteDrag = null;
 
 const state = {
   base: null,
@@ -2149,6 +2150,10 @@ function getEditorTileFromPointerEvent(e, clamp=false){
   return { x, y };
 }
 
+function getEditorTileFromClientPoint(clientX, clientY, clamp=false){
+  return getEditorTileFromPointerEvent({ clientX, clientY }, clamp);
+}
+
 function frame(ts){
   if (!lastTs) lastTs = ts;
   const dt = Math.min(50, ts - lastTs);
@@ -2306,6 +2311,25 @@ function renderPalette(){
     }
     btn.title = `${meta.label} (${tile})`;
     btn.setAttribute('aria-label', `${meta.label} (${tile})`);
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      editorPaletteDrag = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+      };
+      paletteGrid.setPointerCapture?.(e.pointerId);
+      if (editorTile !== tile) {
+        editorTile = tile;
+        renderPalette();
+      }
+      setEditorStatus(`Pieza activa: ${meta.label} (${tile}).`);
+      const target = getEditorTileFromClientPoint(e.clientX, e.clientY);
+      if (target) {
+        paintEditorCell(target.x, target.y);
+      }
+    });
+
     btn.onclick = () => {
       if (editorTile === tile) {
         editorTile = null;
@@ -2487,8 +2511,29 @@ function releaseEditorPointer(e){
   clearEditorDropTarget();
 }
 
+function releaseEditorPalettePointer(e){
+  if (!editorPaletteDrag) return;
+  if (e.pointerId !== editorPaletteDrag.pointerId) return;
+  if (paletteGrid.hasPointerCapture?.(e.pointerId)) {
+    paletteGrid.releasePointerCapture(e.pointerId);
+  }
+  editorPaletteDrag = null;
+}
+
 document.addEventListener('pointerup', releaseEditorPointer);
 document.addEventListener('pointercancel', releaseEditorPointer);
+
+document.addEventListener('pointermove', (e) => {
+  if (!editorPaletteDrag || e.pointerId !== editorPaletteDrag.pointerId) return;
+  if ((e.buttons & 1) !== 1) return;
+  const target = getEditorTileFromClientPoint(e.clientX, e.clientY);
+  if (!target) return;
+  paintEditorCell(target.x, target.y);
+  setEditorHoverTarget(target.x, target.y);
+});
+
+document.addEventListener('pointerup', releaseEditorPalettePointer);
+document.addEventListener('pointercancel', releaseEditorPalettePointer);
 
 document.getElementById('editorBackBtn').onclick = () => closeEditor();
 document.getElementById('editorSaveBtn').onclick = () => {
