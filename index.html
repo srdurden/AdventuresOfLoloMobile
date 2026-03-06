@@ -562,6 +562,7 @@ let editorDrag = null;
 let editorDropTarget = null;
 let editorHoverTarget = null;
 let editorPaletteDrag = null;
+const editorPaletteSpritePreviewCache = new Map();
 
 const state = {
   base: null,
@@ -871,6 +872,7 @@ function rebuildRockySheetTransparency() {
   }
   rockySheetCtx.putImageData(imageData, 0, 0);
   ROCKY_SHEET_READY = true;
+  refreshEditorVisualsIfVisible();
 }
 
 ROCKY_SHEET.addEventListener('load', rebuildRockySheetTransparency);
@@ -1014,12 +1016,14 @@ function makeColorKeyTransparent(source, targetCanvas) {
 function applyArdillaPreviewSprite() {
   if (!ARDILLA_PREVIEW.complete || !ARDILLA_PREVIEW.naturalWidth) return;
   sprites.ardilla = makeColorKeyTransparent(ARDILLA_PREVIEW, ARDILLA_PREVIEW_CANVAS) || ARDILLA_PREVIEW;
+  refreshEditorVisualsIfVisible();
 }
 
 function rebuildArdillaSheetTransparency() {
   if (!ARDILLA_SHEET.naturalWidth || !ARDILLA_SHEET.naturalHeight) return;
   makeColorKeyTransparent(ARDILLA_SHEET, ARDILLA_SHEET_CANVAS);
   ARDILLA_SHEET_READY = true;
+  refreshEditorVisualsIfVisible();
 }
 
 ARDILLA_PREVIEW.addEventListener('load', applyArdillaPreviewSprite);
@@ -2620,14 +2624,77 @@ function spriteNameForTile(tile){
   return 'floor';
 }
 
+function buildPaletteSpritePreview(tile){
+  const previewSize = 16;
+  const previewCanvas = document.createElement('canvas');
+  previewCanvas.width = previewSize;
+  previewCanvas.height = previewSize;
+  const previewCtx = previewCanvas.getContext('2d');
+  if (!previewCtx) return null;
+  previewCtx.imageSmoothingEnabled = false;
+  previewCtx.fillStyle = '#000';
+  previewCtx.fillRect(0, 0, previewSize, previewSize);
+
+  if (tile === 'V') return previewCanvas.toDataURL();
+
+  const floorSprite = sprites.floor;
+  if (floorSprite?.complete) {
+    previewCtx.drawImage(floorSprite, 0, 0, previewSize, previewSize);
+  }
+
+  if (tile === 'A' && ARDILLA_SHEET_READY) {
+    const frame = getArdillaFrameRect(getArdillaFrameIndex());
+    previewCtx.drawImage(ARDILLA_SHEET_CANVAS, frame.sx, frame.sy, frame.sw, frame.sh, 0, 0, previewSize, previewSize);
+    return previewCanvas.toDataURL();
+  }
+
+  if (tile === 'K' && ROCKY_SHEET_READY) {
+    const direction = ROCKY_SPRITE.directions.right ?? ROCKY_SPRITE.directions.down;
+    const frame = getRockyFrameRect(direction.idle, direction.row ?? 0);
+    previewCtx.save();
+    if (direction.flip) {
+      previewCtx.translate(previewSize, 0);
+      previewCtx.scale(-1, 1);
+    }
+    previewCtx.drawImage(ROCKY_SHEET_CANVAS, frame.sx, frame.sy, frame.sw, frame.sh, 0, 0, previewSize, previewSize);
+    previewCtx.restore();
+    return previewCanvas.toDataURL();
+  }
+
+  if (tile !== '.') {
+    const spriteName = tile === '~' ? getWaterSpriteName(0, 0, 0) : spriteNameForTile(tile);
+    const sprite = sprites[spriteName];
+    if (sprite?.complete) {
+      previewCtx.drawImage(sprite, 0, 0, previewSize, previewSize);
+    }
+  }
+
+  return previewCanvas.toDataURL();
+}
+
+function getPaletteSpritePreview(tile){
+  if (!editorPaletteSpritePreviewCache.has(tile)) {
+    const preview = buildPaletteSpritePreview(tile);
+    editorPaletteSpritePreviewCache.set(tile, preview);
+  }
+  return editorPaletteSpritePreviewCache.get(tile);
+}
+
+function getSpriteBackgroundLayer(sprite){
+  if (!sprite) return '';
+  if (typeof sprite.src === 'string' && sprite.src) return `url("${sprite.src}")`;
+  if (typeof sprite.toDataURL === 'function') return `url("${sprite.toDataURL()}")`;
+  return '';
+}
+
 function applyEditorCellVisual(cell, tile, x, y){
   const meta = TILE_META[tile] ?? TILE_META['.'];
   const floorSprite = sprites.floor;
   const sprite = sprites[spriteNameForTile(tile)] ?? floorSprite;
   cell.textContent = '';
   cell.title = `${meta.label} (${tile}) - [${x},${y}]`;
-  const floorLayer = floorSprite?.src ? `url("${floorSprite.src}")` : '';
-  const spriteLayer = sprite?.src ? `url("${sprite.src}")` : '';
+  const floorLayer = getSpriteBackgroundLayer(floorSprite);
+  const spriteLayer = getSpriteBackgroundLayer(sprite);
   if (tile === 'V') {
     cell.style.backgroundColor = '#000';
     cell.style.backgroundImage = 'none';
@@ -2843,26 +2910,23 @@ editorGrid.addEventListener('pointerleave', () => {
   clearEditorHoverTarget();
 });
 
+function refreshEditorVisualsIfVisible(){
+  if (!isEditorOpen) return;
+  renderEditorGrid();
+  renderPalette();
+}
+
 function renderPalette(){
   paletteGrid.innerHTML = '';
+  editorPaletteSpritePreviewCache.clear();
   for (const tile of PALETTE_ORDER) {
     const meta = TILE_META[tile];
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = `palette-tile ${tile === editorTile ? 'active' : ''}`;
-    const sprite = sprites[spriteNameForTile(tile)] ?? sprites.floor;
-    const floorLayer = sprites.floor?.src ? `url("${sprites.floor.src}")` : '';
-    const spriteLayer = sprite?.src ? `url("${sprite.src}")` : '';
-    if (tile === 'V') {
-      btn.style.backgroundColor = '#000';
-      btn.style.backgroundImage = 'none';
-    } else if (tile === '.' || !spriteLayer) {
-      btn.style.backgroundColor = '#000';
-      btn.style.backgroundImage = floorLayer || 'none';
-    } else {
-      btn.style.backgroundColor = '#000';
-      btn.style.backgroundImage = `${spriteLayer}, ${floorLayer}`;
-    }
+    const preview = getPaletteSpritePreview(tile);
+    btn.style.backgroundColor = '#000';
+    btn.style.backgroundImage = preview ? `url("${preview}")` : 'none';
     btn.title = `${meta.label} (${tile})`;
     btn.setAttribute('aria-label', `${meta.label} (${tile})`);
     btn.addEventListener('pointerdown', (e) => {
