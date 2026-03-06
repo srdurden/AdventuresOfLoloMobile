@@ -1902,6 +1902,7 @@ function canRockyOccupy(x, y, rocky, allowPlayer = false){
 function isRockyNearPlayer(rocky){
   const offsetX = state.player.x - rocky.x;
   const offsetY = state.player.y - rocky.y;
+  if (offsetX !== 0 && offsetY !== 0) return false;
   const distance = Math.abs(offsetX) + Math.abs(offsetY);
   if (distance > ROCKY_BLOCK_DISTANCE) return false;
 
