@@ -1034,6 +1034,32 @@ function makeColorKeyTransparent(source, targetCanvas) {
   return targetCanvas;
 }
 
+function makeTransparentFromPalette(source, targetCanvas, palette, tolerance = 2) {
+  if (!source.naturalWidth || !source.naturalHeight) return null;
+  targetCanvas.width = source.naturalWidth;
+  targetCanvas.height = source.naturalHeight;
+  const targetCtx = targetCanvas.getContext('2d', { willReadFrequently: true });
+  targetCtx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+  targetCtx.drawImage(source, 0, 0);
+
+  const imageData = targetCtx.getImageData(0, 0, targetCanvas.width, targetCanvas.height);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    for (const color of palette) {
+      if (
+        Math.abs(data[i] - color[0]) <= tolerance &&
+        Math.abs(data[i + 1] - color[1]) <= tolerance &&
+        Math.abs(data[i + 2] - color[2]) <= tolerance
+      ) {
+        data[i + 3] = 0;
+        break;
+      }
+    }
+  }
+  targetCtx.putImageData(imageData, 0, 0);
+  return targetCanvas;
+}
+
 function applyArdillaPreviewSprite() {
   if (!ARDILLA_PREVIEW.complete || !ARDILLA_PREVIEW.naturalWidth) return;
   sprites.ardilla = makeColorKeyTransparent(ARDILLA_PREVIEW, ARDILLA_PREVIEW_CANVAS) || ARDILLA_PREVIEW;
@@ -1073,8 +1099,8 @@ const LEEPER_SPRITE = {
   sleepFrameMs: 300,
   directions: {
     down: { idle: 0, walk: [0, 1, 0, 1] },
-    right: { idle: 2, walk: [2, 3, 2, 3] },
-    left: { idle: 2, walk: [2, 3, 2, 3], flip: true },
+    right: { idle: 2, walk: [2, 3, 2, 3], flip: true },
+    left: { idle: 2, walk: [2, 3, 2, 3] },
     up: { idle: 4, walk: [4, 5, 4, 5] },
   },
   sleep: { idle: 6, cycle: [6, 7, 6, 7] },
@@ -1124,7 +1150,10 @@ function applyLeeperPreviewSprites() {
 
 function rebuildLeeperSheetTransparency() {
   if (!LEEPER_SHEET.naturalWidth || !LEEPER_SHEET.naturalHeight) return;
-  makeColorKeyTransparent(LEEPER_SHEET, LEEPER_SHEET_CANVAS);
+  makeTransparentFromPalette(LEEPER_SHEET, LEEPER_SHEET_CANVAS, [
+    [84, 110, 140],
+    [116, 154, 212],
+  ], 2);
   LEEPER_SHEET_READY = true;
   applyLeeperPreviewSprites();
 }
