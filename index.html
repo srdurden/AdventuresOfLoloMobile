@@ -2010,11 +2010,15 @@ function canLeeperOccupy(x, y, leeper){
 }
 
 function updateSkulls(now = performance.now()){
-  if (!chestOpen() || state.keyCollected || state.won || state.deadUntil) return;
+  if (state.won || state.deadUntil) return;
+  const skullsActive = chestOpen() && !state.keyCollected;
+
   for (const enemy of state.enemies) {
     if (enemy.type !== 'skull' && enemy.type !== 'leeper') continue;
+    if (enemy.type === 'skull' && !skullsActive) continue;
     if (enemy.type === 'leeper' && enemy.asleep) continue;
     if ((enemy.nextStepAt ?? 0) > now) continue;
+
     enemy.nextStepAt = now + SKULL_STEP_MS;
     const canOccupy = enemy.type === 'leeper' ? canLeeperOccupy : canSkullOccupy;
     const [dx, dy] = chooseSkullDir(enemy, canOccupy);
@@ -2022,6 +2026,7 @@ function updateSkulls(now = performance.now()){
     const tx = enemy.x + dx;
     const ty = enemy.y + dy;
     if (!canOccupy(tx, ty, enemy)) continue;
+
     enemy.x = tx;
     enemy.y = ty;
     if (enemy.x === state.player.x && enemy.y === state.player.y) {
