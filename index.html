@@ -377,7 +377,7 @@ const LEVELS_RAW = [
 #.TTTSS.SSST#
 #.......SSST#
 #TTTTSS.SSTH#
-#.....GAS...#
+#.....LAS...#
 #P..........#
 #.TT....TT..#
 #TTTT...TTT.#
@@ -442,7 +442,7 @@ const LEVELS_RAW = [
 #############`
 ];
 const LEVEL_SIZE = 13;
-const ALLOWED = new Set(['#','=','V','.','P','H','C','B','~','R','A','M','K','G','T','S','D','N','U','E','O']);
+const ALLOWED = new Set(['#','=','V','.','P','H','C','B','~','R','A','M','K','G','L','T','S','D','N','U','E','O']);
 function parseLevelRows(raw) {
   const rows = raw.trim().split('\n').map(r => r.trim());
   const h = rows.length;
@@ -552,6 +552,7 @@ const TILE_META = {
   'M': { label: 'Medusa', color: '#8742c8', text: '#fff' },
   'K': { label: 'Rocky', color: '#8f8f8f', text: '#111' },
   'G': { label: 'Calavera', color: '#e6e6e6', text: '#111' },
+  'L': { label: 'Leeper', color: '#1ccf3a', text: '#111' },
   'N': { label: 'Dragón Norte', color: '#d800d8', text: '#fff' },
   'U': { label: 'Dragón Sur', color: '#d800d8', text: '#fff' },
   'E': { label: 'Dragón Este', color: '#d800d8', text: '#fff' },
@@ -559,7 +560,7 @@ const TILE_META = {
   'T': { label: 'Árbol', color: '#0c6515', text: '#fff' },
   'S': { label: 'Piedra', color: '#8a8a8a', text: '#111' },
 };
-const PALETTE_ORDER = ['.','#','=','V','T','S','~','R','B','H','C','D','A','M','K','G','N','U','E','O','P'];
+const PALETTE_ORDER = ['.','#','=','V','T','S','~','R','B','H','C','D','A','M','K','G','L','N','U','E','O','P'];
 let editorTile = null;
 let editorRows = LEVEL.map(r => r.split(''));
 let editorMouseDown = false;
@@ -611,6 +612,8 @@ function initSprites() {
     medusa: ['transparent', '#000000', '#6B6B6B', '#D0D0D0', '#CC33FF', '#FFFFFF', '#58d1ff'],
     rocky: ['transparent', '#000000', '#8f8f8f', '#bebebe', '#ffffff'],
     skull: ['transparent', '#000000', '#5f5f5f', '#dddddd', '#ffffff'],
+    leeper: ['transparent', '#000000', '#00d128', '#f8f8f8', '#60ff79'],
+    leeper_sleep: ['transparent', '#000000', '#00d128', '#f8f8f8', '#60ff79'],
     dragon_n: ['transparent', '#2a002a', '#d800d8', '#e0e0e0', '#000000'],
     dragon_s: ['transparent', '#2a002a', '#d800d8', '#e0e0e0', '#000000'],
     dragon_e: ['transparent', '#2a002a', '#d800d8', '#e0e0e0', '#000000'],
@@ -638,6 +641,8 @@ function initSprites() {
     medusa: "0011111111111100\n0122233223322210\n1223322332233221\n1233223333223321\n1333333333333331\n0133111111113310\n0133144114413310\n0133111111113310\n0013333113333100\n0013333113333100\n0001331111331000\n0000111111110000\n0000013333100000\n0011114444111100\n0144541111454410\n1444444444444441",
     rocky: "0011111111111100\n0122222222222210\n1223333333333221\n1230003333000321\n1230003333000321\n1233333333333321\n1233333333333321\n1233333333333321\n1233334334333321\n1233333333333321\n1233333333333321\n1233333333333321\n1233333333333321\n1222222222222221\n0011111111111100\n0003333300033330",
     skull: "0000001111110000\n0000113333331100\n0001333333333310\n0013332222223331\n0133322222222331\n0133222222222231\n1332221122112221\n1332211111112221\n1333221111223331\n0133322222222331\n0013332222223331\n0001333111133310\n0000133333333100\n0011113111131110\n0133331333313331\n0000000000000000",
+    leeper: "0000011111100000\n0001222222221000\n0012222222222100\n0122213331222210\n1222233333122221\n1222231113122221\n1222233333122221\n1222222222222221\n1221111111112221\n1221222222212221\n0122122222122210\n0012211111122100\n0001222222221000\n0000122222210000\n0000011111100000\n0000000000000000",
+    leeper_sleep: "0000011111100000\n0001222222221000\n0012222222222100\n0122211111222210\n1222233333122221\n1222221112222221\n1222233333122221\n1222222222222221\n1221111111112221\n1221222222212221\n0122122222122210\n0012211111122100\n0001222222221000\n0000122222210000\n0000011111100000\n0000000000000000",
     egg: "0000001111000000\n0000112222110000\n0001222222221000\n0012222222223100\n0122222222223310\n0122222222223310\n1222222222223331\n1222222222223331\n1222222222223331\n1222222222223331\n1222222222223331\n0122222222223310\n0132222222223310\n0013322222233100\n0001133333331000\n0000111111110000",
     door: "0000000000000000\n0001111001111000\n0012221001222100\n0122221001222210\n0122221001222210\n0111111001111110\n0122221001222210\n0122221001222210\n0122221001222210\n0111111001111110\n0122221001222210\n0122221001222210\n0122231001322210\n0122221001222210\n0111111001111110\n0000000000000000",
     water: waterBaseArt,
@@ -1262,6 +1267,7 @@ function parseLevel(){
     if (ch === 'M') enemies.push({ type:'medusa', x, y, charge:0, alert:false });
     if (ch === 'K') enemies.push({ type:'rocky', x, y, dir:[1,0], facing:[1,0], mode:'patrol', anim:null });
     if (ch === 'G') enemies.push({ type:'skull', x, y, dir:[1,0], pendingTurns:[], prefHorizontal:1, prefVertical:1 });
+    if (ch === 'L') enemies.push({ type:'leeper', x, y, dir:[1,0], pendingTurns:[], prefHorizontal:1, prefVertical:1, asleep:false });
     if (ch === 'N') enemies.push({ type:'dragon', x, y, dir:[0,-1], coolDownUntil:0, wasSeeingPlayer:false });
     if (ch === 'U') enemies.push({ type:'dragon', x, y, dir:[0,1], coolDownUntil:0, wasSeeingPlayer:false });
     if (ch === 'E') enemies.push({ type:'dragon', x, y, dir:[1,0], coolDownUntil:0, wasSeeingPlayer:false });
@@ -1946,7 +1952,7 @@ function addPendingTurn(skull, dir){
   skull.pendingTurns = pending;
 }
 
-function chooseSkullDir(skull){
+function chooseSkullDir(skull, canOccupy = canSkullOccupy){
   const current = skull.dir && (skull.dir[0] || skull.dir[1]) ? skull.dir : [1, 0];
   skull.dir = [...current];
 
@@ -1966,7 +1972,7 @@ function chooseSkullDir(skull){
       const [dx, dy] = candidates[i];
       const tx = skull.x + dx;
       const ty = skull.y + dy;
-      if (!canSkullOccupy(tx, ty, skull)) {
+      if (!canOccupy(tx, ty, skull)) {
         if (i <= 1) addPendingTurn(skull, [dx, dy]);
         continue;
       }
@@ -1991,25 +1997,45 @@ function chooseSkullDir(skull){
   for (const [dx, dy] of candidates) {
     const tx = skull.x + dx;
     const ty = skull.y + dy;
-    if (canSkullOccupy(tx, ty, skull)) return [dx, dy];
+    if (canOccupy(tx, ty, skull)) return [dx, dy];
   }
   return current;
 }
 
+function canLeeperOccupy(x, y, leeper){
+  if (!canSkullOccupy(x, y, leeper)) return false;
+  const b = state.base[y][x];
+  if (b === 'T' || b === 'S') return false;
+  return true;
+}
+
 function updateSkulls(now = performance.now()){
-  if (!chestOpen() || state.keyCollected || state.won || state.deadUntil) return;
+  if (state.won || state.deadUntil) return;
+  const skullsActive = chestOpen() && !state.keyCollected;
+
   for (const enemy of state.enemies) {
-    if (enemy.type !== 'skull') continue;
+    if (enemy.type !== 'skull' && enemy.type !== 'leeper') continue;
+    if (enemy.type === 'skull' && !skullsActive) continue;
+    if (enemy.type === 'leeper' && enemy.asleep) continue;
     if ((enemy.nextStepAt ?? 0) > now) continue;
+
     enemy.nextStepAt = now + SKULL_STEP_MS;
-    const [dx, dy] = chooseSkullDir(enemy);
+    const canOccupy = enemy.type === 'leeper' ? canLeeperOccupy : canSkullOccupy;
+    const [dx, dy] = chooseSkullDir(enemy, canOccupy);
     enemy.dir = [dx, dy];
     const tx = enemy.x + dx;
     const ty = enemy.y + dy;
-    if (!canSkullOccupy(tx, ty, enemy)) continue;
+    if (!canOccupy(tx, ty, enemy)) continue;
+
     enemy.x = tx;
     enemy.y = ty;
     if (enemy.x === state.player.x && enemy.y === state.player.y) {
+      if (enemy.type === 'leeper') {
+        enemy.asleep = true;
+        enemy.pendingTurns = [];
+        enemy.dir = [0, 0];
+        continue;
+      }
       killPlayer();
       return;
     }
@@ -2527,6 +2553,10 @@ function draw(){
       drawSprite('skull', e.x, e.y);
       continue;
     }
+    if (e.type === 'leeper') {
+      drawSprite(e.asleep ? 'leeper_sleep' : 'leeper', e.x, e.y);
+      continue;
+    }
     drawSprite(e.type, e.x, e.y);
   }
 
@@ -2735,6 +2765,7 @@ function spriteNameForTile(tile){
   if (tile === 'M') return 'medusa';
   if (tile === 'K') return 'rocky';
   if (tile === 'G') return 'skull';
+  if (tile === 'L') return 'leeper';
   if (tile === 'N') return 'dragon_n';
   if (tile === 'U') return 'dragon_s';
   if (tile === 'E') return 'dragon_e';
