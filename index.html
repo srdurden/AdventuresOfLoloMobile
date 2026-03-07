@@ -705,6 +705,14 @@ function applyWallReferenceSprites() {
 }
 
 applyWallReferenceSprites();
+const SKULL_REFERENCE_SOURCE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADBUlEQVR4nLVXa3LiMAz+pCTDDZpesWl7A8Bx7tC0NwSnNyjF2h9ExjZ5sN2tZjL4IUuf9bIgEcG9xMx3MXvv6V6Z5dTi6XRCVVVBqYI0xtwllIgCUBFZBDMJoKqqICRW2jTNXQCmwMwBuQGgN1bFP1GanyGiWSAJAGaW7XaLoijw9PT014qn6OXlBefzGepGIpIYBAMXn4/oQET/pNx7fzMnollLlsDV58aYSca+78N4zSUfHx+zvDqPrTAZhLFia+3Nem4lEcH7+zsAJPzWWsxdKjnMzGKMEeecOOdkGAYxxggAASBt2woAMcZIWZZhrPy6D0B2u52oPF2LeT8/P6XrOhmtcImB3G/xzff7PeKs+P7+BjODiND3Pfq+T84TEXa7HYBrCltrgxu99/Deh6DkJRcYY0BEN2vee7RtG9a6rlvkXyLS4It9Wtf1rICpmFhSGPM75wBcY8Zau26B3D3xzf+VH1hxgbU2MSkRoW1bMDOMMXDOwTmH7XYLZoa1FkVR/D8AuU9V2OFwSFLr9fUVh8NhUuHqAzZGY5IqzrkkhfLfnEfnyhOnbc4Tp62IrAMAIONDIsYYGYZhcl/P7ff7wB9/iwDmQDjnhIiEmYWZk0Kla8wsVVUlZ+I9BZxbSfUulmIAOB6Pk25Tn09RvLfWcQUAIkL6Zi/V+qZpQlXTQIznfd+vvhXxc5xYwHtP2vfFyLuuC5Z4fHwMYy1YWmDquoZzDqfTCXVdhwwgolCQFhsSIgoMsTXy37zc5vPNZhNuy8xa+6d7Qw2G/EOWRj/98qDLv5tCxMyaRgDu74SnKD5LRIncoC9WHLfgv0WbzSYBwoouMn0gIsLz8zOYr4YahiEEnb4F+ZiZwcxomiY5CwBfX18q+xJjYyM6e+1hGCAiIeLjeR79OlZA8XyKRIRWC9HDw0Nyu7e3NxARnHMh/4/HYxgr35pypVULABdXaO6rSeN3vygKnM/n5Mw9ykWEKPRmYwEqyzL8T/gNGmvNtd7kgffbmZAXpBsAyeaKa36qNKY/dkMSnH1nJ2MAAAAASUVORK5CYII=';
+function applySkullReferenceSprite() {
+  const img = new Image();
+  img.src = SKULL_REFERENCE_SOURCE;
+  sprites.skull = img;
+}
+applySkullReferenceSprite();
+
 // ----------------------------------------
 
 const DRAGON_SPRITE_SOURCES = {
