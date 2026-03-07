@@ -2009,6 +2009,11 @@ function canLeeperOccupy(x, y, leeper){
   return true;
 }
 
+function isOrthogonallyAdjacentToPlayer(enemy){
+  const distance = Math.abs(enemy.x - state.player.x) + Math.abs(enemy.y - state.player.y);
+  return distance === 1;
+}
+
 function updateSkulls(now = performance.now()){
   if (state.won || state.deadUntil) return;
   const skullsActive = chestOpen() && !state.keyCollected;
@@ -2017,6 +2022,14 @@ function updateSkulls(now = performance.now()){
     if (enemy.type !== 'skull' && enemy.type !== 'leeper') continue;
     if (enemy.type === 'skull' && !skullsActive) continue;
     if (enemy.type === 'leeper' && enemy.asleep) continue;
+
+    if (enemy.type === 'leeper' && isOrthogonallyAdjacentToPlayer(enemy)) {
+      enemy.asleep = true;
+      enemy.pendingTurns = [];
+      enemy.dir = [0, 0];
+      continue;
+    }
+
     if ((enemy.nextStepAt ?? 0) > now) continue;
 
     enemy.nextStepAt = now + SKULL_STEP_MS;
@@ -2038,6 +2051,12 @@ function updateSkulls(now = performance.now()){
       }
       killPlayer();
       return;
+    }
+
+    if (enemy.type === 'leeper' && isOrthogonallyAdjacentToPlayer(enemy)) {
+      enemy.asleep = true;
+      enemy.pendingTurns = [];
+      enemy.dir = [0, 0];
     }
   }
 }
