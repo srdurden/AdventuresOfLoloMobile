@@ -1600,7 +1600,7 @@ function arrowDirectionForTile(tile){
 function canTraverseArrow(tile, dx, dy){
   const arrowDir = arrowDirectionForTile(tile);
   if (!arrowDir) return true;
-  return dx === -arrowDir[0] && dy === -arrowDir[1];
+  return dx === arrowDir[0] && dy === arrowDir[1];
 }
 function baseWallAt(x,y){
   return inBounds(x,y) && isWallTile(state.base[y][x]);
