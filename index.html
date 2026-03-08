@@ -2650,7 +2650,7 @@ function dragonIsActive(){
 
 function drawDragonSprite(dragon){
   const dir = dragonDirectionCode(dragon);
-  const stateKey = dragonIsActive() ? 'idle' : 'sleep';
+  const stateKey = dragon.asleep ? 'sleep' : 'idle';
   const spriteName = `dragon_${dir}_${stateKey}`;
   const px = board.x + dragon.x * board.t;
   const py = board.y + dragon.y * board.t;
