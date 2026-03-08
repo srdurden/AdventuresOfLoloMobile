@@ -442,7 +442,7 @@ const LEVELS_RAW = [
 #############`
 ];
 const LEVEL_SIZE = 13;
-const ALLOWED = new Set(['#','=','V','.','P','H','C','B','~','R','A','M','K','G','L','T','S','D','N','U','E','O']);
+const ALLOWED = new Set(['#','=','V','.','P','H','C','B','~','R','A','M','K','G','L','T','S','D','N','U','E','O','>','<','^','v']);
 function parseLevelRows(raw) {
   const rows = raw.trim().split('\n').map(r => r.trim());
   const h = rows.length;
@@ -559,8 +559,12 @@ const TILE_META = {
   'O': { label: 'Dragón Oeste', color: '#d800d8', text: '#fff' },
   'T': { label: 'Árbol', color: '#0c6515', text: '#fff' },
   'S': { label: 'Piedra', color: '#8a8a8a', text: '#111' },
+  '>': { label: 'Flecha derecha', color: '#2b2b2b', text: '#ffd447' },
+  '<': { label: 'Flecha izquierda', color: '#2b2b2b', text: '#ffd447' },
+  '^': { label: 'Flecha arriba', color: '#2b2b2b', text: '#ffd447' },
+  'v': { label: 'Flecha abajo', color: '#2b2b2b', text: '#ffd447' },
 };
-const PALETTE_ORDER = ['.','#','=','V','T','S','~','R','B','H','C','D','A','M','K','G','L','N','U','E','O','P'];
+const PALETTE_ORDER = ['.','#','=','V','T','S','~','R','>','<','^','v','B','H','C','D','A','M','K','G','L','N','U','E','O','P'];
 let editorTile = null;
 let editorRows = LEVEL.map(r => r.split(''));
 let editorMouseDown = false;
@@ -688,6 +692,57 @@ function initSprites() {
   }
 }
 initSprites();
+
+function buildArrowSprite(direction){
+  const canvas = document.createElement('canvas');
+  canvas.width = 16;
+  canvas.height = 16;
+  const c = canvas.getContext('2d');
+  if (!c) return null;
+  c.clearRect(0, 0, 16, 16);
+  c.fillStyle = '#2a1a00';
+  if (direction === 'right' || direction === 'left') c.fillRect(4, 7, 8, 2);
+  else c.fillRect(7, 4, 2, 8);
+  c.beginPath();
+  if (direction === 'right') {
+    c.moveTo(12, 4); c.lineTo(12, 12); c.lineTo(15, 8);
+  } else if (direction === 'left') {
+    c.moveTo(4, 4); c.lineTo(4, 12); c.lineTo(1, 8);
+  } else if (direction === 'up') {
+    c.fillRect(7, 4, 2, 8);
+    c.beginPath(); c.moveTo(4, 4); c.lineTo(12, 4); c.lineTo(8, 1);
+  } else if (direction === 'down') {
+    c.fillRect(7, 4, 2, 8);
+    c.beginPath(); c.moveTo(4, 12); c.lineTo(12, 12); c.lineTo(8, 15);
+  }
+  c.closePath();
+  c.fill();
+
+  c.fillStyle = '#ffd447';
+  if (direction === 'right' || direction === 'left') c.fillRect(5, 7, 7, 2);
+  else c.fillRect(7, 5, 2, 7);
+  c.beginPath();
+  if (direction === 'right') {
+    c.moveTo(11, 5); c.lineTo(11, 11); c.lineTo(14, 8);
+  } else if (direction === 'left') {
+    c.moveTo(5, 5); c.lineTo(5, 11); c.lineTo(2, 8);
+  } else if (direction === 'up') {
+    c.beginPath(); c.moveTo(5, 5); c.lineTo(11, 5); c.lineTo(8, 2);
+  } else if (direction === 'down') {
+    c.beginPath(); c.moveTo(5, 11); c.lineTo(11, 11); c.lineTo(8, 14);
+  }
+  c.closePath();
+  c.fill();
+
+  const img = new Image();
+  img.src = canvas.toDataURL('image/png');
+  return img;
+}
+
+sprites.arrow_right = buildArrowSprite('right');
+sprites.arrow_left = buildArrowSprite('left');
+sprites.arrow_up = buildArrowSprite('up');
+sprites.arrow_down = buildArrowSprite('down');
 
 const WALL_REFERENCE_SOURCES = {
   'wall_top': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAC1klEQVR4nF2TTWgcdRjGf///zOyOu7M7s5uarMmaDyot1AoR7KG3EqSgIHi1By8i9KYH73r11kPBW6ulF4Ui6kHwoLRoxESpiwoJbkhmszv9muzH7O5k9uv/9xCyaX0vLzw8Dw/v876vGP31rQZgMOLpGvzxIz/f+55P7tT48L03eevSRdILRZrlOQodecRPW8j/i8UwRIc+u5X1Kfba6hrblS1Ge9Uj8VMlg7tfM2qNqf30HTr08X/5lfHO72TKy1OSNajguoJB8Jj739xAN6rUfriNblQxw4117KBOu17DaTWOenmR6j9b9PoZ2hp+22xz+ZU8xrjD+UKG+O8Ks1Iz+PMeYuP1nN7vKEqGwnJMdupq6tyyLW5t9bi0UuDtc2c5NahwuPgSg0Ydb5LQNmxk0YbVgqKUh6INi57idFnyiBQRJq4QrJQyWNknLFy5StAIpwaFwx6ybdi0nnM4UCZtwwZgv6O44CXkGeMrzfnLb+A2A4LPrzNDAsCxzlT9hEcqxbCrSClFry1x5m1qQUJNWABcv/klV8opivGY5vhkxDk5RFw9O6N3axGu8cx2iLIGrpB4icLIGoSdIQCdCSynDVrjCQDmbi3Ccy1eLWWwkwkPhYlwLNzRkJeLmmIcYzmS9boDwDAakcpbPBQmrQddxDtnCvrTj9/n8Vc3AfAmCc0EZuQYnTrJ5Rgv2kyxvX4Rudc+5LNrt5+9rqzNgTJpJifYZlUhszabVYXqJ/y7HVMNDxDplKVXhGbtVBoApy/oZfW0K8dG9hKcvgCglz16nYOJptIaIi7O2lpHYzzXREeTqaPnWvjtIfeVYG11lnythZeoaXjHgZofLRkszed40FW8kJP4QcyLrmSnrvBLHu52hw8uvEtOXiM9l8MPYpz5Ir2gydJ8BjMJJT4xSShJnl9mGO7hi2X2o12woaM1dze+YK5rs6BKPBntE0aSw24Kgpj/AKD7VJiBNftkAAAAAElFTkSuQmCC',
@@ -1535,6 +1590,18 @@ function setFromArr(arr){ return new Set(arr.map(p => key(p.x,p.y))); }
 function arrFromSet(set){ return [...set].map(s=>{ const [x,y] = s.split(',').map(Number); return {x,y}; }); }
 function inBounds(x,y){ return x>=0 && y>=0 && x<W && y<H; }
 function isWallTile(tile){ return tile === '#' || tile === '='; }
+function arrowDirectionForTile(tile){
+  if (tile === '>') return [1, 0];
+  if (tile === '<') return [-1, 0];
+  if (tile === '^') return [0, -1];
+  if (tile === 'v') return [0, 1];
+  return null;
+}
+function canTraverseArrow(tile, dx, dy){
+  const arrowDir = arrowDirectionForTile(tile);
+  if (!arrowDir) return true;
+  return dx === arrowDir[0] && dy === arrowDir[1];
+}
 function baseWallAt(x,y){
   return inBounds(x,y) && isWallTile(state.base[y][x]);
 }
@@ -1616,7 +1683,7 @@ function parseLevel(){
 
   for (let y=0; y<H; y++) for (let x=0; x<W; x++) {
     const ch = LEVEL[y][x];
-    if ('#=V.~TCDSR'.includes(ch)) base[y][x] = ch;
+    if ('#=V.~TCDSR><^v'.includes(ch)) base[y][x] = ch;
     if (ch === 'P') player = { x, y, facing:[1,0] };
     if (ch === 'H') hearts.push({ x, y });
     if (ch === 'A') enemies.push({ type:'ardilla', x, y, charge:0, alert:false });
@@ -1701,7 +1768,7 @@ function pushUndo(){
   pushUndoSnapshot(snapshot());
 }
 
-function passableForPlayer(x,y,ignorePushables=false){
+function passableForPlayer(x,y,ignorePushables=false,dx=0,dy=0){
   if (!inBounds(x,y)) return false;
   if (!ignorePushables) {
     if (has(state.blocks,x,y)) return false;
@@ -1712,6 +1779,7 @@ function passableForPlayer(x,y,ignorePushables=false){
   if (b === '~' && !has(state.filledWater,x,y)) return false;
   if (b === 'C' && !chestOpen()) return false;
   if (b === 'D' && !state.doorOpen) return false;
+  if (!canTraverseArrow(b, dx, dy)) return false;
   return !enemyAt(x,y) && !fireballAt(x,y);
 }
 
@@ -1778,7 +1846,7 @@ function tryMovePlayer(dx,dy){
     if (!has(state.filledWater,tx,ty)) {
       if (!attemptPush(state.eggs, tx, ty, dx, dy)) return false;
     }
-  } else if (!passableForPlayer(tx,ty,true)) {
+  } else if (!passableForPlayer(tx,ty,true,dx,dy)) {
     return false;
   }
 
@@ -1916,9 +1984,9 @@ function tapToTile(clientX, clientY){
   };
 }
 
-function canDragThrough(x,y){
+function canDragThrough(fromX,fromY,x,y){
   if (x === state.player.x && y === state.player.y) return true;
-  return passableForPlayer(x,y,true);
+  return passableForPlayer(x,y,true,x - fromX,y - fromY);
 }
 
 function appendStepToPath(path, tile){
@@ -1945,7 +2013,7 @@ function appendStepToPath(path, tile){
       if (dx !== 0) candidates.push({ x: cx + Math.sign(dx), y: cy });
     }
 
-    const next = candidates.find(c => canDragThrough(c.x, c.y));
+    const next = candidates.find(c => canDragThrough(cx, cy, c.x, c.y));
     if (!next) break;
 
     cx = next.x;
@@ -1980,7 +2048,7 @@ function getDragAvailableTiles(){
     const nx = tip.x + dx;
     const ny = tip.y + dy;
     if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
-    if (canDragThrough(nx, ny)) options.push({ x: nx, y: ny });
+    if (canDragThrough(tip.x, tip.y, nx, ny)) options.push({ x: nx, y: ny });
   }
   if (dragPath.length > 1) {
     const prev = dragPath[dragPath.length - 2];
@@ -2010,7 +2078,7 @@ function canAdvanceKeyboard(dx, dy){
   if (!inBounds(tx,ty) || enemyAt(tx,ty)) return false;
   if (has(state.blocks,tx,ty)) return canPushAt(tx, ty, dx, dy);
   if (has(state.eggs,tx,ty) && !has(state.filledWater,tx,ty)) return canPushAt(tx, ty, dx, dy);
-  return passableForPlayer(tx,ty,true);
+  return passableForPlayer(tx,ty,true,dx,dy);
 }
 
 function performKeyboardHalfStep(dx, dy){
@@ -2275,6 +2343,7 @@ function enemyAtExcluding(x, y, ignored){
 function canRockyOccupy(x, y, rocky, allowPlayer = false){
   if (!inBounds(x, y)) return false;
   if (isRockyBaseBlocked(x, y)) return false;
+  if (!canTraverseArrow(state.base[y][x], Math.sign(x - rocky.x), Math.sign(y - rocky.y))) return false;
   if (has(state.hearts, x, y)) return false;
   if (has(state.blocks, x, y) || has(state.eggs, x, y)) return false;
   if (enemyAtExcluding(x, y, rocky)) return false;
@@ -2282,11 +2351,12 @@ function canRockyOccupy(x, y, rocky, allowPlayer = false){
   return true;
 }
 
-function canSkullOccupy(x, y, skull){
+function canSkullOccupy(x, y, skull, dx = x - skull.x, dy = y - skull.y){
   if (!inBounds(x, y)) return false;
   const b = state.base[y][x];
   if (isWallTile(b) || b === 'V' || b === 'T' || b === 'S' || b === 'C' || b === 'D') return false;
   if (b === '~' && !has(state.filledWater, x, y)) return false;
+  if (!canTraverseArrow(b, dx, dy)) return false;
   if (has(state.blocks, x, y) || has(state.eggs, x, y)) return false;
   if (enemyAtExcluding(x, y, skull)) return false;
   return true;
@@ -2328,7 +2398,7 @@ function chooseSkullDir(skull, canOccupy = canSkullOccupy){
       const [dx, dy] = candidates[i];
       const tx = skull.x + dx;
       const ty = skull.y + dy;
-      if (!canOccupy(tx, ty, skull)) {
+      if (!canOccupy(tx, ty, skull, dx, dy)) {
         if (i <= 1) addPendingTurn(skull, [dx, dy]);
         continue;
       }
@@ -2353,13 +2423,13 @@ function chooseSkullDir(skull, canOccupy = canSkullOccupy){
   for (const [dx, dy] of candidates) {
     const tx = skull.x + dx;
     const ty = skull.y + dy;
-    if (canOccupy(tx, ty, skull)) return [dx, dy];
+    if (canOccupy(tx, ty, skull, dx, dy)) return [dx, dy];
   }
   return current;
 }
 
-function canLeeperOccupy(x, y, leeper){
-  if (!canSkullOccupy(x, y, leeper)) return false;
+function canLeeperOccupy(x, y, leeper, dx = x - leeper.x, dy = y - leeper.y){
+  if (!canSkullOccupy(x, y, leeper, dx, dy)) return false;
   const b = state.base[y][x];
   if (b === 'T' || b === 'S') return false;
   return true;
@@ -2397,7 +2467,7 @@ function updateSkulls(now = performance.now()){
     }
     const tx = enemy.x + dx;
     const ty = enemy.y + dy;
-    if (!canOccupy(tx, ty, enemy)) continue;
+    if (!canOccupy(tx, ty, enemy, dx, dy)) continue;
 
     const fromX = enemy.x;
     const fromY = enemy.y;
@@ -2466,7 +2536,7 @@ function getRockyChargeDir(rocky){
 function tryRockyPushPlayer(chargeDir){
   const nx = state.player.x + chargeDir[0];
   const ny = state.player.y + chargeDir[1];
-  if (!passableForPlayer(nx, ny)) return false;
+  if (!passableForPlayer(nx, ny, false, chargeDir[0], chargeDir[1])) return false;
   const fromX = state.player.x;
   const fromY = state.player.y;
   state.player.x = nx;
@@ -2847,6 +2917,7 @@ function draw(){
       }
       else if (b === 'T') drawSprite('tree',x,y);
       else if (b === 'S') drawSprite('stone',x,y);
+      else if (arrowDirectionForTile(b)) drawSprite(spriteNameForTile(b), x, y);
       else if (b === 'C') {
         drawSprite(chestOpen() ? 'chest_open' : 'chest',x,y);
         if (chestOpen() && !state.keyCollected) {
@@ -3141,6 +3212,10 @@ function spriteNameForTile(tile){
   if (tile === 'V') return 'void';
   if (tile === 'T') return 'tree';
   if (tile === 'S') return 'stone';
+  if (tile === '>') return 'arrow_right';
+  if (tile === '<') return 'arrow_left';
+  if (tile === '^') return 'arrow_up';
+  if (tile === 'v') return 'arrow_down';
   if (tile === '~') return 'water';
   if (tile === 'R') return 'bridge';
   if (tile === 'B') return 'block';
