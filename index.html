@@ -1671,7 +1671,7 @@ function shoot(){
   const y = state.player.y + dy;
   if (!inBounds(x,y)) return false;
   const hit = enemyAt(x,y);
-  if (hit && (hit.type === 'ardilla' || hit.type === 'leeper' || hit.type === 'skull')) {
+  if (hit && (hit.type === 'ardilla' || hit.type === 'leeper' || hit.type === 'skull' || hit.type === 'dragon')) {
     state.enemies = state.enemies.filter(v => v !== hit);
     const eggPos = key(x,y);
     state.eggs.add(eggPos);
@@ -1690,7 +1690,7 @@ function shoot(){
     navigator.vibrate?.(15);
     return true;
   }
-  setHudMessage('Acércate a una ardilla, leeper, calavera o huevo para disparar');
+  setHudMessage('Acércate a una ardilla, leeper, calavera, dragón o huevo para disparar');
   return false;
 }
 
@@ -1704,7 +1704,7 @@ function interactAdjacent(dx,dy){
   const y = state.player.y + dy;
   if (!inBounds(x,y)) return false;
   const hit = enemyAt(x,y);
-  if (hit && (hit.type === 'ardilla' || hit.type === 'leeper' || hit.type === 'skull')) {
+  if (hit && (hit.type === 'ardilla' || hit.type === 'leeper' || hit.type === 'skull' || hit.type === 'dragon')) {
     state.enemies = state.enemies.filter(v => v !== hit);
     const eggPos = key(x,y);
     state.eggs.add(eggPos);
@@ -1751,7 +1751,7 @@ function getAdjacentShootableTargets(){
     const y = state.player.y + dy;
     if (!inBounds(x,y)) continue;
     const hit = enemyAt(x,y);
-    if ((hit && (hit.type === 'ardilla' || hit.type === 'leeper' || hit.type === 'skull')) || has(state.eggs,x,y)) targets.push({ x, y });
+    if ((hit && (hit.type === 'ardilla' || hit.type === 'leeper' || hit.type === 'skull' || hit.type === 'dragon')) || has(state.eggs,x,y)) targets.push({ x, y });
   }
   return targets;
 }
@@ -2999,10 +2999,10 @@ function spriteNameForTile(tile){
   if (tile === 'K') return 'rocky';
   if (tile === 'G') return 'skull';
   if (tile === 'L') return 'leeper';
-  if (tile === 'N') return 'floor';
-  if (tile === 'U') return 'floor';
-  if (tile === 'E') return 'floor';
-  if (tile === 'O') return 'floor';
+  if (tile === 'N') return 'dragon_n';
+  if (tile === 'U') return 'dragon_s';
+  if (tile === 'E') return 'dragon_e';
+  if (tile === 'O') return 'dragon_o';
   if (tile === 'P') return 'player';
   return 'floor';
 }
