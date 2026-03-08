@@ -1665,13 +1665,13 @@ function shoot(){
   const y = state.player.y + dy;
   if (!inBounds(x,y)) return false;
   const hit = enemyAt(x,y);
-  if (hit && hit.type === 'ardilla') {
+  if (hit && (hit.type === 'ardilla' || hit.type === 'leeper' || hit.type === 'skull')) {
     state.enemies = state.enemies.filter(v => v !== hit);
     const eggPos = key(x,y);
     state.eggs.add(eggPos);
     state.eggTimers.set(eggPos, performance.now() + EGG_HATCH_MS);
     state.shots -= 1;
-    setHudMessage('¡Ardilla convertida en huevo!');
+    setHudMessage('¡Enemigo convertido en huevo!');
     navigator.vibrate?.(20);
     return true;
   }
@@ -1684,7 +1684,7 @@ function shoot(){
     navigator.vibrate?.(15);
     return true;
   }
-  setHudMessage('Acércate a una ardilla o un huevo para disparar');
+  setHudMessage('Acércate a una ardilla, leeper, calavera o huevo para disparar');
   return false;
 }
 
@@ -1698,13 +1698,13 @@ function interactAdjacent(dx,dy){
   const y = state.player.y + dy;
   if (!inBounds(x,y)) return false;
   const hit = enemyAt(x,y);
-  if (hit && hit.type === 'ardilla') {
+  if (hit && (hit.type === 'ardilla' || hit.type === 'leeper' || hit.type === 'skull')) {
     state.enemies = state.enemies.filter(v => v !== hit);
     const eggPos = key(x,y);
     state.eggs.add(eggPos);
     state.eggTimers.set(eggPos, performance.now() + EGG_HATCH_MS);
     state.shots -= 1;
-    setHudMessage('¡Ardilla convertida en huevo!');
+    setHudMessage('¡Enemigo convertido en huevo!');
     navigator.vibrate?.(20);
     return true;
   }
@@ -1745,7 +1745,7 @@ function getAdjacentShootableTargets(){
     const y = state.player.y + dy;
     if (!inBounds(x,y)) continue;
     const hit = enemyAt(x,y);
-    if ((hit && hit.type === 'ardilla') || has(state.eggs,x,y)) targets.push({ x, y });
+    if ((hit && (hit.type === 'ardilla' || hit.type === 'leeper' || hit.type === 'skull')) || has(state.eggs,x,y)) targets.push({ x, y });
   }
   return targets;
 }
