@@ -442,7 +442,7 @@ const LEVELS_RAW = [
 #############`
 ];
 const LEVEL_SIZE = 13;
-const ALLOWED = new Set(['#','=','V','.','P','H','C','B','~','R','A','M','K','G','L','T','S','D','N','U','E','O','>','<','^','v']);
+const ALLOWED = new Set(['#','=','V','.','P','H','C','B','~','R','A','M','I','J','K','G','L','T','S','D','N','U','E','O','>','<','^','v']);
 function parseLevelRows(raw) {
   const rows = raw.trim().split('\n').map(r => r.trim());
   const h = rows.length;
@@ -497,6 +497,7 @@ const DIRECTIONAL_HOLD_INTERVAL = 145;
 const EGG_HATCH_MS = 10000;
 const MEDUSA_FREEZE_BEFORE_SHOT_MS = 70;
 const MEDUSA_SHOT_FLASH_MS = 90;
+const DON_MEDUSA_STEP_MS = 220;
 const DRAGON_FIREBALL_STEP_MS = 100;
 const DRAGON_FIRE_COOLDOWN_MS = 1000;
 const DEATH_RESET_FLASH_MS = 320;
@@ -550,6 +551,8 @@ const TILE_META = {
   'R': { label: 'Puente', color: '#9b632f', text: '#fff' },
   'A': { label: 'Ardilla', color: '#2d962d', text: '#fff' },
   'M': { label: 'Medusa', color: '#8742c8', text: '#fff' },
+  'I': { label: 'Don Medusa horizontal', color: '#ec4ca2', text: '#111' },
+  'J': { label: 'Don Medusa vertical', color: '#ec4ca2', text: '#111' },
   'K': { label: 'Rocky', color: '#8f8f8f', text: '#111' },
   'G': { label: 'Calavera', color: '#e6e6e6', text: '#111' },
   'L': { label: 'Leeper', color: '#1ccf3a', text: '#111' },
@@ -564,7 +567,7 @@ const TILE_META = {
   '^': { label: 'Flecha arriba', color: '#2b2b2b', text: '#ffd447' },
   'v': { label: 'Flecha abajo', color: '#2b2b2b', text: '#ffd447' },
 };
-const PALETTE_ORDER = ['.','#','=','V','T','S','~','R','>','<','^','v','B','H','C','D','A','M','K','G','L','N','U','E','O','P'];
+const PALETTE_ORDER = ['.','#','=','V','T','S','~','R','>','<','^','v','B','H','C','D','A','M','I','J','K','G','L','N','U','E','O','P'];
 let editorTile = null;
 let editorRows = LEVEL.map(r => r.split(''));
 let editorMouseDown = false;
@@ -1551,6 +1554,64 @@ function drawMedusaSprite(medusa, now = performance.now()) {
   ctx.restore();
 }
 
+
+function buildDonMedusaSprite(){
+  const canvas = document.createElement('canvas');
+  canvas.width = 16;
+  canvas.height = 16;
+  const c = canvas.getContext('2d');
+  if (!c) return null;
+  const pix = (x, y, color) => {
+    c.fillStyle = color;
+    c.fillRect(x, y, 1, 1);
+  };
+  const K = '#000000';
+  const P = '#ec4ca2';
+  const W = '#ffffff';
+  const pattern = [
+    "..KK......KK....",
+    ".KPPK....KPPK...",
+    "KPPPPKKKKPPPPK..",
+    "KPPPPPPPPPPPPK..",
+    "KPPPPPPPPPPPPK..",
+    "KPPPPPPPPPPPPK..",
+    "KPPKWWKPPKWWPK..",
+    "KPPKWWKPPKWWPK..",
+    "KPPPPPPPPPPPPK..",
+    "KPPPPKPPKPPPPK..",
+    "KPPPPPPPPPPPPK..",
+    "KPKPPPPPPPPKPK..",
+    "KK.KPPPPPPK.KK..",
+    "KPPK.KKKK.KPPK..",
+    "KPKPPPPPPPPKPK..",
+    "KKKK.K.K.KKKK...",
+  ];
+
+  for (let y = 0; y < pattern.length; y++) {
+    const row = pattern[y];
+    for (let x = 0; x < row.length; x++) {
+      const cell = row[x];
+      if (cell === 'K') pix(x, y, K);
+      if (cell === 'P') pix(x, y, P);
+      if (cell === 'W') pix(x, y, W);
+    }
+  }
+  const img = new Image();
+  img.src = canvas.toDataURL('image/png');
+  return img;
+}
+
+const DON_MEDUSA_SPRITE = buildDonMedusaSprite();
+if (DON_MEDUSA_SPRITE) {
+  sprites.don_medusa_h = DON_MEDUSA_SPRITE;
+  sprites.don_medusa_v = DON_MEDUSA_SPRITE;
+}
+
+function drawDonMedusaSprite(enemy){
+  const spriteName = enemy.axis === 'vertical' ? 'don_medusa_v' : 'don_medusa_h';
+  drawSprite(spriteName, enemy.x, enemy.y);
+}
+
 const ARDILLA_SPRITE = {
   frameW: 32,
   frameH: 32,
@@ -1702,6 +1763,8 @@ function parseLevel(){
     if (ch === 'H') hearts.push({ x, y });
     if (ch === 'A') enemies.push({ type:'ardilla', x, y, charge:0, alert:false });
     if (ch === 'M') enemies.push({ type:'medusa', x, y, charge:0, alert:false });
+    if (ch === 'I') enemies.push({ type:'don_medusa', axis:'horizontal', x, y, dir:[1,0], charge:0, alert:false, nextStepAt:0 });
+    if (ch === 'J') enemies.push({ type:'don_medusa', axis:'vertical', x, y, dir:[0,1], charge:0, alert:false, nextStepAt:0 });
     if (ch === 'K') enemies.push({ type:'rocky', x, y, dir:[1,0], facing:[1,0], mode:'patrol', anim:null });
     if (ch === 'G') enemies.push({ type:'skull', x, y, dir:[1,0], facing:[1,0], pendingTurns:[], prefHorizontal:1, prefVertical:1, anim:null });
     if (ch === 'L') enemies.push({ type:'leeper', x, y, dir:[1,0], facing:[0,1], pendingTurns:[], prefHorizontal:1, prefVertical:1, asleep:false, anim:null });
@@ -2449,6 +2512,53 @@ function canLeeperOccupy(x, y, leeper, dx = x - leeper.x, dy = y - leeper.y){
   return true;
 }
 
+
+function canDonMedusaOccupy(x, y, enemy, dx = x - enemy.x, dy = y - enemy.y){
+  if (!inBounds(x, y)) return false;
+  const b = state.base[y][x];
+  if (isWallTile(b) || b === 'V' || b === 'T' || b === 'S' || b === 'C' || b === 'D') return false;
+  if (b === '~' && !has(state.filledWater, x, y)) return false;
+  if (!canTraverseArrow(b, dx, dy)) return false;
+  if (has(state.blocks, x, y) || has(state.eggs, x, y) || has(state.hearts, x, y)) return false;
+  if (enemyAtExcluding(x, y, enemy)) return false;
+  return true;
+}
+
+function updateDonMedusas(now = performance.now()){
+  if (state.won || state.deadUntil || state.frozenUntil) return;
+  for (const enemy of state.enemies) {
+    if (enemy.type !== 'don_medusa') continue;
+    if ((enemy.nextStepAt ?? 0) > now) continue;
+    enemy.nextStepAt = now + DON_MEDUSA_STEP_MS;
+
+    let [dx, dy] = enemy.dir ?? (enemy.axis === 'vertical' ? [0, 1] : [1, 0]);
+    if (enemy.axis === 'vertical') dx = 0;
+    if (enemy.axis === 'horizontal') dy = 0;
+    const tx = enemy.x + dx;
+    const ty = enemy.y + dy;
+
+    if (!canDonMedusaOccupy(tx, ty, enemy, dx, dy)) {
+      dx = -dx;
+      dy = -dy;
+      enemy.dir = [dx, dy];
+      const rx = enemy.x + dx;
+      const ry = enemy.y + dy;
+      if (!canDonMedusaOccupy(rx, ry, enemy, dx, dy)) continue;
+      enemy.x = rx;
+      enemy.y = ry;
+    } else {
+      enemy.dir = [dx, dy];
+      enemy.x = tx;
+      enemy.y = ty;
+    }
+
+    if (enemy.x === state.player.x && enemy.y === state.player.y) {
+      killPlayer();
+      return;
+    }
+  }
+}
+
 function isOrthogonallyAdjacentToPlayer(enemy){
   const distance = Math.abs(enemy.x - state.player.x) + Math.abs(enemy.y - state.player.y);
   return distance === 1;
@@ -2778,8 +2888,8 @@ function isPlayerAdjacentToVision(medusa){
 function resolveMedusaThreat(now = performance.now(), instantKill = false){
   state.medusaShot = null;
   for (const e of state.enemies) {
-    if (e.type !== 'medusa') {
-      e.alert = false;
+    if (e.type !== 'medusa' && e.type !== 'don_medusa') {
+      if ('alert' in e) e.alert = false;
       continue;
     }
     const sight = hasLineOfSightToPlayer(e);
@@ -2833,6 +2943,7 @@ function tick(){
 
   runRockyTurn(now);
   updateSkulls(now);
+  updateDonMedusas(now);
   updateDragonThreat(now);
   advanceDragonFireballs(now);
   resolveMedusaThreat(now);
@@ -2997,7 +3108,7 @@ function draw(){
       drawArdillaSprite(e, now);
       continue;
     }
-    if (e.type === 'medusa') {
+    if (e.type === 'medusa' || e.type === 'don_medusa') {
       if (e.alert) {
         const px = board.x + e.x * board.t;
         const py = board.y + e.y * board.t;
@@ -3017,7 +3128,8 @@ function draw(){
         ctx.fillStyle = glow;
         ctx.fillRect(px - board.t * 0.4, py - board.t * 0.4, board.t * 1.8, board.t * 1.8);
       }
-      drawMedusaSprite(e, now);
+      if (e.type === 'medusa') drawMedusaSprite(e, now);
+      else drawDonMedusaSprite(e, now);
       continue;
     }
     if (e.type === 'skull') {
@@ -3238,6 +3350,8 @@ function spriteNameForTile(tile){
   if (tile === 'D') return 'door';
   if (tile === 'A') return 'ardilla';
   if (tile === 'M') return 'medusa';
+  if (tile === 'I') return 'don_medusa_h';
+  if (tile === 'J') return 'don_medusa_v';
   if (tile === 'K') return 'rocky';
   if (tile === 'G') return 'skull';
   if (tile === 'L') return 'leeper';
