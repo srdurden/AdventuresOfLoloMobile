@@ -2978,8 +2978,52 @@ function drawSprite(name, x, y){
   }
 }
 
+function drawWrappedTileImage(img, px, py, offsetX, offsetY){
+  if (!img || !img.complete) return;
+  const baseX = px + offsetX;
+  const baseY = py + offsetY;
+  for (let ix = -1; ix <= 0; ix++) {
+    for (let iy = -1; iy <= 0; iy++) {
+      ctx.drawImage(img, baseX + ix * board.t, baseY + iy * board.t, board.t, board.t);
+    }
+  }
+}
+
+function drawWaterTile(x, y, now){
+  const px = board.x + x * board.t;
+  const py = board.y + y * board.t;
+  const imgA = sprites[getWaterSpriteName(now, x, y)];
+  const imgB = sprites[getWaterSpriteName(now + 180, x + 1, y + 1)];
+  const wave = now * 0.0032 + x * 0.85 + y * 0.55;
+  const driftX = Math.round(Math.sin(wave) * Math.max(1, board.t * 0.06));
+  const driftY = Math.round(Math.cos(wave * 0.8) * Math.max(1, board.t * 0.04));
+  const shimmerAlpha = 0.12 + ((Math.sin(wave * 1.25) + 1) * 0.5) * 0.14;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(px, py, board.t, board.t);
+  ctx.clip();
+
+  drawWrappedTileImage(imgA, px, py, driftX, driftY);
+
+  if (imgB && imgB.complete) {
+    ctx.globalAlpha = shimmerAlpha;
+    drawWrappedTileImage(imgB, px, py, driftX - 1, driftY);
+    ctx.globalAlpha = 0.08 + ((Math.sin(wave + 1.4) + 1) * 0.5) * 0.08;
+    const lineW = Math.max(1, Math.round(board.t * 0.08));
+    const lineH = Math.max(1, Math.round(board.t * 0.45));
+    const lineX = px + Math.floor((((now * 0.0016) + x * 0.21 + y * 0.13) % 1) * (board.t + lineW)) - lineW;
+    const lineY = py + Math.floor(board.t * 0.12);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(lineX, lineY, lineW, lineH);
+    ctx.fillRect(lineX - Math.max(1, Math.round(board.t * 0.18)), lineY + Math.max(1, Math.round(board.t * 0.18)), lineW, Math.max(1, Math.round(board.t * 0.22)));
+  }
+
+  ctx.restore();
+}
+
 function getWaterSpriteName(now, x, y){
-  const frame = (Math.floor(now / 260) + (x % 2) + (y % 3)) % 4;
+  const frame = (Math.floor(now / 180) + (x % 2) + (y % 3)) % 4;
   return frame === 0 ? 'water' : `water_${frame}`;
 }
 
@@ -3036,9 +3080,9 @@ function draw(){
         ctx.fillStyle = '#000';
         ctx.fillRect(px, py, board.t, board.t);
       }
-      else if (b === '~') drawSprite(getWaterSpriteName(now, x, y),x,y);
+      else if (b === '~') drawWaterTile(x, y, now);
       else if (b === 'R') {
-        drawSprite(getWaterSpriteName(now, x, y),x,y);
+        drawWaterTile(x, y, now);
         drawSprite('bridge',x,y);
       }
       else if (b === 'T') drawSprite('tree',x,y);
