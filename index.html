@@ -711,30 +711,9 @@ function applyHeartReferenceSprite() {
 applyHeartReferenceSprite();
 
 
-const WATER_ANIM_SHEET_SRC = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeAAAACACAYAAADTV7p7AAAV6UlEQVR4nO2d25Md1XXGV3fv7j59zsycGWlGEpKFAEkICUkwCJCEnFT84iebhGDFRFzK5AHH8f8Rp8quOMRxXNjlEiAhMFQqSeUpVUmVDQRJCAESlnCCLgySQCJCczuXvnce/GB/a1TwBJ3e9f3evtO3vXtNTa/99eq9nW/u+9dKfg8nXPv7UjZNLwft+g7oE2/MgHacFPQ3HroL9MSyEdBP/vAl0FE0CbrEy0kWF6Dbpos7CG7vJZfx/K027p1EoD3PBX3njvWgwxbcLvnVy0dAj477oP/4gftALxtfBvof/vYXoDv+DaCrqgU6TXPVHg+0uHj/RURksAiSMbYnxmlZyFfvXg2brw3wfp187y3Q/WwW9J77dmJ7vAz0pm23gs7yEvTzB/8NtFdi/J0Btr/lYzzSPMbzuxhfaRncX92fr9yzB/Swh+1/88T/gC4qvN7OPZtAu+EC6M3b8P7mGf59vLD/P/D4ahx0kmH7wwD7n2cDQX4XX8bW3tiKiBghhDSWwPXkl6+egd90gnXb9HbQOsE6dvjTE6yb164BrROsdB7/KUYR/lMuQmzzXNwDrRMsXydY85+eYL36yjHQOsG66+7PSrBeAa0TrJtuHAetE6ykj/9kOz72p1Xh/UgXcf+lCdbvNGNrb2xFRLA3hBBCCPlC4AOYEEIIqQETtG6BH2ZjfD/njkyAHmTo0ScBvl8sUvTgR6fQ0pjtoUXQWbEBzz/A7a7gkN1vd3D/RbQspMKcojt5M7avRAskLdGFV28oJHHw/ajqvvgjaAkN1DuPseVoacwuYv/ak1tA9/vYfkcC0G4wCnp+qN8iVKKZan2CbWCMgSbHuBv+RgghzYTvgAlpMPPJbUywLE6wGFt7Yysi4j74wH4hdsMYE0LI/z/cf/rnx+tuA/mcYYzthgmWvTC2dmN6/Xn4wW/hkLw/THB7B8vMH358I+gKq9blB3/zGuiojd88/vnj09iglvootMQhe6E+q3rp6UugnQrLxC9fmsPz+2ghhCGWpVeCHchTvP7YMmzf/Q/uAD0xgdu//z38hrQdYfv2PbYVdIC3Z8kb3QzDIS88g2X8ToWWlIhIr38ONGNsT4zzYpEJlsUwtnZjVq38UC5fWf3Ze5LGwhjbi/FGmWBZnGAxtvbGVkTE/c4TOEsRsQ/G2G5Wrfyw7iaQzwnG1m7cdTfqujJiG4yx3TDBshfG1m7MhYseTN/lRHpQjVOX+QFuV1Xl4mNVtnTHVoHO1FTFox20BBKcilQKpVP1LOmM4pg/VVOhjXlYFp+puT4dR2s8v1FTu+WqzL2DVeeS5Xi+8S72P43RUhkbxfOn6nglRU3VKp0u9jcdLp1bhTG2N8Z50mWCZTGMrd2Yn+3fW3cbyOcMY2wvJpxngmVxgsXY2htbERH3yse4MguxD8bYbphg2QtjazecC5qQhsMEy14YW7sxhWDdeK93BfRtIzgV13DYB+2oIXesyrDzAn9wHSzD/se/ew8P8NDDaIWYIxgf2/unf3IHblerPx06qM7vouWhLRTPqDp9NdVZqer4nQrX4yrV+fICLQjPYP9//ORZbJ6H96vVRu0FeL77H/gyaN1/EZF/+dkp0IyxPTF+6cDHQghpJpwLmpAGs/fRFUywLE6wGFt1eYtiK0ILmhBCCKkFPoAJIYSQGjBFiZaB6+EQPktxe6XqwFVVuKiqcClytESmptaAfn9GDekjXL6qytHyWBzgEF+X1QdYRS6F4HJeQYTb01RZGh56FI7B9vsh1p0nMVocHbX6VlHicmArJleCnjmP9zeKxkGXan2twQD3D1T//UBHRIQxtjfGyXDp+s+EkGbAd8CENJgwcphgWZxgMbb2xlaEFjQhhBBSC3wAE0IIITVg/ugr98EP/RKXY7phIz6jo9Ex0G8fQwsh8rGMfOfubaDjAQ7BewMcoy/2Y2yhp3KECj2KFw9hGXuW4/rGjzy2S23H0509gxaGODgX27Zp7G+qlr86/x4e3++hRbJz93bQwwEe3+vh9fqL6p1epT2TKZAvHlD9L66J5quMMf5gUYy/9QT2nRDSHPgOmJAG8/RPjzDBsjjBYmztja0ILWhCCCGkFvgAJoQQQmrAVO4C/DAYDkEHrdWgEzXE9w1aGnmGdeZqNaklZelFhRZBJcricPEAz8ey9yTR30Gq/VWKEWBzxQTY37LCsvRK0PIxBk+YDLHMPQpwe16q+6XaX1Z4/cpRU6l5eH7PfEb/HdxfRIQxtjfGemo8Qkhz4DtgQhpMWYRMsCxOsBhbe2MrQguaEEIIqQU+gAkhhJAaMDd8CcvO16upyBI9dZmae/aNYydAV4kqC4/xGd/uoAWyafuXQLdGsEx863Ys885jvH6kTPQEHQP5yd+fBL1sRQv01x+8FfTkFJaR67J0UWXyx18/B7oqRkCnKU7N1h7B+7H59ptARx283vY78H4lWBUvobKMYtV/ERE/+wA0Y2xPjJ878LYQQpoJ3wET0mAefvROJlgWJ1iMrb2xFaEFTQghhNQCH8CEEEJIDZix7iT8cG1BLXfloIegqrbFGA+05+KQPDQ45K8cLGP3DI7JPR/H8EmGU5u5eLklKYRu38pVWKY/TGZBj6iZxObn8ASVsjR0xmIMegyVamAQTuABDloerlH3w0cdZxgfRzXAUcuPVfoGiAhjjPvbFGO9LyGkOfAdMCENpiqZYNmcYDG2uL9Nsb1eewkhhBDyBcAHMCGEEFIDZv9Tv4IfYkFLQEK0KPIK557d+2c7QGsH4uD+N/EHNZXXrj03gb62gGXuFy9dAr04h9tPHL4M2jhYZr9l2wbQRYlznT1/ENuXxNg+36BFURRoITy0bxNoV6U0+3+OZfaOi5bO7j23gJ6dx/t94QNcvmpxDi9w/OhHoI2nPBsR6TinQTPG9sT4oUfWCSGkmfAdMCEN5oWDM0ywLE6wGFt7YytCC5oQQgipBT6ACSGEkBow8RDLyFMZRZ1gGXfQxjJ2/QQP1XK0rTYuz1QUWDeeqeWzjItl21mCLrnnovZ9tCyqXE2t1lZl4IIN7Pdwe5HjVGiVj+dzXbRYVHPFUx5PpPqfl1jGn6kyevXVgGSxKvNX7feNWi6sWvodMGNsc4zx2oSQ5sB3wIQ0Go8JlsUJFmNrb2x/uz8hhBBCvnD4ACaEEEJqwLQitDCMmqosHeIQ3TdYRn7omQugy2IB9F/+1T2gY6ySl9Mn0TLoDXD7O6dwOa48R4tg147doCv1SkxbEPPzaAG0VBl/FeB2bckEAZaRHzqA7UvSRdDf/u602o7tefc0lrEPenj9E29eAZ2nmDPdu2sj6OtMBS1n38Y2Msb2xPjkWx8KIaSZ8B0wIQ1m+/RqJlgWJ1iMrb2xFaEFTQghhNQCH8CEEEJIDZg4weWXOsvxmVwN0HMYDHD7WKTK4lOcyivG1ZukPYKew9w1HJN76LBIaNTUa+U8SKNNdGVp6OsHgS5rx+t3Olg2f/UqLo+Vp3jCbncFaM/HqdK0pdNR/Z+fw/MZF5e3Cn29/Jaaik3dr+u9A2aM7Y1xhrsSQhoE3wET0mB8nwmWzQkWY2tvbEVoQRNCCCG1wAcwIYQQUgNm63Ysk869VaD72QzoysWy7xvXoSUQRWtAt8dwSD+rLI2Z9z8BnaRomQyGOKTvjGKZ/dHD2D5RZeni4PWiCKcK27BxPehQWQZpjP3zlKWyZi22N4hwrjJt6Vybxfa8fw7L2LMYLaXeAra308brHXkNPzOoRHkqIrKDMQZtU4x37sbl3AghzYHvgAlpMEcPn2GCZXGCxdjaG1sRWtCEEEJILfABTAghhNSA6Y4vgx+u4kxlkldoGQx7OJXX2Ng60J6HQ3hVRS4RzhQmSYJl8U7ZBR04E6DdXC1fVeKQvnKwbNwP0CIZDvF6yybwfH011Zjev6xQj46h5WICtDhyNfXakv7HuINT4tzcvsHltxxBD8ap0IIRZ2lO1R3HNjLG9sS4EmwrIaQ58B0wIQ3GkYgJlsUJFmNrb2xFaEETQgghtcAHMCGEEFID5r8On4If+uWNoHf+AX5nmKipw469/hvQjvwv6HUbdoCemMAy7XiIyz1FHk4d5pc4hE/n0HLxO2hJOB5aHr3+HJ4/ikC/+spF0J6Lrvz03Vj230LHQV5++S3QY+O4fe3Nqv/jaKkM1FRyUYDLf3ke5kiDAQYgDLEMXlzlqYgIY2xvjItSrZ9GCGkMfAdMSIPx3IAJlsUJFmNrb2xFaEETQgghtcAHMCGEEFIDptPG5ZWGA7QUEjW1sP7M1Dc45I7a6AFMTqKlsbiAlsTkFJaFDxcug/aqcdDhCA7ph5nyXFRZ/oopXC6rKFQZe/npLryr+qvL1kdG9XZsz9QytDQWF/H6y5djGf+g31fXxzL9doAXTIbqO4IC76eIyFiXMf40mhxj4y99508IaQZ8B0xIg8kzjwmWxQkWY2tvbEVoQRNCCCG1wAcwIYQQUgPmo0tYZu4ry0Mv7+R6ONXXNx+5CzQO6EV+8Nf/Djrq4FxfDz/6ZdCBWm7KwRG+ZMpyef55XO5JHJx67PKHeIDx0CIJ1fpWleAF8xQthDFlWdz/oC7jx+3f/94R0O0Ip3Lb99hW0IEqo1cGxpL+v/AMWkJOhZaJiMhHl86AZoztiXFe4NSDhJDmwHfAhDQY440ywbI4wWJs7Y2tCC1oQgghpBb4ACaEEEJqwEyMj8APeaimDlMHBIGaSktbIGpM3h1bCzrNlGUwildIlaWAE3+JqMOl3cWy8jTGnGJsDNc7zhIsA3cc1V/VYePjDzlW0UtHlblnan2v8S5OlZbGaKks6b86Xi8Xlqsb0un28Pjh0pyKMbY3xnmClhkhpDnwHTAhDcaE80ywLE6wGFt7YytCC5oQQgipBT6ACSGEkBowRX4FfhgWOIaOlWXg+Tjm9j0cojslbs/UmNx10BP40Q9xuSzPwf3bAXoono9D+q/tncbtynL5xbP/jT+4eH3VXfGMqqt3loMsK9zuVFg2X6rz5QW21zNYhv7jJ89i89RyXa02ai/A893/AH4mYJZOBS0vPvUOaMbYnhi/dOBjIYQ0E74DJqTB7H10BRMsixMsxhY32xRbEVrQhBBCSC3wAUwIIYTUgOm0sWxdWwTdcXxGF0WKOyhLY4Aj8CXLP62YWgN65jzu3wlxua1c1Xn3hngBE+DxfoiWS1HhXNdBhP1JU2VpeOhROAaXn/LVZwBJjBaHmslNihLn6l0xuRL0zPkB6CgaB11mWFc/GOD+ge5/oD9MEGGM7Y3xkuXOCCGNge+ACWkwYeQwwbI4wWJs7Y2tCC1oQgghpBb4ACaEEEJqwGzdcjP8sChY1r15M841m6qpvk79Gi2BQi3HdO/ubaCHQxyCL/bw+MG8shj03GMVTs320nPvYfuKWdCPPLYbdKYcjbNn0MIQBy2cbdO4fJaeiu38e3h8X/Vn5+7toIcDZdn08Hr9RfVOr9KeyRTIFw9g/7MCLR0RkfsYY/zBohh/64ldQghpJnwHTEiDefqnR5hgWZxgMbb2xlaEFjQhhBBSC3wAE0IIITVg/GAIP7Q8HHK3IrQYhrM4BNdTD2sLxDHocvuqLLussGy9crHsXly8gmdwe5KoucVcXE7KUSlGB6voxaj+lxWWpVeCFo8xeMJkiGXuUYDbc/UZgO9j+8sKr185aio1D8+/tP/KEnFwfxERxtjeGOup8QghzYHvgAlpMGURMsGyOMFibO2NrQgtaEIIIaQW+AAmhBBCasDcsh6H8NHUDaAT5TiE6CDIkcOnQJfZOOhhgZZBawQ9js2qzL6jLJU7typLQc205ndw/1jNjfuTH70BenISy9a//uCtuH0Ky8h1WbooC+f46+dAVwWW4acpWjjtEezP5ttvAh118Hrb78AbrvsfKssoRsdERERayQxegzEG3eQYP3fgbSGENBO+AyakwTz86J1MsCxOsBhbe2MrQguaEEIIqQU+gAkhhJAaMOMjOKS/OodD7EzVsRdqxK/L1p0AdzDVKB7v4HeLno9jclcdH2d4vC5b17pS7Vu5ci3oJF4APaJmEptX/a+UpaEzFqPW26pUWX4QTqgGo+XhGlwOzPNRx9kkHq77r6aCq1RZvYgIY4z72xRjvS8hpDnwHTAhDaYqmWDZnGAxtri/TbG9XnsJIYQQ8gXABzAhhBBSA+bpp/4Tfug7W3CPCGXuoEWw9xvTuIN6pD/77FHQpYuewa49G0HPqanULl5AS2BhAY8/fvxd0J5Bz+L2Lbfj9Qssc3/+4JugkxinGvMNWhSF8nge2rcJtKv6v//nJ0E7Llo6u/fcAnp2HsvkL3yAy1ctzuEFjh/9CLTxlGcjIhM5toExtifGDz2yTgghzYTvgAlpMC8cnGGCZXGCxdjaG1sRWtCEEEJILfABTAghhNSASQc4lVZmcD2oJMMheaDWi9JD+lBZImFbLf+kpk7L9NRl6nxpgmXknuAQ3jfLQVeqzr2jrl9VuBxUv4dl4kXewv1Vg1wXl9dy8XDx1GcBURs7nJfY4UyV0Rt1fBbjDXUF2++bPrZX1/mLCGNsc4zVzSaENAa+Ayak0XhMsCxOsBhbe2P72/0JIYQQ8oXDBzAhhBBSA6bVVkNiH4fkmVpfKfTRAjj0LJaZ5xVO1fUX37kH9FBZGqffwevFWNUuvz5+AXSRocVw9+4NoPUrUJ1hzC/gDq0Qy8orNdVaUaAHEQRosRw68AHoJMXlvb793Wm1Hdvz7mksYx/08Pon3rwCOk+xR/fuws8ErjMVtFw69g5oxtieGJ9860MhhDQTvgMmpMFsn17NBMviBIuxtTe2IrSgCSGEkFrgA5gQQgipAZMnaEm0RrHsvRji9sEQLYmRdhd0rIbwMR4unVGsC5+fx6nFAgdd8VaAZexxOcD9lYmOBsjS6weBLmtXZfGqjP/q1VnQeYon7HZXgPZ87E+Mq3tJZ0T1fw7PZ1xc3ir09fJbaio2DNd13wEzxvbGOMNdCSENgu+ACWkwvs8Ey+YEi7G1N7YitKAJIYSQWuADmBBCCKkBc/vWO+GH2EdLYT7Hsm0x6GHceBMuH9XqjIJuK0vj2hyOwWdmsEy+THBqr6G6vLZUjh49h8dXau4wRRTh+TdsXA86VJZBGqPl4SlLZc1a7G8Q4VxlbWVpXFPLeb1/DsvYsxgtnN4CTm3WaeP1jryGnwFUojwVEflDxhi0TTHeqT7zIIQ0B74DJqTBHD18hgmWxQkWY2tvbEVoQRNCCCG1wAcwIYQQUgNmYhlaAtcGn4D2qzOg+wMs+54cV8tDeViG7RZogXQjLESvshlskODUY2MhWgYtdw73L7FMPPPUelot9CSSFPu7ZmIV6GEP21/FaKEkaiq35d1NoN1wAa9f4XJdox1Vth5fBB1U46A7qv2hQYvGq9ASEVHfGYjIxLLVoBlje2I8LG8QQkgz4TtgQhpM5H7EBMviBIuxtTe2IrSgCSGEkFrgA5gQQgipgf8DgYczOQEBM34AAAAASUVORK5CYII=';
-
+const WATER_ANIM_SHEET_SRC = '';
 function applyAnimatedWaterSheet() {
-  const sheet = new Image();
-  sheet.addEventListener('load', () => {
-    const frameCount = 4;
-    const frameWidth = Math.floor(sheet.width / frameCount);
-    const frameHeight = sheet.height;
-    for (let i = 0; i < frameCount; i++) {
-      const frameCanvas = document.createElement('canvas');
-      frameCanvas.width = frameWidth;
-      frameCanvas.height = frameHeight;
-      const frameCtx = frameCanvas.getContext('2d');
-      frameCtx.imageSmoothingEnabled = false;
-      frameCtx.drawImage(
-        sheet,
-        i * frameWidth, 0, frameWidth, frameHeight,
-        0, 0, frameWidth, frameHeight
-      );
-      sprites[i === 0 ? 'water' : `water_${i}`] = frameCanvas;
-    }
-    if (typeof refreshEditorVisualsIfVisible === 'function') refreshEditorVisualsIfVisible();
-  });
-  sheet.src = WATER_ANIM_SHEET_SRC;
+  // El agua ya se dibuja de forma procedural.
 }
 applyAnimatedWaterSheet();
 
@@ -2985,6 +2964,86 @@ function drawSprite(name, x, y){
   }
 }
 
+const WATER_PROC_SIZE = 16;
+const WATER_PROC_FRAME_COUNT = 12;
+const WATER_PROC_FRAME_MS = 90;
+const WATER_PROC_BAYER_4X4 = [
+  [0, 8, 2, 10],
+  [12, 4, 14, 6],
+  [3, 11, 1, 9],
+  [15, 7, 13, 5]
+];
+const WATER_PROC_PALETTE = [
+  [54, 104, 236],
+  [86, 144, 255],
+  [126, 184, 255],
+  [222, 240, 255]
+];
+const proceduralWaterFrames = [];
+
+function buildProceduralWaterFrame(frameIndex){
+  const frameCanvas = document.createElement('canvas');
+  frameCanvas.width = WATER_PROC_SIZE;
+  frameCanvas.height = WATER_PROC_SIZE;
+  const frameCtx = frameCanvas.getContext('2d');
+  if (!frameCtx) return frameCanvas;
+  const img = frameCtx.createImageData(WATER_PROC_SIZE, WATER_PROC_SIZE);
+  const data = img.data;
+  const phase = frameIndex / WATER_PROC_FRAME_COUNT;
+
+  for (let y = 0; y < WATER_PROC_SIZE; y++) {
+    for (let x = 0; x < WATER_PROC_SIZE; x++) {
+      const nx = x / WATER_PROC_SIZE;
+      const ny = y / WATER_PROC_SIZE;
+
+      const waveA = Math.sin(((nx * 2.0) + (ny * 1.25) + phase * 0.9) * Math.PI * 2);
+      const waveB = Math.sin(((nx * 3.0) - (ny * 2.0) - phase * 0.65) * Math.PI * 2);
+      const waveC = Math.cos(((nx * 1.0) + (ny * 3.0) - phase * 1.2) * Math.PI * 2);
+      const shimmer = Math.cos(((nx * 4.0) + (ny * 4.0) - phase * 1.15) * Math.PI * 2);
+
+      let value = waveA * 0.48 + waveB * 0.30 + waveC * 0.22;
+      value = (value + 1) * 0.5;
+
+      const dither = (WATER_PROC_BAYER_4X4[y % 4][x % 4] / 16 - 0.5) * 0.11;
+      const lit = value + dither + (shimmer > 0.82 ? 0.05 : 0);
+
+      let shade = 0;
+      if (lit > 0.76 || (lit > 0.64 && shimmer > 0.78)) shade = 3;
+      else if (lit > 0.56) shade = 2;
+      else if (lit > 0.34) shade = 1;
+
+      const color = WATER_PROC_PALETTE[shade];
+      const idx = (y * WATER_PROC_SIZE + x) * 4;
+      data[idx] = color[0];
+      data[idx + 1] = color[1];
+      data[idx + 2] = color[2];
+      data[idx + 3] = 255;
+    }
+  }
+
+  frameCtx.putImageData(img, 0, 0);
+  return frameCanvas;
+}
+
+function getProceduralWaterFrame(now){
+  const frame = Math.floor(now / WATER_PROC_FRAME_MS) % WATER_PROC_FRAME_COUNT;
+  if (!proceduralWaterFrames[frame]) {
+    proceduralWaterFrames[frame] = buildProceduralWaterFrame(frame);
+  }
+  return proceduralWaterFrames[frame];
+}
+
+function drawProceduralWaterTile(x, y, now){
+  const px = board.x + x * board.t;
+  const py = board.y + y * board.t;
+  const frameCanvas = getProceduralWaterFrame(now);
+  ctx.drawImage(frameCanvas, px, py, board.t, board.t);
+}
+
+function getProceduralWaterPreviewDataUrl(now = 0){
+  return getProceduralWaterFrame(now).toDataURL();
+}
+
 function getWaterSpriteName(now, x, y){
   const frame = Math.floor(now / 220) % 4;
   return frame === 0 ? 'water' : `water_${frame}`;
@@ -3043,9 +3102,9 @@ function draw(){
         ctx.fillStyle = '#000';
         ctx.fillRect(px, py, board.t, board.t);
       }
-      else if (b === '~') drawSprite(getWaterSpriteName(now, x, y),x,y);
+      else if (b === '~') drawProceduralWaterTile(x, y, now);
       else if (b === 'R') {
-        drawSprite(getWaterSpriteName(now, x, y),x,y);
+        drawProceduralWaterTile(x, y, now);
         drawSprite('bridge',x,y);
       }
       else if (b === 'T') drawSprite('tree',x,y);
@@ -3414,9 +3473,10 @@ function buildPaletteSpritePreview(tile){
     return previewCanvas.toDataURL();
   }
 
-  if (tile !== '.') {
-    const spriteName = tile === '~' ? getWaterSpriteName(0, 0, 0) : spriteNameForTile(tile);
-    const sprite = sprites[spriteName];
+  if (tile === '~') {
+    previewCtx.drawImage(getProceduralWaterFrame(0), 0, 0, previewSize, previewSize);
+  } else if (tile !== '.') {
+    const sprite = sprites[spriteNameForTile(tile)];
     if (sprite?.complete) {
       previewCtx.drawImage(sprite, 0, 0, previewSize, previewSize);
     }
@@ -3443,17 +3503,20 @@ function getSpriteBackgroundLayer(sprite){
 function applyEditorCellVisual(cell, tile, x, y){
   const meta = TILE_META[tile] ?? TILE_META['.'];
   const floorSprite = sprites.floor;
-  const sprite = sprites[spriteNameForTile(tile)] ?? floorSprite;
+  const sprite = tile === '~' ? getProceduralWaterFrame(0) : (sprites[spriteNameForTile(tile)] ?? floorSprite);
   cell.textContent = '';
   cell.title = `${meta.label} (${tile}) - [${x},${y}]`;
   const floorLayer = getSpriteBackgroundLayer(floorSprite);
-  const spriteLayer = getSpriteBackgroundLayer(sprite);
+  const spriteLayer = tile === '~' ? `url("${getProceduralWaterPreviewDataUrl(0)}")` : getSpriteBackgroundLayer(sprite);
   if (tile === 'V') {
     cell.style.backgroundColor = '#000';
     cell.style.backgroundImage = 'none';
   } else if (tile === '.' || !spriteLayer) {
     cell.style.backgroundColor = '#000';
     cell.style.backgroundImage = floorLayer || 'none';
+  } else if (tile === '~') {
+    cell.style.backgroundColor = '#000';
+    cell.style.backgroundImage = spriteLayer;
   } else {
     cell.style.backgroundColor = '#000';
     cell.style.backgroundImage = `${spriteLayer}, ${floorLayer}`;
