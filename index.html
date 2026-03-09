@@ -2478,6 +2478,7 @@ function canSkullOccupy(x, y, skull, dx = x - skull.x, dy = y - skull.y){
   if (isWallTile(b) || b === 'V' || b === 'T' || b === 'S' || b === 'C' || b === 'D') return false;
   if (b === '~' && !has(state.filledWater, x, y)) return false;
   if (!canTraverseArrow(b, dx, dy)) return false;
+  if (has(state.hearts, x, y)) return false;
   if (has(state.blocks, x, y) || has(state.eggs, x, y)) return false;
   if (enemyAtExcluding(x, y, skull)) return false;
   return true;
