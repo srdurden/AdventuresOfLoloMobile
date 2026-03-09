@@ -3142,8 +3142,8 @@ function getWaterSpriteName(now, x, y){
 
 function dragonDirectionCode(dragon){
   const [dx, dy] = dragon.dir || [0, -1];
-  if (dx === 1) return 'e';
-  if (dx === -1) return 'o';
+  if (dx === 1) return 'o';
+  if (dx === -1) return 'e';
   if (dy === 1) return 's';
   return 'n';
 }
@@ -3518,8 +3518,8 @@ function spriteNameForTile(tile){
   if (tile === 'L') return 'leeper';
   if (tile === 'N') return 'dragon_n';
   if (tile === 'U') return 'dragon_s';
-  if (tile === 'E') return 'dragon_e';
-  if (tile === 'O') return 'dragon_o';
+  if (tile === 'E') return 'dragon_o';
+  if (tile === 'O') return 'dragon_e';
   if (tile === 'P') return 'player';
   return 'floor';
 }
