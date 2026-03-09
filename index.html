@@ -2825,6 +2825,7 @@ function updateRocky(rocky, now){
 }
 
 function runRockyTurn(now = performance.now()){
+  if (state.won || state.deadUntil || !state.player) return;
   for (const enemy of state.enemies) {
     if (enemy.type !== 'rocky') continue;
     updateRocky(enemy, now);
