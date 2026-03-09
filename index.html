@@ -2077,6 +2077,7 @@ function interactAdjacent(dx,dy){
 }
 
 function tryKeyboardShot(){
+  if (!state.player || !hasPlayersAlive()) return false;
   const [facingDx, facingDy] = state.player.facing;
   if (interactAdjacent(facingDx, facingDy)) return true;
 
@@ -2093,7 +2094,7 @@ function tryKeyboardShot(){
 }
 
 function getAdjacentShootableTargets(){
-  if (state.shots <= 0 || isPlayerFrozen()) return [];
+  if (state.shots <= 0 || isPlayerFrozen() || !state.player || !hasPlayersAlive()) return [];
   const targets = [];
   const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
   for (const [dx,dy] of dirs) {
@@ -2117,6 +2118,7 @@ function tapToTile(clientX, clientY){
 }
 
 function canDragThrough(fromX,fromY,x,y){
+  if (!state.player) return false;
   if (x === state.player.x && y === state.player.y) return true;
   return passableForPlayer(x,y,true,x - fromX,y - fromY);
 }
