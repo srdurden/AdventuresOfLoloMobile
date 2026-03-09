@@ -2009,7 +2009,7 @@ function tryMoveSinglePlayer(player, dx, dy, animate = false){
   if (state.fireballs.some(fireball => isFireballTouchingAnyPlayer(fireball))) killPlayer(player);
   const now = performance.now();
   updateDragonThreat(now);
-  resolveMedusaThreat(now, true);
+  // La amenaza de medusa se resuelve en tick(), después del movimiento enemigo del turno.
   return true;
 }
 
@@ -2924,7 +2924,14 @@ function getFireballRenderPosition(fireball, now = performance.now()){
 
 function blockedForMedusaShot(x,y){
   const b = state.base[y][x];
-  return isWallTile(b) || b === 'V' || b === 'C' || b === 'D' || b === 'S' || has(state.blocks,x,y) || has(state.eggs,x,y);
+  return isWallTile(b)
+    || b === 'V'
+    || b === 'C'
+    || b === 'D'
+    || b === 'S'
+    || has(state.blocks,x,y)
+    || has(state.eggs,x,y)
+    || Boolean(enemyAt(x, y));
 }
 
 function hasLineOfSightToPlayer(medusa){
