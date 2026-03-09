@@ -3018,7 +3018,10 @@ function resolveMedusaThreat(now = performance.now(), instantKill = false){
 
 function tick(){
   const now = performance.now();
-  if (state.deadUntil && now >= state.deadUntil) return resetLevel({ fromDeath: true });
+  if (state.deadUntil) {
+    if (now >= state.deadUntil) return resetLevel({ fromDeath: true });
+    return;
+  }
   if (state.won) return;
   if (state.frozenUntil && now >= state.frozenUntil) state.frozenUntil = 0;
 
