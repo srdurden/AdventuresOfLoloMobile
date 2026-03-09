@@ -2077,6 +2077,7 @@ function interactAdjacent(dx,dy){
 }
 
 function tryKeyboardShot(){
+  if (!state.player || !hasPlayersAlive()) return false;
   const [facingDx, facingDy] = state.player.facing;
   if (interactAdjacent(facingDx, facingDy)) return true;
 
@@ -2093,7 +2094,7 @@ function tryKeyboardShot(){
 }
 
 function getAdjacentShootableTargets(){
-  if (state.shots <= 0 || isPlayerFrozen()) return [];
+  if (state.shots <= 0 || isPlayerFrozen() || !state.player || !hasPlayersAlive()) return [];
   const targets = [];
   const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
   for (const [dx,dy] of dirs) {
@@ -2117,6 +2118,7 @@ function tapToTile(clientX, clientY){
 }
 
 function canDragThrough(fromX,fromY,x,y){
+  if (!state.player) return false;
   if (x === state.player.x && y === state.player.y) return true;
   return passableForPlayer(x,y,true,x - fromX,y - fromY);
 }
@@ -2217,7 +2219,7 @@ function canAdvanceKeyboard(dx, dy){
 }
 
 function performKeyboardHalfStep(dx, dy){
-  if (state.won || state.deadUntil || isPlayerFrozen() || isEditorOpen) return false;
+  if (state.won || state.deadUntil || isPlayerFrozen() || isEditorOpen || !state.player) return false;
   if (queuedMoves.length) queuedMoves = [];
   keyboardOffset = { x: 0, y: 0 };
   if (!canAdvanceKeyboard(dx, dy)) return false;
@@ -2229,7 +2231,9 @@ function performKeyboardHalfStep(dx, dy){
     state.undo.pop();
     return false;
   }
-  setPlayerAnimationCustom(fromAbsX, fromAbsY, state.player.x, state.player.y, KEYBOARD_HALF_STEP_MS);
+  if (state.player) {
+    setPlayerAnimationCustom(fromAbsX, fromAbsY, state.player.x, state.player.y, KEYBOARD_HALF_STEP_MS);
+  }
   return true;
 }
 
