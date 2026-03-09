@@ -1555,61 +1555,40 @@ function drawMedusaSprite(medusa, now = performance.now()) {
 }
 
 
-function buildDonMedusaSprite(){
-  const canvas = document.createElement('canvas');
-  canvas.width = 16;
-  canvas.height = 16;
-  const c = canvas.getContext('2d');
-  if (!c) return null;
-  const pix = (x, y, color) => {
-    c.fillStyle = color;
-    c.fillRect(x, y, 1, 1);
-  };
-  const K = '#000000';
-  const P = '#ec4ca2';
-  const W = '#ffffff';
-  const pattern = [
-    "..KK......KK....",
-    ".KPPK....KPPK...",
-    "KPPPPKKKKPPPPK..",
-    "KPPPPPPPPPPPPK..",
-    "KPPPPPPPPPPPPK..",
-    "KPPPPPPPPPPPPK..",
-    "KPPKWWKPPKWWPK..",
-    "KPPKWWKPPKWWPK..",
-    "KPPPPPPPPPPPPK..",
-    "KPPPPKPPKPPPPK..",
-    "KPPPPPPPPPPPPK..",
-    "KPKPPPPPPPPKPK..",
-    "KK.KPPPPPPK.KK..",
-    "KPPK.KKKK.KPPK..",
-    "KPKPPPPPPPPKPK..",
-    "KKKK.K.K.KKKK...",
-  ];
+const DON_MEDUSA_SPRITE_SRC = {
+  move: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABxklEQVR4nL1XMZLCMAxc5/gODTN8iRIankEDJV+CoTm+A7qCyCcrkhybO7bBKPKuLMuKk/bnO6GCw2YJANifv2uuzf6LOUS0vQAAUoW41d8NYEJ0WleJ5PPUEMighQ+bJYgeIHo0iZuBjHOZj/klEtdAXjU9gN2tW1wvCPjNBI4rpPRVcBYZkOL/gt0tZ5YxyEg1OHIrdRGkf1694QOIIvRWLwuxJQhPmLPAW7GQDwocVyUhHEIPan7BL8Z+H2AnJuLfWo1EwgaG8KkmY1urPYCZgXx+W9IerDTzGXURtmKeKOEWVzAnQhhAJKADaRVm5BowVzu2UNma56A2T2oNgNG7+eyPZ1USzxEvxEYO78WWM+D1exmEDqjXX2rNqoE5wr3+bh+g7cWteMse+UYnp5qB2rHr9WW4Geg9Vq1ccSv+AKqd8K1LirgBdQVgEeW7otMjtF8NeQu8y4YWilY011dqTa5kVq+fEFlbomxyju6CSjMRkIi2V+Ix/9e2bKfn1E5P39/g5nF6GaYR6iy8A483ndbl21B3rb/oBZKD+aUtvVJRRuVlpBch9+vLyN4zud/F2KkBXQvF2KiF/flOk0+zT4FfyT8Mx4/nCVNaXgAAAABJRU5ErkJggg==',
+  alert: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAB1klEQVR4nL1XQY6DMAyc0H6nF6R+qUd64Rm90CNfQuql+50qeyBOHeM4Ce3uSBUpODODQ4xx4/zjUcDtcgIAjPOzFNoc7ywDRCSRI26NB4CjReT9az1xfQBTvx4BuMtpQ3q7nOCHZf1DsVO/xrtD1khiQBUG4O5n4G7f0Tg/4SgDIdZjSfg0I3EJEvEgTOK1ay+RZAUApn5jIsmAH5ZEnBNJ5yVhFdcH/LCsGQ04mhPIVIAz4nJzLJPj/HxnYDMpPEARwX01lPlci7Kg7oJkAhHRUVmiWmENqgFypz4TOSOGwYSvxoCcyEFbawO+ZRtgGrBMybtpFSZ0FoH3r+RXi9I8rtVtruJ9d1Q0OHGNeCIWOHI7KDGgZYGbkIY0lOKlRgeUK5xzhyrxlnjS7OQJgh+WbNq081asvMa1irugpfo1VcoA9SEE9m+rVq6sgf9CsRLK/qAJ7P2/y4BGJLsbgjxfW7iKSyCFrDtqia02UEu8R7zawF9iY8B6dxNaChG/pm3HaCB2xaxdygrJrgcApt405u7nOOY9aNKWS6d7KpsGycdbfXUJqH5/oxqW+I5aMB9/aoI4cibUDMggPyyxsCRj1vF4/4rm+djiBcTXsfWB8k3w1/Evqus750CmPakAAAAASUVORK5CYII='
+};
 
-  for (let y = 0; y < pattern.length; y++) {
-    const row = pattern[y];
-    for (let x = 0; x < row.length; x++) {
-      const cell = row[x];
-      if (cell === 'K') pix(x, y, K);
-      if (cell === 'P') pix(x, y, P);
-      if (cell === 'W') pix(x, y, W);
-    }
-  }
+function createSpriteImage(src){
   const img = new Image();
-  img.src = canvas.toDataURL('image/png');
+  img.src = src;
   return img;
 }
 
-const DON_MEDUSA_SPRITE = buildDonMedusaSprite();
-if (DON_MEDUSA_SPRITE) {
-  sprites.don_medusa_h = DON_MEDUSA_SPRITE;
-  sprites.don_medusa_v = DON_MEDUSA_SPRITE;
-}
+const DON_MEDUSA_SPRITE = {
+  move: createSpriteImage(DON_MEDUSA_SPRITE_SRC.move),
+  alert: createSpriteImage(DON_MEDUSA_SPRITE_SRC.alert),
+};
+
+sprites.don_medusa_h = DON_MEDUSA_SPRITE.move;
+sprites.don_medusa_v = DON_MEDUSA_SPRITE.move;
 
 function drawDonMedusaSprite(enemy){
-  const spriteName = enemy.axis === 'vertical' ? 'don_medusa_v' : 'don_medusa_h';
-  drawSprite(spriteName, enemy.x, enemy.y);
+  const sprite = isPlayerAlignedWithMedusa(enemy)
+    ? DON_MEDUSA_SPRITE.alert
+    : DON_MEDUSA_SPRITE.move;
+  if (!sprite || !sprite.complete || !sprite.naturalWidth) {
+    const spriteName = enemy.axis === 'vertical' ? 'don_medusa_v' : 'don_medusa_h';
+    drawSprite(spriteName, enemy.x, enemy.y);
+    return;
+  }
+  const px = board.x + enemy.x * board.t;
+  const py = board.y + enemy.y * board.t;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(sprite, px, py, board.t, board.t);
+  ctx.restore();
 }
 
 const ARDILLA_SPRITE = {
