@@ -2009,7 +2009,7 @@ function tryMoveSinglePlayer(player, dx, dy, animate = false){
   if (state.fireballs.some(fireball => isFireballTouchingAnyPlayer(fireball))) killPlayer(player);
   const now = performance.now();
   updateDragonThreat(now);
-  resolveMedusaThreat(now, true);
+  // La amenaza de medusa se resuelve en tick(), después del movimiento enemigo del turno.
   return true;
 }
 
