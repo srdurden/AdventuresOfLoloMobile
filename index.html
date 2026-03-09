@@ -2217,7 +2217,7 @@ function canAdvanceKeyboard(dx, dy){
 }
 
 function performKeyboardHalfStep(dx, dy){
-  if (state.won || state.deadUntil || isPlayerFrozen() || isEditorOpen) return false;
+  if (state.won || state.deadUntil || isPlayerFrozen() || isEditorOpen || !state.player) return false;
   if (queuedMoves.length) queuedMoves = [];
   keyboardOffset = { x: 0, y: 0 };
   if (!canAdvanceKeyboard(dx, dy)) return false;
@@ -2229,7 +2229,9 @@ function performKeyboardHalfStep(dx, dy){
     state.undo.pop();
     return false;
   }
-  setPlayerAnimationCustom(fromAbsX, fromAbsY, state.player.x, state.player.y, KEYBOARD_HALF_STEP_MS);
+  if (state.player) {
+    setPlayerAnimationCustom(fromAbsX, fromAbsY, state.player.x, state.player.y, KEYBOARD_HALF_STEP_MS);
+  }
   return true;
 }
 
