@@ -580,6 +580,7 @@ const editorPaletteSpritePreviewCache = new Map();
 
 const state = {
   base: null,
+  players: [],
   player: null,
   chest: null,
   door: null,
@@ -602,6 +603,33 @@ const state = {
   undo: [],
   initialSnapshot: null,
 };
+
+function syncPrimaryPlayer(){
+  state.player = state.players[0] ?? null;
+}
+
+function hasPlayersAlive(){
+  return state.players.length > 0;
+}
+
+function isPlayerAt(x, y, ignoredPlayer = null){
+  return state.players.some(player => player !== ignoredPlayer && player.x === x && player.y === y);
+}
+
+function nearestPlayerFrom(x, y){
+  if (!state.players.length) return null;
+  let best = state.players[0];
+  let bestDist = Math.abs(best.x - x) + Math.abs(best.y - y);
+  for (let i = 1; i < state.players.length; i++) {
+    const candidate = state.players[i];
+    const dist = Math.abs(candidate.x - x) + Math.abs(candidate.y - y);
+    if (dist < bestDist) {
+      best = candidate;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
 
 // --- MOTOR DE SPRITES PIXEL ART 16x16 ---
 const sprites = {};
@@ -1036,7 +1064,7 @@ const LOLO_SPRITE = {
 };
 
 function getPlayerFacingDirection() {
-  const [dx, dy] = state.player?.facing ?? [1, 0];
+  const [dx, dy] = state.players[0]?.facing ?? [1, 0];
   if (Math.abs(dx) > Math.abs(dy)) return dx < 0 ? 'left' : 'right';
   if (dy < 0) return 'up';
   if (dy > 0) return 'down';
@@ -1708,13 +1736,15 @@ function clearPlayerAnimation(){
   playerAnim = null;
 }
 
-function getPlayerDrawPosition(now = performance.now()){
-  if (!playerAnim) return { x: state.player.x + keyboardOffset.x, y: state.player.y + keyboardOffset.y };
+function getPlayerDrawPosition(now = performance.now(), player = state.players[0]){
+  if (!player) return null;
+  if (!playerAnim && player === state.players[0]) return { x: player.x + keyboardOffset.x, y: player.y + keyboardOffset.y };
+  if (!playerAnim || player !== state.players[0]) return { x: player.x, y: player.y };
   const elapsed = now - playerAnim.startedAt;
   const t = Math.max(0, Math.min(1, elapsed / Math.max(1, playerAnim.duration)));
   if (t >= 1) {
     playerAnim = null;
-    return { x: state.player.x + keyboardOffset.x, y: state.player.y + keyboardOffset.y };
+    return { x: player.x + keyboardOffset.x, y: player.y + keyboardOffset.y };
   }
   const easedT = t;
   return {
@@ -1723,15 +1753,18 @@ function getPlayerDrawPosition(now = performance.now()){
   };
 }
 
-function isFireballTouchingPlayer(fireball, now = performance.now()){
+function isFireballTouchingAnyPlayer(fireball, now = performance.now()){
   const fireTileX = Math.round(fireball.x);
   const fireTileY = Math.round(fireball.y);
-  if (fireTileX === state.player.x && fireTileY === state.player.y) return true;
-
-  const playerPos = getPlayerDrawPosition(now);
-  const dx = fireTileX - playerPos.x;
-  const dy = fireTileY - playerPos.y;
-  return (dx * dx + dy * dy) <= 0.35;
+  for (const player of state.players) {
+    if (fireTileX === player.x && fireTileY === player.y) return player;
+    const playerPos = getPlayerDrawPosition(now, player);
+    if (!playerPos) continue;
+    const dx = fireTileX - playerPos.x;
+    const dy = fireTileY - playerPos.y;
+    if ((dx * dx + dy * dy) <= 0.35) return player;
+  }
+  return null;
 }
 
 function parseLevel(){
@@ -1739,14 +1772,14 @@ function parseLevel(){
   const hearts = [];
   const blocks = [];
   const enemies = [];
-  let player = null;
+  const players = [];
   let chest = null;
   let door = null;
 
   for (let y=0; y<H; y++) for (let x=0; x<W; x++) {
     const ch = LEVEL[y][x];
     if ('#=V.~TCDSR><^v'.includes(ch)) base[y][x] = ch;
-    if (ch === 'P') player = { x, y, facing:[1,0] };
+    if (ch === 'P') players.push({ x, y, facing:[1,0] });
     if (ch === 'H') hearts.push({ x, y });
     if (ch === 'A') enemies.push({ type:'ardilla', x, y, charge:0, alert:false });
     if (ch === 'M') enemies.push({ type:'medusa', x, y, charge:0, alert:false });
@@ -1763,12 +1796,12 @@ function parseLevel(){
     if (ch === 'C') chest = { x, y };
     if (ch === 'D') door = { x, y };
   }
-  return { base, player, chest, door, hearts:setFromArr(hearts), blocks:setFromArr(blocks), filledWater:new Set(), enemies };
+  return { base, players, chest, door, hearts:setFromArr(hearts), blocks:setFromArr(blocks), filledWater:new Set(), enemies };
 }
 
 function snapshot(){
   return {
-    player: { ...state.player },
+    players: state.players.map(player => ({ ...player })),
     hearts: arrFromSet(state.hearts),
     shots: state.shots,
     blocks: arrFromSet(state.blocks),
@@ -1786,7 +1819,8 @@ function snapshot(){
 }
 
 function restore(s){
-  state.player = { ...s.player };
+  state.players = (s.players ?? (s.player ? [s.player] : [])).map(player => ({ ...player }));
+  syncPrimaryPlayer();
   state.hearts = setFromArr(s.hearts);
   state.shots = s.shots ?? 0;
   state.blocks = setFromArr(s.blocks);
@@ -1851,12 +1885,21 @@ function isPlayerFrozen(){
   return state.frozenUntil && performance.now() < state.frozenUntil;
 }
 
-function killPlayer(){
-  if (state.deadUntil || state.won) return;
+function removePlayer(player){
+  if (!player) return;
+  const index = state.players.indexOf(player);
+  if (index >= 0) state.players.splice(index, 1);
+  syncPrimaryPlayer();
+}
+
+function killPlayer(player = state.player){
+  if (state.won || !player) return;
+  removePlayer(player);
+  navigator.vibrate?.(40);
+  if (hasPlayersAlive()) return;
   const now = performance.now();
   state.deadUntil = now + 350;
   state.frozenUntil = now + 350;
-  navigator.vibrate?.(40);
 }
 
 function winLevel(){
@@ -1895,14 +1938,15 @@ function attemptPush(setRef, fromX, fromY, dx, dy){
   return true;
 }
 
-function tryMovePlayer(dx,dy){
-  if (isPlayerFrozen()) return false;
-  const tx = state.player.x + dx;
-  const ty = state.player.y + dy;
+function tryMoveSinglePlayer(player, dx, dy, animate = false){
+  if (!player || isPlayerFrozen()) return false;
+  state.player = player;
+  const tx = player.x + dx;
+  const ty = player.y + dy;
   if (!inBounds(tx,ty)) return false;
-  state.player.facing = [dx,dy];
+  player.facing = [dx,dy];
 
-  if (enemyAt(tx,ty)) return false;
+  if (enemyAt(tx,ty) || isPlayerAt(tx, ty, player)) return false;
 
   if (has(state.blocks,tx,ty)) {
     if (!attemptPush(state.blocks, tx, ty, dx, dy)) return false;
@@ -1914,11 +1958,11 @@ function tryMovePlayer(dx,dy){
     return false;
   }
 
-  const fromX = state.player.x;
-  const fromY = state.player.y;
-  state.player.x = tx;
-  state.player.y = ty;
-  setPlayerAnimation(fromX, fromY, tx, ty);
+  const fromX = player.x;
+  const fromY = player.y;
+  player.x = tx;
+  player.y = ty;
+  if (animate) setPlayerAnimation(fromX, fromY, tx, ty);
   const heartKey = key(tx,ty);
   if (state.hearts.has(heartKey)) {
     state.hearts.delete(heartKey);
@@ -1934,23 +1978,31 @@ function tryMovePlayer(dx,dy){
     setHudMessage('¡Puerta abierta!');
   }
   if (state.doorOpen && state.door && tx === state.door.x && ty === state.door.y) return winLevel(), true;
-  if (state.fireballs.some(fireball => isFireballTouchingPlayer(fireball))) killPlayer();
+  if (state.fireballs.some(fireball => isFireballTouchingAnyPlayer(fireball))) killPlayer(player);
   const now = performance.now();
   updateDragonThreat(now);
   resolveMedusaThreat(now, true);
   return true;
 }
 
-function shoot(){
-  if (isPlayerFrozen()) return false;
-  if (state.shots <= 0) {
-    setHudMessage('Sin disparos: recoge corazones');
-    return false;
+function tryMovePlayer(dx,dy){
+  if (isPlayerFrozen() || !hasPlayersAlive()) return false;
+  const players = [...state.players];
+  let moved = false;
+  for (let i = 0; i < players.length; i++) {
+    if (!state.players.includes(players[i])) continue;
+    if (tryMoveSinglePlayer(players[i], dx, dy, i === 0)) moved = true;
   }
-  const [dx,dy] = state.player.facing;
+  syncPrimaryPlayer();
+  return moved;
+}
+
+function shootFromPlayer(player){
+  state.player = player;
+  const [dx,dy] = player.facing;
   if (!dx && !dy) return false;
-  const x = state.player.x + dx;
-  const y = state.player.y + dy;
+  const x = player.x + dx;
+  const y = player.y + dy;
   if (!inBounds(x,y)) return false;
   const hit = enemyAt(x,y);
   if (hit && (hit.type === 'ardilla' || hit.type === 'leeper' || hit.type === 'skull' || hit.type === 'dragon')) {
@@ -1972,40 +2024,42 @@ function shoot(){
     navigator.vibrate?.(15);
     return true;
   }
-  setHudMessage('Acércate a una ardilla, leeper, calavera, dragón o huevo para disparar');
   return false;
 }
 
-function interactAdjacent(dx,dy){
-  if (isPlayerFrozen()) return false;
+function shoot(){
+  if (isPlayerFrozen() || !hasPlayersAlive()) return false;
   if (state.shots <= 0) {
     setHudMessage('Sin disparos: recoge corazones');
     return false;
   }
-  const x = state.player.x + dx;
-  const y = state.player.y + dy;
-  if (!inBounds(x,y)) return false;
-  const hit = enemyAt(x,y);
-  if (hit && (hit.type === 'ardilla' || hit.type === 'leeper' || hit.type === 'skull' || hit.type === 'dragon')) {
-    state.enemies = state.enemies.filter(v => v !== hit);
-    const eggPos = key(x,y);
-    state.eggs.add(eggPos);
-    state.eggTimers.set(eggPos, performance.now() + EGG_HATCH_MS);
-    state.shots -= 1;
-    setHudMessage('¡Enemigo convertido en huevo!');
-    navigator.vibrate?.(20);
-    return true;
+  let acted = false;
+  for (const player of [...state.players]) {
+    if (!state.players.includes(player) || state.shots <= 0) continue;
+    if (shootFromPlayer(player)) acted = true;
   }
-  if (has(state.eggs,x,y)) {
-    const eggPos = key(x,y);
-    state.eggs.delete(eggPos);
-    state.eggTimers.delete(eggPos);
-    state.shots -= 1;
-    setHudMessage('¡Huevo eliminado!');
-    navigator.vibrate?.(15);
-    return true;
+  syncPrimaryPlayer();
+  if (!acted) setHudMessage('Acércate a una ardilla, leeper, calavera, dragón o huevo para disparar');
+  return acted;
+}
+
+function interactAdjacent(dx,dy){
+  if (isPlayerFrozen() || !hasPlayersAlive()) return false;
+  if (state.shots <= 0) {
+    setHudMessage('Sin disparos: recoge corazones');
+    return false;
   }
-  return false;
+  let acted = false;
+  for (const player of [...state.players]) {
+    if (state.shots <= 0) break;
+    const x = player.x + dx;
+    const y = player.y + dy;
+    if (!inBounds(x,y)) continue;
+    player.facing = [dx, dy];
+    if (shootFromPlayer(player)) acted = true;
+  }
+  syncPrimaryPlayer();
+  return acted;
 }
 
 function tryKeyboardShot(){
@@ -2137,12 +2191,15 @@ function canPushAt(fromX, fromY, dx, dy){
 }
 
 function canAdvanceKeyboard(dx, dy){
-  const tx = state.player.x + dx;
-  const ty = state.player.y + dy;
-  if (!inBounds(tx,ty) || enemyAt(tx,ty)) return false;
-  if (has(state.blocks,tx,ty)) return canPushAt(tx, ty, dx, dy);
-  if (has(state.eggs,tx,ty) && !has(state.filledWater,tx,ty)) return canPushAt(tx, ty, dx, dy);
-  return passableForPlayer(tx,ty,true,dx,dy);
+  for (const player of state.players) {
+    const tx = player.x + dx;
+    const ty = player.y + dy;
+    if (!inBounds(tx,ty) || enemyAt(tx,ty) || isPlayerAt(tx, ty, player)) continue;
+    if (has(state.blocks,tx,ty)) { if (canPushAt(tx, ty, dx, dy)) return true; continue; }
+    if (has(state.eggs,tx,ty) && !has(state.filledWater,tx,ty)) { if (canPushAt(tx, ty, dx, dy)) return true; continue; }
+    if (passableForPlayer(tx,ty,true,dx,dy)) return true;
+  }
+  return false;
 }
 
 function performKeyboardHalfStep(dx, dy){
@@ -2411,7 +2468,7 @@ function canRockyOccupy(x, y, rocky, allowPlayer = false){
   if (has(state.hearts, x, y)) return false;
   if (has(state.blocks, x, y) || has(state.eggs, x, y)) return false;
   if (enemyAtExcluding(x, y, rocky)) return false;
-  if (!allowPlayer && state.player.x === x && state.player.y === y) return false;
+  if (!allowPlayer && isPlayerAt(x, y)) return false;
   return true;
 }
 
@@ -2539,8 +2596,8 @@ function updateDonMedusas(now = performance.now()){
       enemy.y = ty;
     }
 
-    if (enemy.x === state.player.x && enemy.y === state.player.y) {
-      killPlayer();
+    if (isPlayerAt(enemy.x, enemy.y)) {
+      killPlayer(nearestPlayerFrom(enemy.x, enemy.y));
       return;
     }
   }
@@ -2590,14 +2647,14 @@ function updateSkulls(now = performance.now()){
     if (enemy.type === 'skull') {
       setSkullAnimation(enemy, fromX, fromY, tx, ty, Math.max(150, SKULL_STEP_MS - 24));
     }
-    if (enemy.x === state.player.x && enemy.y === state.player.y) {
+    if (isPlayerAt(enemy.x, enemy.y)) {
       if (enemy.type === 'leeper') {
         enemy.asleep = true;
         enemy.pendingTurns = [];
         enemy.dir = [0, 0];
         continue;
       }
-      killPlayer();
+      killPlayer(nearestPlayerFrom(enemy.x, enemy.y));
       return;
     }
 
@@ -2744,12 +2801,14 @@ function runRockyTurn(now = performance.now()){
 function isPlayerInDragonFireDirection(dragon){
   const [dx, dy] = dragon.dir || [0, 0];
   if (!dx && !dy) return false;
-  if (dx !== 0) {
-    if (state.player.y !== dragon.y) return false;
-    return (state.player.x - dragon.x) * dx > 0;
-  }
-  if (state.player.x !== dragon.x) return false;
-  return (state.player.y - dragon.y) * dy > 0;
+  return state.players.some(player => {
+    if (dx !== 0) {
+      if (player.y !== dragon.y) return false;
+      return (player.x - dragon.x) * dx > 0;
+    }
+    if (player.x !== dragon.x) return false;
+    return (player.y - dragon.y) * dy > 0;
+  });
 }
 
 
@@ -2768,7 +2827,8 @@ function spawnDragonFireball(dragon, now){
   }
   const fireball = { x, y, dx, dy, lastStepAt: now };
   state.fireballs.push(fireball);
-  if (isFireballTouchingPlayer(fireball, now)) killPlayer();
+  const hitPlayer = isFireballTouchingAnyPlayer(fireball, now);
+  if (hitPlayer) killPlayer(hitPlayer);
 }
 
 function updateDragonThreat(now = performance.now()){
@@ -2801,8 +2861,9 @@ function advanceDragonFireballs(now = performance.now()){
       if (!inBounds(Math.round(fireball.x), Math.round(fireball.y))) break;
       const tx = Math.round(fireball.x);
       const ty = Math.round(fireball.y);
-      if (isFireballTouchingPlayer(fireball, fireball.lastStepAt)) {
-        killPlayer();
+      const hitPlayer = isFireballTouchingAnyPlayer(fireball, fireball.lastStepAt);
+      if (hitPlayer) {
+        killPlayer(hitPlayer);
         break;
       }
       if (blockedForDragonSight(tx, ty)) {
@@ -2813,7 +2874,7 @@ function advanceDragonFireballs(now = performance.now()){
     if (!inBounds(Math.round(fireball.x), Math.round(fireball.y))) continue;
     const tx = Math.round(fireball.x);
     const ty = Math.round(fireball.y);
-    if (isFireballTouchingPlayer(fireball, now)) continue;
+    if (isFireballTouchingAnyPlayer(fireball, now)) continue;
     if (stepped && blockedForDragonSight(tx, ty)) continue;
     next.push(fireball);
   }
@@ -2834,23 +2895,34 @@ function blockedForMedusaShot(x,y){
 }
 
 function hasLineOfSightToPlayer(medusa){
-  if (medusa.x !== state.player.x && medusa.y !== state.player.y) return null;
-  if (medusa.x === state.player.x) {
-    const step = Math.sign(state.player.y - medusa.y);
-    for (let y = medusa.y + step; y !== state.player.y; y += step) {
-      if (blockedForMedusaShot(medusa.x, y)) return null;
+  const orderedPlayers = [...state.players].sort((a, b) => {
+    const da = Math.abs(a.x - medusa.x) + Math.abs(a.y - medusa.y);
+    const db = Math.abs(b.x - medusa.x) + Math.abs(b.y - medusa.y);
+    return da - db;
+  });
+  for (const player of orderedPlayers) {
+    if (medusa.x !== player.x && medusa.y !== player.y) continue;
+    if (medusa.x === player.x) {
+      const step = Math.sign(player.y - medusa.y);
+      let blocked = false;
+      for (let y = medusa.y + step; y !== player.y; y += step) {
+        if (blockedForMedusaShot(medusa.x, y)) { blocked = true; break; }
+      }
+      if (!blocked) return { dx: 0, dy: step, player };
+      continue;
     }
-    return { dx: 0, dy: step };
+    const step = Math.sign(player.x - medusa.x);
+    let blocked = false;
+    for (let x = medusa.x + step; x !== player.x; x += step) {
+      if (blockedForMedusaShot(x, medusa.y)) { blocked = true; break; }
+    }
+    if (!blocked) return { dx: step, dy: 0, player };
   }
-  const step = Math.sign(state.player.x - medusa.x);
-  for (let x = medusa.x + step; x !== state.player.x; x += step) {
-    if (blockedForMedusaShot(x, medusa.y)) return null;
-  }
-  return { dx: step, dy: 0 };
+  return null;
 }
 
 function isPlayerAlignedWithMedusa(medusa){
-  return medusa.x === state.player.x || medusa.y === state.player.y;
+  return state.players.some(player => medusa.x === player.x || medusa.y === player.y);
 }
 
 function medusaVisionTiles(medusa){
@@ -2869,7 +2941,7 @@ function medusaVisionTiles(medusa){
 }
 
 function isPlayerAdjacentToVision(medusa){
-  return medusaVisionTiles(medusa).some(v => Math.abs(v.x - state.player.x) + Math.abs(v.y - state.player.y) === 1);
+  return medusaVisionTiles(medusa).some(v => state.players.some(player => Math.abs(v.x - player.x) + Math.abs(v.y - player.y) === 1));
 }
 
 function resolveMedusaThreat(now = performance.now(), instantKill = false){
@@ -2898,14 +2970,14 @@ function resolveMedusaThreat(now = performance.now(), instantKill = false){
     state.medusaShot = {
       fromX: e.x,
       fromY: e.y,
-      toX: state.player.x,
-      toY: state.player.y,
+      toX: sight.player.x,
+      toY: sight.player.y,
       chargeRatio: 1,
       ts: shotStartedAt,
       life: MEDUSA_SHOT_FLASH_MS,
     };
     if (shotAge >= MEDUSA_SHOT_FLASH_MS * 0.35 || instantKill) {
-      killPlayer();
+      killPlayer(sight.player);
       return;
     }
   }
@@ -3363,13 +3435,16 @@ function draw(){
     ctx.strokeRect(px + 1, py + 1, board.t - 2, board.t - 2);
   }
 
-  const playerDraw = getPlayerDrawPosition(now);
-  drawPlayerSprite(playerDraw.x, playerDraw.y, now);
-  if (state.frozenUntil) {
-    const px = board.x + playerDraw.x * board.t;
-    const py = board.y + playerDraw.y * board.t;
-    ctx.fillStyle = 'rgba(120, 210, 255, 0.4)';
-    ctx.fillRect(px, py, board.t, board.t);
+  for (const player of state.players) {
+    const playerDraw = getPlayerDrawPosition(now, player);
+    if (!playerDraw) continue;
+    drawPlayerSprite(playerDraw.x, playerDraw.y, now);
+    if (state.frozenUntil) {
+      const px = board.x + playerDraw.x * board.t;
+      const py = board.y + playerDraw.y * board.t;
+      ctx.fillStyle = 'rgba(120, 210, 255, 0.4)';
+      ctx.fillRect(px, py, board.t, board.t);
+    }
   }
 
   if (state.deadUntil) {
@@ -3648,7 +3723,7 @@ function editorToRaw(rows){
 function validateEditorRows(rows){
   const players = rows.flat().filter(ch => ch === 'P').length;
   const chests = rows.flat().filter(ch => ch === 'C').length;
-  if (players !== 1) throw new Error('Debe existir exactamente 1 jugador (P).');
+  if (players < 1) throw new Error('Debe existir al menos 1 jugador (P).');
   if (chests > 1) throw new Error('Solo puede haber 1 cofre (C).');
 }
 
@@ -3798,7 +3873,8 @@ function startLevel(){
   LEVEL = parseLevelRows(currentLevelRaw);
   const p = parseLevel();
   state.base = p.base;
-  state.player = p.player;
+  state.players = p.players.map(player => ({ ...player }));
+  syncPrimaryPlayer();
   state.chest = p.chest;
   state.door = p.door;
   state.hearts = p.hearts;
