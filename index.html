@@ -51,6 +51,11 @@
       pointer-events: none;
       flex-wrap: wrap;
     }
+    #hudPrimary {
+      display: flex;
+      gap: 6px;
+      pointer-events: auto;
+    }
     .pill {
       background: #000;
       border: 2px solid #666;
@@ -64,6 +69,12 @@
     .pill.interactive {
       pointer-events: auto;
       cursor: pointer;
+    }
+    #editBtn {
+      min-height: 0;
+      font-size: 14px;
+      padding: 4px 10px;
+      text-transform: none;
     }
     #levelDropdown {
       position: absolute;
@@ -108,7 +119,7 @@
       top: calc(env(safe-area-inset-top) + 8px);
       z-index: 4;
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
     }
     #directionalControls {
@@ -119,9 +130,9 @@
       width: min(360px, 100%);
     }
     .dir-btn {
-      border: 2px solid #7dc6ff;
+      border: 2px solid #fff;
       min-height: 42px;
-      color: #d8eeff;
+      color: #fff;
       font-size: clamp(16px, 4.3vw, 24px);
       font-weight: bold;
       font-family: 'Courier New', Courier, monospace;
@@ -129,9 +140,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
       box-shadow: 2px 2px 0 #000;
-      background: #0d3350;
+      background: #000;
       transition: background 120ms ease, border-color 120ms ease;
       text-decoration: none;
       -webkit-user-select: none;
@@ -143,8 +153,8 @@
       text-decoration: none;
     }
     .dir-btn:active {
-      background: #21689b;
-      border-color: #bde7ff;
+      background: #333;
+      border-color: #fff;
     }
     #moveUpBtn,
     #moveDownBtn {
@@ -311,7 +321,10 @@
     <div id="boardWrap">
       <canvas id="gameCanvas"></canvas>
       <div id="hud">
-        <div class="pill interactive" id="hudLevel">Nivel 1 ▾</div>
+        <div id="hudPrimary">
+          <div class="pill interactive" id="hudLevel">Nivel 1 ▾</div>
+          <button class="pill interactive" id="editBtn" aria-label="Editar pantalla">✎</button>
+        </div>
         <div class="pill" id="hudShots">✦ 0</div>
       </div>
       <div id="levelDropdown" aria-hidden="true"></div>
@@ -325,9 +338,8 @@
       </div>
     </div>
     <div id="controls">
-      <button id="undoBtn">ATRÁS</button>
-      <button id="resetBtn">Reiniciar</button>
-      <button id="editBtn">Editar pantalla</button>
+      <button id="undoBtn">←</button>
+      <button id="resetBtn">↻</button>
     </div>
 
     <div id="editorView" aria-hidden="true">
