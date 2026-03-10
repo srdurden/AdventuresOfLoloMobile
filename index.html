@@ -124,6 +124,13 @@
       justify-items: center;
       align-items: center;
     }
+
+    /* En escritorio mantenemos los controles visibles, reservando más alto para que queden debajo del tablero. */
+    @media (hover: hover) and (pointer: fine) {
+      :root {
+        --controls-space: clamp(230px, 34vh, 320px);
+      }
+    }
     #resetBtn {
       min-height: 0;
       height: 30px;
