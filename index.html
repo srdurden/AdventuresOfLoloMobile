@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
   <title>Lolo Touch - Retro Edition</title>
   <style>
-    :root { color-scheme: dark; }
+    :root {
+      color-scheme: dark;
+      --controls-space: clamp(250px, 36vh, 340px);
+    }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body {
       margin: 0;
@@ -25,7 +28,7 @@
     }
     #boardWrap {
       position: absolute;
-      inset: 72px 12px 176px;
+      inset: 72px 12px calc(env(safe-area-inset-bottom) + var(--controls-space));
       overflow: hidden;
       background: transparent;
       border: 0;
@@ -112,7 +115,7 @@
       position: absolute;
       left: 8px;
       right: 8px;
-      bottom: calc(env(safe-area-inset-bottom) + 8px);
+      bottom: calc(env(safe-area-inset-bottom) + 10px);
       z-index: 3;
       display: grid;
       grid-template-columns: minmax(0, 1fr);
