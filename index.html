@@ -342,21 +342,24 @@
     }
 
     @media (min-width: 1024px) and (pointer: fine) {
-      #boardWrap {
-        inset: 72px 210px 12px 12px;
+      body {
+        display: grid;
+        place-items: center;
+        background: #111;
       }
 
-      #bottomPanel {
-        top: calc(env(safe-area-inset-top) + 56px);
-        right: 8px;
-        left: auto;
-        bottom: auto;
-        width: 190px;
-        justify-items: stretch;
+      #app {
+        position: relative;
+        inset: auto;
+        width: min(390px, calc(100vh * 390 / 844), 100vw);
+        height: min(844px, calc(100vw * 844 / 390), 100vh);
+        border: 2px solid #222;
+        box-shadow: 0 0 0 6px #000;
+        overflow: hidden;
       }
 
-      #directionalControls {
-        width: 100%;
+      #editorView {
+        position: absolute;
       }
     }
   </style>
