@@ -72,8 +72,15 @@
     }
     #editBtn {
       min-height: 0;
-      font-size: 14px;
+      width: 34px;
+      font-size: 42px;
+      font-weight: 900;
+      line-height: 1;
       padding: 4px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
       text-transform: none;
     }
     #levelDropdown {
@@ -133,8 +140,8 @@
       border: 2px solid #fff;
       min-height: 42px;
       color: #fff;
-      font-size: clamp(16px, 4.3vw, 24px);
-      font-weight: bold;
+      font-size: clamp(28px, 7vw, 42px);
+      font-weight: 900;
       font-family: 'Courier New', Courier, monospace;
       user-select: none;
       display: flex;
@@ -183,8 +190,18 @@
     }
     #controls button {
       min-height: 38px;
+      height: 38px;
       font-size: 13px;
       padding: 4px;
+      overflow: hidden;
+    }
+
+    #undoBtn,
+    #resetBtn {
+      font-size: 39px;
+      font-weight: 900;
+      line-height: 1;
+      text-transform: none;
     }
     #controls {
       width: min(420px, 100%);
