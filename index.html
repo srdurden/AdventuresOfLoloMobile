@@ -336,6 +336,25 @@
       user-select: text;
       -webkit-user-select: text;
     }
+
+    @media (min-width: 1024px) and (pointer: fine) {
+      #boardWrap {
+        inset: 72px 210px 12px 12px;
+      }
+
+      #bottomPanel {
+        top: calc(env(safe-area-inset-top) + 56px);
+        right: 8px;
+        left: auto;
+        bottom: auto;
+        width: 190px;
+        justify-items: stretch;
+      }
+
+      #directionalControls {
+        width: 100%;
+      }
+    }
   </style>
 </head>
 <body>
