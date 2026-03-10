@@ -24,7 +24,7 @@
     }
     #boardWrap {
       position: absolute;
-      inset: 72px 12px 156px;
+      inset: 72px 12px 176px;
       overflow: hidden;
       background: transparent;
       border: 0;
@@ -73,14 +73,14 @@
     #editBtn {
       min-height: 0;
       width: 34px;
-      font-size: 42px;
+      font-size: 17px;
       font-weight: 900;
       line-height: 1;
       padding: 4px 10px;
+      border-color: #666;
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
       text-transform: none;
     }
     #levelDropdown {
@@ -137,11 +137,12 @@
       width: min(360px, 100%);
     }
     .dir-btn {
-      border: 2px solid #fff;
+      border: 2px solid #666;
       min-height: 42px;
       color: #fff;
-      font-size: clamp(28px, 7vw, 42px);
+      font-size: clamp(22px, 5.6vw, 32px);
       font-weight: 900;
+      line-height: 1;
       font-family: 'Courier New', Courier, monospace;
       user-select: none;
       display: flex;
@@ -193,12 +194,13 @@
       height: 38px;
       font-size: 13px;
       padding: 4px;
-      overflow: hidden;
+      border-color: #666;
+      text-transform: none;
     }
 
     #undoBtn,
     #resetBtn {
-      font-size: 39px;
+      font-size: 34px;
       font-weight: 900;
       line-height: 1;
       text-transform: none;
