@@ -7,7 +7,8 @@
   <style>
     :root {
       color-scheme: dark;
-      --controls-space: clamp(250px, 36vh, 340px);
+      --controls-space: clamp(180px, 28vh, 250px);
+      --hud-row-height: 44px;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body {
@@ -149,17 +150,17 @@
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       grid-template-rows: repeat(3, minmax(0, 1fr));
-      gap: 14px;
-      width: min(320px, 100%);
+      gap: 7px;
+      width: min(232px, 100%);
     }
     .dir-btn {
       border: 5px solid #424248;
       border-radius: 999px;
-      width: clamp(72px, 18vw, 88px);
+      width: clamp(54px, 13vw, 66px);
       aspect-ratio: 1 / 1;
       min-height: 0;
       color: #3f3f45;
-      font-size: clamp(40px, 10vw, 52px);
+      font-size: clamp(30px, 8vw, 40px);
       font-weight: 900;
       line-height: 1;
       font-family: Arial, Helvetica, sans-serif;
@@ -188,10 +189,12 @@
     #moveUpBtn {
       grid-column: 2;
       grid-row: 1;
+      transform: rotate(-90deg);
     }
     #moveLeftBtn {
       grid-column: 1;
       grid-row: 2;
+      transform: rotate(180deg);
     }
     #moveRightBtn {
       grid-column: 3;
@@ -200,6 +203,7 @@
     #moveDownBtn {
       grid-column: 2;
       grid-row: 3;
+      transform: rotate(90deg);
     }
     button {
       border: 2px solid #fff;
@@ -363,10 +367,10 @@
     </div>
     <div id="bottomPanel">
       <div id="directionalControls" aria-label="Controles direccionales">
-        <button id="moveUpBtn" class="dir-btn" data-dx="0" data-dy="-1" aria-label="Mover arriba">↑</button>
-        <button id="moveLeftBtn" class="dir-btn" data-dx="-1" data-dy="0" aria-label="Mover izquierda">←</button>
-        <button id="moveRightBtn" class="dir-btn" data-dx="1" data-dy="0" aria-label="Mover derecha">→</button>
-        <button id="moveDownBtn" class="dir-btn" data-dx="0" data-dy="1" aria-label="Mover abajo">↓</button>
+        <button id="moveUpBtn" class="dir-btn" data-dx="0" data-dy="-1" aria-label="Mover arriba">➜</button>
+        <button id="moveLeftBtn" class="dir-btn" data-dx="-1" data-dy="0" aria-label="Mover izquierda">➜</button>
+        <button id="moveRightBtn" class="dir-btn" data-dx="1" data-dy="0" aria-label="Mover derecha">➜</button>
+        <button id="moveDownBtn" class="dir-btn" data-dx="0" data-dy="1" aria-label="Mover abajo">➜</button>
       </div>
     </div>
     <div id="editorView" aria-hidden="true">
@@ -3101,9 +3105,11 @@ function resize(){
 
   const w = r.width;
   const h = r.height;
-  board.t = Math.max(12, Math.floor(Math.min((w - 4) / W, (h - 4) / H)));
+  const hudReserved = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hud-row-height')) || 44;
+  const playableHeight = Math.max(120, h - hudReserved);
+  board.t = Math.max(12, Math.floor(Math.min((w - 4) / W, (playableHeight - 4) / H)));
   board.x = Math.floor((w - W * board.t) / 2);
-  board.y = Math.floor((h - H * board.t) / 2);
+  board.y = hudReserved + Math.floor((playableHeight - H * board.t) / 2);
 }
 window.addEventListener('resize', resize);
 
