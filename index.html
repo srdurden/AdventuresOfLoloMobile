@@ -212,6 +212,21 @@
       -webkit-font-smoothing: none;
       font-variant-emoji: text;
     }
+    #controls #resetBtn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    #controls #resetBtn svg {
+      width: 28px;
+      height: 28px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
     #controls {
       width: min(420px, 100%);
       justify-self: center;
@@ -387,7 +402,14 @@
     </div>
     <div id="controls">
       <button id="undoBtn">↺</button>
-      <button id="resetBtn">↻</button>
+      <button id="resetBtn" aria-label="Reiniciar nivel">
+        <svg viewBox="0 0 24 24" role="img" aria-hidden="true" focusable="false">
+          <path d="M20 8a9 9 0 0 0-15-2.3" />
+          <polyline points="8 1.5 4.5 5.7 9.3 6" />
+          <path d="M4 16a9 9 0 0 0 15 2.3" />
+          <polyline points="16 22.5 19.5 18.3 14.7 18" />
+        </svg>
+      </button>
     </div>
 
     <div id="editorView" aria-hidden="true">
