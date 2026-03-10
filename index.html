@@ -120,42 +120,57 @@
       justify-items: center;
       align-items: center;
     }
-    #controls {
-      position: absolute;
-      left: 8px;
-      right: 8px;
-      top: calc(env(safe-area-inset-top) + 8px);
-      z-index: 4;
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
+    #resetBtn {
+      min-height: 0;
+      height: 30px;
+      width: 34px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-color: #666;
+      color: #fff;
+      text-transform: none;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    #resetBtn svg {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
     #directionalControls {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      grid-template-rows: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-      width: min(360px, 100%);
+      grid-template-rows: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      width: min(320px, 100%);
     }
     .dir-btn {
-      border: 2px solid #666;
-      min-height: 42px;
-      color: #fff;
-      font-size: clamp(18px, 4.8vw, 24px);
-      font-weight: 800;
+      border: 5px solid #424248;
+      border-radius: 999px;
+      width: clamp(72px, 18vw, 88px);
+      aspect-ratio: 1 / 1;
+      min-height: 0;
+      color: #3f3f45;
+      font-size: clamp(40px, 10vw, 52px);
+      font-weight: 900;
       line-height: 1;
-      font-family: 'Courier New', Courier, monospace;
+      font-family: Arial, Helvetica, sans-serif;
       user-select: none;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 2px 2px 0 #000;
-      background: #000;
+      box-shadow: none;
+      background: #ececee;
       transition: background 120ms ease, border-color 120ms ease;
       text-decoration: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
-      -webkit-font-smoothing: none;
+      -webkit-font-smoothing: antialiased;
       font-variant-emoji: text;
     }
     .dir-btn:focus,
@@ -164,21 +179,24 @@
       text-decoration: none;
     }
     .dir-btn:active {
-      background: #333;
-      border-color: #fff;
+      background: #d9d9de;
+      border-color: #2f2f34;
     }
-    #moveUpBtn,
-    #moveDownBtn {
+    #moveUpBtn {
       grid-column: 2;
+      grid-row: 1;
     }
     #moveLeftBtn {
       grid-column: 1;
+      grid-row: 2;
     }
     #moveRightBtn {
       grid-column: 3;
+      grid-row: 2;
     }
     #moveDownBtn {
       grid-column: 2;
+      grid-row: 3;
     }
     button {
       border: 2px solid #fff;
@@ -191,45 +209,6 @@
       font-family: 'Courier New', Courier, monospace;
       box-shadow: 2px 2px 0px #000;
       cursor: pointer;
-    }
-    #controls button {
-      min-height: 38px;
-      height: 38px;
-      font-size: 13px;
-      padding: 4px;
-      border-color: #666;
-      text-transform: none;
-    }
-
-    #controls #undoBtn,
-    #controls #resetBtn {
-      border-color: #000;
-      font-size: 26px;
-      font-weight: 900;
-      line-height: 1;
-      text-transform: none;
-      font-family: 'Courier New', Courier, monospace;
-      -webkit-font-smoothing: none;
-      font-variant-emoji: text;
-    }
-    #controls #resetBtn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0;
-    }
-    #controls #resetBtn svg {
-      width: 28px;
-      height: 28px;
-      stroke: currentColor;
-      fill: none;
-      stroke-width: 2.8;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-    #controls {
-      width: min(420px, 100%);
-      justify-self: center;
     }
     button:active {
       transform: translate(2px, 2px);
@@ -366,6 +345,14 @@
         <div id="hudPrimary">
           <button class="pill interactive" id="editBtn" aria-label="Editar pantalla">✎</button>
           <div class="pill interactive" id="hudLevel">Nivel 1 ▾</div>
+          <button class="pill interactive" id="resetBtn" aria-label="Reiniciar nivel">
+            <svg viewBox="0 0 24 24" role="img" aria-hidden="true" focusable="false">
+              <path d="M20 8a9 9 0 0 0-15-2.3" />
+              <polyline points="8 1.5 4.5 5.7 9.3 6" />
+              <path d="M4 16a9 9 0 0 0 15 2.3" />
+              <polyline points="16 22.5 19.5 18.3 14.7 18" />
+            </svg>
+          </button>
         </div>
         <div class="pill" id="hudShots">✦ 0</div>
       </div>
@@ -379,18 +366,6 @@
         <button id="moveDownBtn" class="dir-btn" data-dx="0" data-dy="1" aria-label="Mover abajo">↓</button>
       </div>
     </div>
-    <div id="controls">
-      <button id="undoBtn">↺</button>
-      <button id="resetBtn" aria-label="Reiniciar nivel">
-        <svg viewBox="0 0 24 24" role="img" aria-hidden="true" focusable="false">
-          <path d="M20 8a9 9 0 0 0-15-2.3" />
-          <polyline points="8 1.5 4.5 5.7 9.3 6" />
-          <path d="M4 16a9 9 0 0 0 15 2.3" />
-          <polyline points="16 22.5 19.5 18.3 14.7 18" />
-        </svg>
-      </button>
-    </div>
-
     <div id="editorView" aria-hidden="true">
       <div class="editor-actions editor-primary-actions">
         <button id="editorBackBtn">Volver al juego</button>
@@ -4023,15 +3998,7 @@ function resetLevel({ fromDeath = false } = {}){
   setHudMessage('');
 }
 
-document.getElementById('undoBtn').onclick = () => {
-  if (!state.undo.length || state.won) return;
-  queuedMoves = [];
-  clearPathInput();
-  clearKeyboardInput();
-  keyboardOffset = { x: 0, y: 0 };
-  restore(state.undo.pop());
-};
-document.getElementById('resetBtn').onclick = () => resetLevel();
+document.getElementById('resetBtn')?.addEventListener('click', () => resetLevel());
 document.getElementById('editBtn').onclick = () => openEditor();
 
 [moveUpBtn, moveDownBtn, moveLeftBtn, moveRightBtn].forEach((button) => {
