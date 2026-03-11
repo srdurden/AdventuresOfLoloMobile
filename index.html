@@ -2015,9 +2015,9 @@ function attemptPush(setRef, fromX, fromY, dx, dy){
   if (!inBounds(nx,ny) || has(state.blocks,nx,ny) || has(state.eggs,nx,ny) || enemyAt(nx,ny)) return false;
   const t = state.base[ny][nx];
   if (isWallTile(t) || t === 'V' || t === 'T' || t === 'C' || t === 'D' || t === 'S') return false;
-  if (setRef === state.eggs && t === 'H') return false;
   const fromKey = key(fromX,fromY);
   const toKey = key(nx,ny);
+  if (setRef === state.eggs && state.hearts.has(toKey)) return false;
   const eggHatchAt = setRef === state.eggs ? state.eggTimers.get(fromKey) : null;
   setRef.delete(fromKey);
   if (setRef === state.eggs) state.eggTimers.delete(fromKey);
