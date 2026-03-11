@@ -3305,19 +3305,15 @@ function applyMedusaFreezeFilter(now = performance.now()){
   ctx.drawImage(MEDUSA_FREEZE_FILTER_CANVAS, bx, by, bw, bh);
   ctx.restore();
 
-  const tx = Math.round(focus.x * board.t);
-  const ty = Math.round(focus.y * board.t);
-  ctx.drawImage(
-    MEDUSA_FREEZE_FILTER_CANVAS,
-    tx,
-    ty,
-    board.t,
-    board.t,
-    bx + tx,
-    by + ty,
-    board.t,
-    board.t,
+  const focusedMedusa = state.enemies.find(enemy =>
+    (enemy.type === 'medusa' || enemy.type === 'don_medusa')
+    && enemy.x === focus.x
+    && enemy.y === focus.y
   );
+  if (!focusedMedusa) return;
+
+  if (focusedMedusa.type === 'medusa') drawMedusaSprite(focusedMedusa, now);
+  else drawDonMedusaSprite(focusedMedusa, now);
 }
 
 function draw(){
@@ -3612,12 +3608,6 @@ function draw(){
     const playerDraw = getPlayerDrawPosition(now, player);
     if (!playerDraw) continue;
     drawPlayerSprite(playerDraw.x, playerDraw.y, now);
-    if (state.frozenUntil) {
-      const px = board.x + playerDraw.x * board.t;
-      const py = board.y + playerDraw.y * board.t;
-      ctx.fillStyle = 'rgba(120, 210, 255, 0.4)';
-      ctx.fillRect(px, py, board.t, board.t);
-    }
   }
 
   if (state.deadUntil) {
