@@ -590,8 +590,8 @@ const DRAG_PATH_MOVE_INTERVAL = 220;
 const DRAG_PATH_DELAY_MS = 100;
 const PLAYER_MOVE_MS = MOVE_INTERVAL;
 const EGG_HATCH_MS = 10000;
-const MEDUSA_FREEZE_BEFORE_SHOT_MS = 70;
-const MEDUSA_SHOT_FLASH_MS = 90;
+const MEDUSA_FREEZE_BEFORE_SHOT_MS = 1000;
+const MEDUSA_SHOT_FLASH_MS = 120;
 const DON_MEDUSA_STEP_MS = 220;
 const DRAGON_FIREBALL_STEP_MS = 100;
 const DRAGON_FIRE_COOLDOWN_MS = 1000;
@@ -691,6 +691,7 @@ const state = {
   deadUntil: 0,
   frozenUntil: 0,
   medusaShot: null,
+  medusaFocus: null,
   fireballs: [],
   resetFlashUntil: 0,
   keyCollected: false,
@@ -1907,6 +1908,7 @@ function snapshot(){
     doorOpen: state.doorOpen,
     frozenUntil: state.frozenUntil,
     medusaShot: state.medusaShot ? { ...state.medusaShot } : null,
+    medusaFocus: state.medusaFocus ? { ...state.medusaFocus } : null,
     fireballs: state.fireballs.map(f => ({ ...f })),
     keyCollected: Boolean(state.keyCollected),
     explosions: state.explosions.map(explosion => ({ ...explosion })),
@@ -1928,6 +1930,7 @@ function restore(s){
   state.deadUntil = 0;
   state.frozenUntil = 0;
   state.medusaShot = null;
+  state.medusaFocus = null;
   state.fireballs = (s.fireballs ?? []).map(f => ({ ...f }));
   state.resetFlashUntil = 0;
   state.keyCollected = Boolean(s.keyCollected);
@@ -1947,6 +1950,7 @@ function triggerEnemyExplosion(){
   state.eggs = new Set();
   state.eggTimers = new Map();
   state.medusaShot = null;
+  state.medusaFocus = null;
   state.fireballs = [];
   state.frozenUntil = 0;
   setHudMessage('¡La llave destruyó a todos los enemigos!');
@@ -3042,6 +3046,7 @@ function isPlayerAdjacentToVision(medusa){
 
 function resolveMedusaThreat(now = performance.now(), instantKill = false){
   state.medusaShot = null;
+  state.medusaFocus = null;
   for (const e of state.enemies) {
     if (e.type !== 'medusa' && e.type !== 'don_medusa') {
       if ('alert' in e) e.alert = false;
@@ -3058,11 +3063,24 @@ function resolveMedusaThreat(now = performance.now(), instantKill = false){
     if (!e.charge) e.charge = now;
     if (instantKill) e.charge = Math.min(e.charge, now - MEDUSA_FREEZE_BEFORE_SHOT_MS);
     const elapsed = now - e.charge;
-    state.frozenUntil = Math.max(state.frozenUntil, e.charge + MEDUSA_FREEZE_BEFORE_SHOT_MS + MEDUSA_SHOT_FLASH_MS);
-    if (elapsed < MEDUSA_FREEZE_BEFORE_SHOT_MS) continue;
-
     const shotStartedAt = e.charge + MEDUSA_FREEZE_BEFORE_SHOT_MS;
+
+    if (elapsed < MEDUSA_FREEZE_BEFORE_SHOT_MS) {
+      state.frozenUntil = Math.max(state.frozenUntil, shotStartedAt);
+      const currentFocusAge = state.medusaFocus ? state.medusaFocus.startedAt : Infinity;
+      if (!state.medusaFocus || e.charge < currentFocusAge) {
+        state.medusaFocus = {
+          x: e.x,
+          y: e.y,
+          startedAt: e.charge,
+          until: shotStartedAt,
+        };
+      }
+      continue;
+    }
+
     const shotAge = now - shotStartedAt;
+    state.frozenUntil = Math.max(state.frozenUntil, shotStartedAt + MEDUSA_SHOT_FLASH_MS);
     state.medusaShot = {
       fromX: e.x,
       fromY: e.y,
@@ -3087,6 +3105,10 @@ function tick(){
   }
   if (state.won) return;
   if (state.frozenUntil && now >= state.frozenUntil) state.frozenUntil = 0;
+  if (state.frozenUntil && now < state.frozenUntil) {
+    resolveMedusaThreat(now);
+    return;
+  }
 
   for (const [pos, hatchAt] of state.eggTimers.entries()) {
     if (now < hatchAt) continue;
@@ -3246,6 +3268,31 @@ function drawDragonSprite(dragon){
     return;
   }
   drawSprite(`dragon_${dir}`, dragon.x, dragon.y);
+}
+
+const MEDUSA_FREEZE_FILTER_CANVAS = document.createElement('canvas');
+const MEDUSA_FREEZE_FILTER_CTX = MEDUSA_FREEZE_FILTER_CANVAS.getContext('2d');
+
+function applyMedusaFreezeFilter(now = performance.now()){
+  const focus = state.medusaFocus;
+  if (!focus || state.deadUntil || state.medusaShot || now >= focus.until) return;
+  const bw = board.t * W;
+  const bh = board.t * H;
+  if (bw <= 0 || bh <= 0 || !MEDUSA_FREEZE_FILTER_CTX) return;
+
+  MEDUSA_FREEZE_FILTER_CANVAS.width = bw;
+  MEDUSA_FREEZE_FILTER_CANVAS.height = bh;
+  MEDUSA_FREEZE_FILTER_CTX.clearRect(0, 0, bw, bh);
+  MEDUSA_FREEZE_FILTER_CTX.drawImage(canvas, board.x, board.y, bw, bh, 0, 0, bw, bh);
+
+  ctx.save();
+  ctx.filter = 'grayscale(1)';
+  ctx.drawImage(MEDUSA_FREEZE_FILTER_CANVAS, board.x, board.y, bw, bh);
+  ctx.restore();
+
+  const tx = Math.round(focus.x) * board.t;
+  const ty = Math.round(focus.y) * board.t;
+  ctx.drawImage(MEDUSA_FREEZE_FILTER_CANVAS, tx, ty, board.t, board.t, board.x + tx, board.y + ty, board.t, board.t);
 }
 
 function draw(){
@@ -3566,6 +3613,8 @@ function draw(){
       ctx.strokeRect(board.x, board.y, board.t * W, board.t * H);
     }
   }
+
+  applyMedusaFreezeFilter(now);
 
   hudShots.textContent = `✦ ${state.shots}`;
   hudLevel.textContent = `Nivel ${currentLevelIndex + 1} ▾`;
@@ -3996,6 +4045,7 @@ function startLevel(){
   state.deadUntil = 0;
   state.frozenUntil = 0;
   state.medusaShot = null;
+  state.medusaFocus = null;
   state.fireballs = [];
   state.resetFlashUntil = 0;
   state.keyCollected = false;
