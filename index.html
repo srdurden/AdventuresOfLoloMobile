@@ -420,15 +420,15 @@ const LEVELS_RAW = [
 `######D######
 #TTTT.A.TTTT#
 #TTT.....TTT#
-#TTH......CS#
+#TTS......TT#
+#TTH......CT#
 #SSSSSASSSSS#
-#SSSSS.SSSSS#
-#TTTT...TSSS#
-#H.....TTTSS#
-#SSSS.SSSSSS#
-#.SMSB..SMS.#
-#...T...T...#
-#T.TS.P.ST.T#
+#TTTT...TTSS#
+#H.....TTTTS#
+#SSSSSBSSSSS#
+#.SMS...SMS.#
+#...TS.ST...#
+#T.TSSPSST.T#
 #############`,
 
 `######D######
@@ -584,7 +584,6 @@ const KEYBOARD_REPEAT_INITIAL_DELAY = 190;
 const DRAG_PATH_MOVE_INTERVAL = 220;
 const DRAG_PATH_DELAY_MS = 100;
 const PLAYER_MOVE_MS = MOVE_INTERVAL;
-const DIRECTIONAL_HOLD_INTERVAL = 145;
 const EGG_HATCH_MS = 10000;
 const MEDUSA_FREEZE_BEFORE_SHOT_MS = 70;
 const MEDUSA_SHOT_FLASH_MS = 90;
@@ -2352,17 +2351,6 @@ function triggerDirectionalButton(button){
   return performDirectionalMove(dx, dy);
 }
 
-function setDirectionalHold(button, pointerId){
-  if (!button) return;
-  activeDirectionalButton = button;
-  activeDirectionalPointerId = pointerId;
-  clearInterval(directionalHoldInterval);
-  directionalHoldInterval = setInterval(() => {
-    if (!activeDirectionalButton) return;
-    triggerDirectionalButton(activeDirectionalButton);
-  }, DIRECTIONAL_HOLD_INTERVAL);
-}
-
 function getDirectionalButtonFromPoint(clientX, clientY){
   const target = document.elementFromPoint(clientX, clientY);
   return target?.closest?.('.dir-btn') ?? null;
@@ -4049,8 +4037,9 @@ directionalControls?.addEventListener('pointerdown', (e) => {
   if (button) {
     clearDirectionalFocus();
     triggerDirectionalButton(button);
-    setDirectionalHold(button, e.pointerId);
     directionalPointerTriggered = true;
+    activeDirectionalPointerId = e.pointerId;
+    activeDirectionalButton = button;
     return;
   }
   activeDirectionalPointerId = e.pointerId;
@@ -4067,9 +4056,7 @@ directionalControls?.addEventListener('pointermove', (e) => {
   if (Math.abs(pointerDx) >= 8 || Math.abs(pointerDy) >= 8) directionalPointerMoved = true;
   const button = buttonFromTouch ?? getDirectionalButtonFromDelta(pointerDx, pointerDy);
   if (!button || button === activeDirectionalButton) return;
-  triggerDirectionalButton(button);
-  setDirectionalHold(button, e.pointerId);
-  directionalPointerTriggered = true;
+  activeDirectionalButton = button;
 });
 
 directionalControls?.addEventListener('pointerup', (e) => {
