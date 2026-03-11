@@ -3096,7 +3096,7 @@ function resolveMedusaThreat(now = performance.now(), instantKill = false){
       ts: shotStartedAt,
       life: MEDUSA_SHOT_FLASH_MS,
     };
-    if (shotAge >= MEDUSA_SHOT_FLASH_MS * 0.35 || instantKill) {
+    if (shotAge >= 0 || instantKill) {
       killPlayer(sight.player);
       return;
     }
@@ -3837,6 +3837,16 @@ function frame(ts){
   lastTs = ts;
   acc += dt;
   moveAcc += dt;
+
+  if (!state.won && !state.deadUntil) {
+    resolveMedusaThreat(ts);
+    if (state.deadUntil) {
+      draw();
+      requestAnimationFrame(frame);
+      return;
+    }
+  }
+
   if (activeKeyboardDirKey && !state.won && !state.deadUntil && !isPlayerFrozen() && !isEditorOpen) {
     let repeatDt = dt;
     if (keyboardRepeatDelayMs > 0) {
