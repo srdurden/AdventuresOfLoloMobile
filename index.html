@@ -161,12 +161,12 @@
       width: min(232px, 100%);
     }
     .dir-btn {
-      border: 5px solid #424248;
-      border-radius: 999px;
+      border: 0;
+      border-radius: 0;
       width: clamp(54px, 13vw, 66px);
       aspect-ratio: 1 / 1;
       min-height: 0;
-      color: #3f3f45;
+      color: #666;
       font-size: clamp(30px, 8vw, 40px);
       font-weight: 900;
       line-height: 1;
@@ -176,8 +176,8 @@
       align-items: center;
       justify-content: center;
       box-shadow: none;
-      background: #ececee;
-      transition: background 120ms ease, border-color 120ms ease;
+      background: transparent;
+      transition: color 120ms ease;
       text-decoration: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
@@ -190,8 +190,10 @@
       text-decoration: none;
     }
     .dir-btn:active {
-      background: #d9d9de;
-      border-color: #2f2f34;
+      color: #8a8a8a;
+      background: transparent;
+      transform: none;
+      box-shadow: none;
     }
     #moveUpBtn {
       grid-column: 2;
