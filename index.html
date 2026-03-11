@@ -8,6 +8,7 @@
     :root {
       color-scheme: dark;
       --controls-space: clamp(180px, 28vh, 250px);
+      --board-top-inset: 72px;
       --hud-row-height: 44px;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -29,7 +30,7 @@
     }
     #boardWrap {
       position: absolute;
-      inset: 72px 12px calc(env(safe-area-inset-bottom) + var(--controls-space));
+      inset: var(--board-top-inset) 12px calc(env(safe-area-inset-bottom) + var(--controls-space));
       overflow: hidden;
       background: transparent;
       border: 0;
@@ -128,7 +129,9 @@
     /* En escritorio mantenemos los controles visibles, reservando más alto para que queden debajo del tablero. */
     @media (hover: hover) and (pointer: fine) {
       :root {
-        --controls-space: clamp(230px, 34vh, 320px);
+        --controls-space: clamp(210px, 30vh, 290px);
+        --board-top-inset: 52px;
+        --hud-row-height: 34px;
       }
     }
     #resetBtn {
