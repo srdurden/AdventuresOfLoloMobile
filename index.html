@@ -3096,7 +3096,7 @@ function resolveMedusaThreat(now = performance.now(), instantKill = false){
       ts: shotStartedAt,
       life: MEDUSA_SHOT_FLASH_MS,
     };
-    if (shotAge >= MEDUSA_SHOT_FLASH_MS * 0.35 || instantKill) {
+    if (shotAge >= 0 || instantKill) {
       killPlayer(sight.player);
       return;
     }
