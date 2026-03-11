@@ -3277,35 +3277,33 @@ function drawDragonSprite(dragon){
 }
 
 const MEDUSA_FREEZE_FILTER_CANVAS = document.createElement('canvas');
-const MEDUSA_FREEZE_FILTER_CTX = MEDUSA_FREEZE_FILTER_CANVAS.getContext('2d', { willReadFrequently: true });
+const MEDUSA_FREEZE_FILTER_CTX = MEDUSA_FREEZE_FILTER_CANVAS.getContext('2d');
 
 function applyMedusaFreezeFilter(now = performance.now()){
   const focus = state.medusaFocus;
-  if (!focus || !(state.frozenUntil && now < state.frozenUntil)) return;
+  if (!focus || !(state.frozenUntil && now < state.frozenUntil) || !MEDUSA_FREEZE_FILTER_CTX) return;
 
   const bx = Math.round(board.x);
   const by = Math.round(board.y);
   const bw = Math.round(board.t * W);
   const bh = Math.round(board.t * H);
-  if (bw <= 0 || bh <= 0 || !MEDUSA_FREEZE_FILTER_CTX) return;
+  if (bw <= 0 || bh <= 0) return;
 
-  const frame = ctx.getImageData(bx, by, bw, bh);
-  const originalData = new Uint8ClampedArray(frame.data);
-
-  for (let i = 0; i < frame.data.length; i += 4) {
-    const r = frame.data[i];
-    const g = frame.data[i + 1];
-    const b = frame.data[i + 2];
-    const gray = Math.round(r * 0.299 + g * 0.587 + b * 0.114);
-    frame.data[i] = gray;
-    frame.data[i + 1] = gray;
-    frame.data[i + 2] = gray;
-  }
-  ctx.putImageData(frame, bx, by);
+  const dpr = ctx.getTransform().a || 1;
+  const sx = Math.round(bx * dpr);
+  const sy = Math.round(by * dpr);
+  const sw = Math.round(bw * dpr);
+  const sh = Math.round(bh * dpr);
 
   MEDUSA_FREEZE_FILTER_CANVAS.width = bw;
   MEDUSA_FREEZE_FILTER_CANVAS.height = bh;
-  MEDUSA_FREEZE_FILTER_CTX.putImageData(new ImageData(originalData, bw, bh), 0, 0);
+  MEDUSA_FREEZE_FILTER_CTX.clearRect(0, 0, bw, bh);
+  MEDUSA_FREEZE_FILTER_CTX.drawImage(canvas, sx, sy, sw, sh, 0, 0, bw, bh);
+
+  ctx.save();
+  ctx.filter = 'grayscale(1)';
+  ctx.drawImage(MEDUSA_FREEZE_FILTER_CANVAS, bx, by, bw, bh);
+  ctx.restore();
 
   const tx = Math.round(focus.x * board.t);
   const ty = Math.round(focus.y * board.t);
