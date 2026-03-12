@@ -3453,8 +3453,9 @@ function drawSprite(name, x, y){
 }
 
 const WATER_PROC_SIZE = 16;
-const WATER_PROC_FRAME_COUNT = 12;
-const WATER_PROC_FRAME_MS = 90;
+const WATER_PROC_FRAME_COUNT = 8;
+const WATER_PROC_FRAME_MS = 180;
+const WATER_PROC_VARIANT_COUNT = 4;
 const WATER_PROC_BAYER_4X4 = [
   [0, 8, 2, 10],
   [12, 4, 14, 6],
@@ -3462,43 +3463,74 @@ const WATER_PROC_BAYER_4X4 = [
   [15, 7, 13, 5]
 ];
 const WATER_PROC_PALETTE = [
-  [54, 104, 236],
-  [86, 144, 255],
-  [126, 184, 255],
-  [222, 240, 255]
+  [9, 31, 88],
+  [18, 63, 145],
+  [40, 103, 183],
+  [76, 145, 214],
+  [129, 191, 234]
 ];
-const proceduralWaterFrames = [];
+const WATER_PROC_INNER_SHADOW = [6, 24, 70];
+const WATER_PROC_SHORE_DARK = [12, 44, 108];
+const WATER_PROC_SHORE_LIGHT = [64, 126, 198];
+const proceduralWaterBaseFrames = Array.from(
+  { length: WATER_PROC_VARIANT_COUNT },
+  () => Array(WATER_PROC_FRAME_COUNT).fill(null)
+);
+const proceduralWaterCompositeCache = new Map();
 
-function buildProceduralWaterFrame(frameIndex){
+function isWaterConnectedTile(tile){
+  return tile === '~' || tile === 'R';
+}
+
+function getWaterVariant(x, y){
+  return Math.abs((x * 17 + y * 31 + ((x ^ y) * 7)) % WATER_PROC_VARIANT_COUNT);
+}
+
+function getWaterShoreMaskAt(x, y, rows = state.base){
+  const isWetAt = (tx, ty) => Boolean(rows?.[ty]) && isWaterConnectedTile(rows[ty][tx]);
+  let mask = 0;
+  if (!isWetAt(x, y - 1)) mask |= 1;
+  if (!isWetAt(x + 1, y)) mask |= 2;
+  if (!isWetAt(x, y + 1)) mask |= 4;
+  if (!isWetAt(x - 1, y)) mask |= 8;
+  return mask;
+}
+
+function writeWaterPixel(data, x, y, color){
+  if (x < 0 || y < 0 || x >= WATER_PROC_SIZE || y >= WATER_PROC_SIZE) return;
+  const idx = (y * WATER_PROC_SIZE + x) * 4;
+  data[idx] = color[0];
+  data[idx + 1] = color[1];
+  data[idx + 2] = color[2];
+  data[idx + 3] = 255;
+}
+
+function buildProceduralWaterBaseFrame(frameIndex, variantIndex = 0){
   const frameCanvas = document.createElement('canvas');
   frameCanvas.width = WATER_PROC_SIZE;
   frameCanvas.height = WATER_PROC_SIZE;
   const frameCtx = frameCanvas.getContext('2d');
   if (!frameCtx) return frameCanvas;
+
   const img = frameCtx.createImageData(WATER_PROC_SIZE, WATER_PROC_SIZE);
   const data = img.data;
-  const phase = frameIndex / WATER_PROC_FRAME_COUNT;
+  const slowShift = frameIndex % 4;
+  const microShift = Math.floor(frameIndex / 2);
 
   for (let y = 0; y < WATER_PROC_SIZE; y++) {
     for (let x = 0; x < WATER_PROC_SIZE; x++) {
-      const nx = x / WATER_PROC_SIZE;
-      const ny = y / WATER_PROC_SIZE;
+      const diagonalA = (x + y + variantIndex * 3 + slowShift) % 8;
+      const diagonalB = (x - y + 32 + variantIndex * 2 + microShift) % 10;
+      const band = (y + variantIndex * 2 + (x >> 2)) % 6;
+      const dither = WATER_PROC_BAYER_4X4[y % 4][x % 4];
 
-      const waveA = Math.sin(((nx * 2.0) + (ny * 1.25) + phase * 0.9) * Math.PI * 2);
-      const waveB = Math.sin(((nx * 3.0) - (ny * 2.0) - phase * 0.65) * Math.PI * 2);
-      const waveC = Math.cos(((nx * 1.0) + (ny * 3.0) - phase * 1.2) * Math.PI * 2);
-      const shimmer = Math.cos(((nx * 4.0) + (ny * 4.0) - phase * 1.15) * Math.PI * 2);
-
-      let value = waveA * 0.48 + waveB * 0.30 + waveC * 0.22;
-      value = (value + 1) * 0.5;
-
-      const dither = (WATER_PROC_BAYER_4X4[y % 4][x % 4] / 16 - 0.5) * 0.11;
-      const lit = value + dither + (shimmer > 0.82 ? 0.05 : 0);
-
-      let shade = 0;
-      if (lit > 0.76 || (lit > 0.64 && shimmer > 0.78)) shade = 3;
-      else if (lit > 0.56) shade = 2;
-      else if (lit > 0.34) shade = 1;
+      let shade = 1;
+      if (band === 0 || diagonalA <= 1) shade = 2;
+      if ((band === 5 && diagonalA >= 5) || diagonalB === 0) shade = 0;
+      if ((diagonalA === 3 || diagonalA === 4) && ((x + variantIndex + microShift) % 5 === 0)) shade = 3;
+      if (shade === 3 && dither > 10) shade = 2;
+      if (shade === 2 && diagonalB === 5 && dither < 4) shade = 4;
+      if (shade === 4 && ((x + y + frameIndex + variantIndex) % 3 === 0)) shade = 3;
 
       const color = WATER_PROC_PALETTE[shade];
       const idx = (y * WATER_PROC_SIZE + x) * 4;
@@ -3513,28 +3545,98 @@ function buildProceduralWaterFrame(frameIndex){
   return frameCanvas;
 }
 
-function getProceduralWaterFrame(now){
-  const frame = Math.floor(now / WATER_PROC_FRAME_MS) % WATER_PROC_FRAME_COUNT;
-  if (!proceduralWaterFrames[frame]) {
-    proceduralWaterFrames[frame] = buildProceduralWaterFrame(frame);
+function buildProceduralWaterFrame(frameIndex, shoreMask = 0, variantIndex = 0){
+  const cacheKey = `${frameIndex}:${shoreMask}:${variantIndex}`;
+  if (proceduralWaterCompositeCache.has(cacheKey)) return proceduralWaterCompositeCache.get(cacheKey);
+
+  const frameCanvas = document.createElement('canvas');
+  frameCanvas.width = WATER_PROC_SIZE;
+  frameCanvas.height = WATER_PROC_SIZE;
+  const frameCtx = frameCanvas.getContext('2d');
+  if (!frameCtx) return frameCanvas;
+
+  const baseFrame = proceduralWaterBaseFrames[variantIndex][frameIndex]
+    || (proceduralWaterBaseFrames[variantIndex][frameIndex] = buildProceduralWaterBaseFrame(frameIndex, variantIndex));
+  frameCtx.drawImage(baseFrame, 0, 0);
+
+  if (shoreMask === 0) {
+    proceduralWaterCompositeCache.set(cacheKey, frameCanvas);
+    return frameCanvas;
   }
-  return proceduralWaterFrames[frame];
+
+  const img = frameCtx.getImageData(0, 0, WATER_PROC_SIZE, WATER_PROC_SIZE);
+  const data = img.data;
+  const animateShift = Math.floor(frameIndex / 2) + variantIndex;
+
+  const drawTopShore = () => {
+    for (let x = 0; x < WATER_PROC_SIZE; x++) {
+      writeWaterPixel(data, x, 0, WATER_PROC_SHORE_DARK);
+      if ((x + animateShift) % 3 !== 1) writeWaterPixel(data, x, 1, WATER_PROC_SHORE_LIGHT);
+      if ((x + animateShift + 1) % 5 === 0) writeWaterPixel(data, x, 2, WATER_PROC_PALETTE[3]);
+      if (x % 4 === 0) writeWaterPixel(data, x, 3, WATER_PROC_INNER_SHADOW);
+    }
+  };
+
+  const drawBottomShore = () => {
+    for (let x = 0; x < WATER_PROC_SIZE; x++) {
+      writeWaterPixel(data, x, WATER_PROC_SIZE - 1, WATER_PROC_SHORE_DARK);
+      if ((x + animateShift + 1) % 3 !== 0) writeWaterPixel(data, x, WATER_PROC_SIZE - 2, WATER_PROC_SHORE_LIGHT);
+      if ((x + animateShift) % 5 === 1) writeWaterPixel(data, x, WATER_PROC_SIZE - 3, WATER_PROC_PALETTE[3]);
+      if ((x + 2) % 4 === 0) writeWaterPixel(data, x, WATER_PROC_SIZE - 4, WATER_PROC_INNER_SHADOW);
+    }
+  };
+
+  const drawRightShore = () => {
+    for (let y = 0; y < WATER_PROC_SIZE; y++) {
+      writeWaterPixel(data, WATER_PROC_SIZE - 1, y, WATER_PROC_SHORE_DARK);
+      if ((y + animateShift) % 3 !== 1) writeWaterPixel(data, WATER_PROC_SIZE - 2, y, WATER_PROC_SHORE_LIGHT);
+      if ((y + animateShift + 2) % 5 === 0) writeWaterPixel(data, WATER_PROC_SIZE - 3, y, WATER_PROC_PALETTE[3]);
+      if (y % 4 === 1) writeWaterPixel(data, WATER_PROC_SIZE - 4, y, WATER_PROC_INNER_SHADOW);
+    }
+  };
+
+  const drawLeftShore = () => {
+    for (let y = 0; y < WATER_PROC_SIZE; y++) {
+      writeWaterPixel(data, 0, y, WATER_PROC_SHORE_DARK);
+      if ((y + animateShift + 1) % 3 !== 0) writeWaterPixel(data, 1, y, WATER_PROC_SHORE_LIGHT);
+      if ((y + animateShift) % 5 === 1) writeWaterPixel(data, 2, y, WATER_PROC_PALETTE[3]);
+      if (y % 4 === 0) writeWaterPixel(data, 3, y, WATER_PROC_INNER_SHADOW);
+    }
+  };
+
+  if (shoreMask & 1) drawTopShore();
+  if (shoreMask & 2) drawRightShore();
+  if (shoreMask & 4) drawBottomShore();
+  if (shoreMask & 8) drawLeftShore();
+
+  frameCtx.putImageData(img, 0, 0);
+  proceduralWaterCompositeCache.set(cacheKey, frameCanvas);
+  return frameCanvas;
+}
+
+function getProceduralWaterFrame(now, shoreMask = 0, variantIndex = 0){
+  const frame = Math.floor(now / WATER_PROC_FRAME_MS) % WATER_PROC_FRAME_COUNT;
+  return buildProceduralWaterFrame(frame, shoreMask, variantIndex);
 }
 
 function drawProceduralWaterTile(x, y, now){
   const px = board.x + x * board.t;
   const py = board.y + y * board.t;
-  const frameCanvas = getProceduralWaterFrame(now);
+  const shoreMask = getWaterShoreMaskAt(x, y);
+  const variant = getWaterVariant(x, y);
+  const frameCanvas = getProceduralWaterFrame(now, shoreMask, variant);
   ctx.drawImage(frameCanvas, px, py, board.t, board.t);
 }
 
-function getProceduralWaterPreviewDataUrl(now = 0){
-  return getProceduralWaterFrame(now).toDataURL();
+function getProceduralWaterPreviewDataUrl(now = 0, shoreMask = 15, variantIndex = 0){
+  return getProceduralWaterFrame(now, shoreMask, variantIndex).toDataURL();
 }
 
 function getWaterSpriteName(now, x, y){
-  const frame = Math.floor(now / 220) % 4;
-  return frame === 0 ? 'water' : `water_${frame}`;
+  const frame = Math.floor(now / WATER_PROC_FRAME_MS) % WATER_PROC_FRAME_COUNT;
+  const shoreMask = getWaterShoreMaskAt(x, y);
+  const variant = getWaterVariant(x, y);
+  return `water_${frame}_${shoreMask}_${variant}`;
 }
 
 function dragonDirectionCode(dragon){
@@ -4001,7 +4103,7 @@ function buildPaletteSpritePreview(tile){
   }
 
   if (tile === '~') {
-    previewCtx.drawImage(getProceduralWaterFrame(0), 0, 0, previewSize, previewSize);
+    previewCtx.drawImage(getProceduralWaterFrame(0, 15, 0), 0, 0, previewSize, previewSize);
   } else if (tile !== '.') {
     const sprite = sprites[spriteNameForTile(tile)];
     if (sprite?.complete) {
@@ -4030,11 +4132,13 @@ function getSpriteBackgroundLayer(sprite){
 function applyEditorCellVisual(cell, tile, x, y){
   const meta = TILE_META[tile] ?? TILE_META['.'];
   const floorSprite = sprites.floor;
-  const sprite = tile === '~' ? getProceduralWaterFrame(0) : (sprites[spriteNameForTile(tile)] ?? floorSprite);
+  const waterMask = tile === '~' ? getWaterShoreMaskAt(x, y, editorRows) : 0;
+  const waterVariant = tile === '~' ? getWaterVariant(x, y) : 0;
+  const sprite = tile === '~' ? getProceduralWaterFrame(0, waterMask, waterVariant) : (sprites[spriteNameForTile(tile)] ?? floorSprite);
   cell.textContent = '';
   cell.title = `${meta.label} (${tile}) - [${x},${y}]`;
   const floorLayer = getSpriteBackgroundLayer(floorSprite);
-  const spriteLayer = tile === '~' ? `url("${getProceduralWaterPreviewDataUrl(0)}")` : getSpriteBackgroundLayer(sprite);
+  const spriteLayer = tile === '~' ? `url("${getProceduralWaterPreviewDataUrl(0, waterMask, waterVariant)}")` : getSpriteBackgroundLayer(sprite);
   if (tile === 'V') {
     cell.style.backgroundColor = '#000';
     cell.style.backgroundImage = 'none';
