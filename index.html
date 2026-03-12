@@ -447,7 +447,6 @@
         <div class="tutorial-popup" role="dialog" aria-live="polite" aria-label="Tutorial">
           <div class="tutorial-title">Tutorial</div>
           <div id="tutorialMessage" class="tutorial-message"></div>
-          <div class="tutorial-hint">Pulsa cualquier tecla o toca la pantalla para continuar</div>
         </div>
       </div>
 
@@ -1907,6 +1906,45 @@ function isTutorialBlockingInput(){
 }
 
 function createTutorialIcon(name, alt){
+  if (name === 'crosshair') {
+    const icon = document.createElement('canvas');
+    const size = 20;
+    icon.width = size;
+    icon.height = size;
+    icon.className = 'tutorial-icon';
+    icon.setAttribute('role', 'img');
+    icon.setAttribute('aria-label', alt);
+
+    const iconCtx = icon.getContext('2d');
+    if (!iconCtx) return icon;
+
+    const center = size / 2;
+    const pulse = 0.7;
+    const ringRadius = size * (0.28 + pulse * 0.07);
+    const ringWidth = Math.max(1.5, size * 0.08);
+
+    iconCtx.strokeStyle = `rgba(255, 98, 98, ${0.58 + pulse * 0.32})`;
+    iconCtx.lineWidth = ringWidth;
+    iconCtx.beginPath();
+    iconCtx.arc(center, center, ringRadius, 0, Math.PI * 2);
+    iconCtx.stroke();
+
+    const armInner = ringRadius + ringWidth * 0.4;
+    const armOuter = size * 0.47;
+    iconCtx.beginPath();
+    iconCtx.moveTo(center - armOuter, center);
+    iconCtx.lineTo(center - armInner, center);
+    iconCtx.moveTo(center + armInner, center);
+    iconCtx.lineTo(center + armOuter, center);
+    iconCtx.moveTo(center, center - armOuter);
+    iconCtx.lineTo(center, center - armInner);
+    iconCtx.moveTo(center, center + armInner);
+    iconCtx.lineTo(center, center + armOuter);
+    iconCtx.stroke();
+
+    return icon;
+  }
+
   const src = sprites[name]?.src;
   if (src) {
     const icon = document.createElement('img');
@@ -1980,7 +2018,7 @@ function maybeShowTutorialStep(step){
     return;
   }
   if (step === 'exit_room') {
-    showTutorialPopup(['Sal de la habitación y pasa al siguiente nivel.']);
+    showTutorialPopup(['Sal por (puerta) y pasa al siguiente nivel']);
   }
 }
 
