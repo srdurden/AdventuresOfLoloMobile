@@ -125,6 +125,11 @@
       justify-items: center;
       align-items: center;
     }
+    #controlsRow {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
 
     /* En escritorio mantenemos los controles visibles, reservando más alto para que queden debajo del tablero. */
     @media (hover: hover) and (pointer: fine) {
@@ -160,7 +165,7 @@
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       grid-template-rows: repeat(3, minmax(0, 1fr));
-      gap: 7px;
+      gap: 4px;
       width: min(232px, 100%);
     }
     .dir-btn {
@@ -216,6 +221,27 @@
       grid-column: 2;
       grid-row: 3;
       transform: rotate(90deg);
+    }
+    #shootBtn {
+      width: clamp(54px, 13vw, 66px);
+      aspect-ratio: 1 / 1;
+      min-height: 0;
+      border-radius: 999px;
+      border: 3px solid #666;
+      background: #000;
+      color: #666;
+      font-size: clamp(20px, 5vw, 24px);
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: none;
+      text-transform: none;
+      line-height: 1;
+    }
+    #shootBtn:active {
+      transform: scale(0.96);
+      background: #050505;
     }
     button {
       border: 2px solid #fff;
@@ -452,11 +478,14 @@
 
     </div>
     <div id="bottomPanel">
-      <div id="directionalControls" aria-label="Directional controls">
-        <button id="moveUpBtn" class="dir-btn" data-dx="0" data-dy="-1" aria-label="Move up">➜</button>
-        <button id="moveLeftBtn" class="dir-btn" data-dx="-1" data-dy="0" aria-label="Move left">➜</button>
-        <button id="moveRightBtn" class="dir-btn" data-dx="1" data-dy="0" aria-label="Move right">➜</button>
-        <button id="moveDownBtn" class="dir-btn" data-dx="0" data-dy="1" aria-label="Move down">➜</button>
+      <div id="controlsRow">
+        <div id="directionalControls" aria-label="Directional controls">
+          <button id="moveUpBtn" class="dir-btn" data-dx="0" data-dy="-1" aria-label="Move up">➜</button>
+          <button id="moveLeftBtn" class="dir-btn" data-dx="-1" data-dy="0" aria-label="Move left">➜</button>
+          <button id="moveRightBtn" class="dir-btn" data-dx="1" data-dy="0" aria-label="Move right">➜</button>
+          <button id="moveDownBtn" class="dir-btn" data-dx="0" data-dy="1" aria-label="Move down">➜</button>
+        </div>
+        <button id="shootBtn" aria-label="Shoot">✦</button>
       </div>
     </div>
     <div id="editorView" aria-hidden="true">
@@ -670,6 +699,7 @@ const moveUpBtn = document.getElementById('moveUpBtn');
 const moveDownBtn = document.getElementById('moveDownBtn');
 const moveLeftBtn = document.getElementById('moveLeftBtn');
 const moveRightBtn = document.getElementById('moveRightBtn');
+const shootBtn = document.getElementById('shootBtn');
 const directionalControls = document.getElementById('directionalControls');
 const tutorialOverlay = document.getElementById('tutorialOverlay');
 const tutorialMessage = document.getElementById('tutorialMessage');
@@ -2456,6 +2486,12 @@ function tryKeyboardShot(){
   return shoot();
 }
 
+function triggerShootAction(){
+  if (isEditorOpen || state.won || state.deadUntil || isPlayerFrozen()) return;
+  pushUndo();
+  if (!tryKeyboardShot()) state.undo.pop();
+}
+
 function getAdjacentShootableTargets(){
   if (state.shots <= 0 || isPlayerFrozen() || !state.player || !hasPlayersAlive()) return [];
   const targets = [];
@@ -2774,9 +2810,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === ' ' || e.code === 'Space') {
     e.preventDefault();
-    if (isEditorOpen || state.won || state.deadUntil || isPlayerFrozen()) return;
-    pushUndo();
-    if (!tryKeyboardShot()) state.undo.pop();
+    triggerShootAction();
     return;
   }
 
@@ -4527,6 +4561,16 @@ document.getElementById('editBtn').onclick = () => openEditor();
 
 [moveUpBtn, moveDownBtn, moveLeftBtn, moveRightBtn].forEach((button) => {
   if (button) button.style.touchAction = 'none';
+});
+if (shootBtn) shootBtn.style.touchAction = 'none';
+shootBtn?.addEventListener('click', (e) => {
+  if (isTutorialBlockingInput()) {
+    e.preventDefault();
+    dismissTutorialIfVisible();
+    return;
+  }
+  e.preventDefault();
+  triggerShootAction();
 });
 
 directionalControls?.addEventListener('pointerdown', (e) => {
