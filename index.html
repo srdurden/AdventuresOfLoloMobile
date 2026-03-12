@@ -2002,23 +2002,23 @@ function maybeShowTutorialStep(step){
   tutorialState.shownSteps.add(step);
   tutorialState.activeStep = step;
   if (step === 'collect_hearts') {
-    showTutorialPopup(['Recoge todos los ', { type:'icon', sprite:'heart', alt:'corazón' }, '.']);
+    showTutorialPopup(['Recoge todos los ', { type:'icon', sprite:'heart', alt:'corazón' }]);
     return;
   }
   if (step === 'shoot_enemy') {
-    showTutorialPopup(['Haz clic en ', { type:'icon', sprite:'crosshair', alt:'mirilla' }, ' y convierte al enemigo en un ', { type:'icon', sprite:'egg', alt:'huevo' }, '.']);
+    showTutorialPopup(['Haz clic en ', { type:'icon', sprite:'crosshair', alt:'mirilla' }, ' y convierte al enemigo en un ', { type:'icon', sprite:'egg', alt:'huevo' }]);
     return;
   }
   if (step === 'push_egg') {
-    showTutorialPopup(['Puedes empujar un ', { type:'icon', sprite:'egg', alt:'huevo' }, '.']);
+    showTutorialPopup(['Puedes empujar un ', { type:'icon', sprite:'egg', alt:'huevo' }]);
     return;
   }
   if (step === 'collect_key') {
-    showTutorialPopup(['Recoge la llave del ', { type:'icon', sprite:'chest_open', alt:'cofre' }, '.']);
+    showTutorialPopup(['Recoge la llave del ', { type:'icon', sprite:'chest_open', alt:'cofre' }]);
     return;
   }
   if (step === 'exit_room') {
-    showTutorialPopup(['Sal por (puerta) y pasa al siguiente nivel']);
+    showTutorialPopup(['Sal por ', { type:'icon', sprite:'door', alt:'puerta' }, ' y pasa al siguiente nivel']);
   }
 }
 
