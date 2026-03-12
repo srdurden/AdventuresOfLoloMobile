@@ -2641,10 +2641,6 @@ function performDirectionalMove(dx, dy){
   if (queuedMoves.length) queuedMoves = [];
   state.player.facing = [dx, dy];
   const undoSnapshot = snapshot();
-  if (interactAdjacent(dx, dy)) {
-    pushUndoSnapshot(undoSnapshot);
-    return true;
-  }
   enqueueMove(dx, dy, undoSnapshot);
   return true;
 }
