@@ -584,21 +584,48 @@ const LEVELS_RAW = [
 #...S.P.SSSS#
 #############`,
 
-`##########D##
-#STSTSTSCS.T#
-#TSTSTST....#
-#.H........K#
-#.S.B......S#
-#.T.........#
-#.ST....SMS.#
-#HTSTSTSTSTH#
-#.......K...#
-#TSTST.TSTST#
-#STSTS.STSTS#
-#TSTSTPTSTST#
+`###D#########
+#C..TTT....O#
+#.T........O#
+#.T........O#
+#......A...O#
+#.TTT.T....O#
+#.STTSMSH..O#
+#HTT.......T#
+#T..>B....TT#
+#P.......TTT#
+#TS.....TTTT#
+#TTS.S.TTTTT#
+#############`,
+
+`#############
+#...........#
+#...........#
+#...........#
+#...........#
+#...........#
+#...........#
+#...........#
+#...........#
+#...........#
+#...........#
+#...........#
 #############`
 
 ];
+const EMPTY_LEVEL_RAW = `#############
+#...........#
+#...........#
+#...........#
+#...........#
+#...........#
+#...........#
+#...........#
+#...........#
+#...........#
+#...........#
+#...........#
+#############`;
 const LEVEL_SIZE = 13;
 const ALLOWED = new Set(['#','=','V','.','P','H','C','B','~','R','A','M','I','J','K','G','L','T','S','D','N','U','E','O','>','<','^','v']);
 function parseLevelRows(raw) {
@@ -4551,7 +4578,7 @@ editorCopyBtn?.addEventListener('click', async () => {
 });
 
 document.getElementById('editorClearBtn').onclick = () => {
-  editorRows = editorRows.map(row => row.map(() => '.'));
+  editorRows = parseLevelRows(EMPTY_LEVEL_RAW).map(row => row.split(''));
   renderEditorGrid();
   setEditorStatus('Level cleared. Place at least 1 player (P) before saving.');
 };
