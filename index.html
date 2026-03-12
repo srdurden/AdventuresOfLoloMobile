@@ -484,7 +484,7 @@
 
 <script>
 // Mapa actualizado: Retirada la Medusa y añadida la Squirrel (A) en el centro.
-const LEVELS_RAW = [
+const LEVELS_RAW_ORIGINAL = [
 
 `######D######
 #TTTTTA....T#
@@ -613,6 +613,7 @@ const LEVELS_RAW = [
 #############`
 
 ];
+const LEVELS_RAW = [0, 1, 7, 2, 3, 4, 6, 5, 8].map(idx => LEVELS_RAW_ORIGINAL[idx]);
 const EMPTY_LEVEL_RAW = `#############
 #...........#
 #...........#
@@ -4387,13 +4388,18 @@ function startLevel(){
   state.initialSnapshot = snapshot();
 }
 
+function resetTutorialFlagsForReplay(){
+  tutorialState.running = false;
+  tutorialState.activeStep = null;
+  tutorialState.convertedEnemyToEgg = false;
+  tutorialState.allHeartsCollected = false;
+  tutorialState.keyFromChestCollected = false;
+  tutorialState.shootEnemyPromptDueAt = 0;
+}
+
 function resetLevel({ fromDeath = false } = {}){
-  if (!fromDeath && isTutorialEnabledForCurrentLevel()) {
-    tutorialState.played = true;
-    tutorialState.running = false;
-    tutorialState.activeStep = null;
-    tutorialState.shownSteps.clear();
-    tutorialState.shootEnemyPromptDueAt = 0;
+  if (isTutorialEnabledForCurrentLevel() && !tutorialState.played) {
+    resetTutorialFlagsForReplay();
     hideTutorialPopup();
   }
   restore(state.initialSnapshot);
@@ -4405,6 +4411,9 @@ function resetLevel({ fromDeath = false } = {}){
   dragPath = [];
   activePointerId = null;
   state.explosions = [];
+  if (isTutorialEnabledForCurrentLevel() && !tutorialState.played) {
+    evaluateTutorialProgress();
+  }
   if (fromDeath) state.resetFlashUntil = performance.now() + DEATH_RESET_FLASH_MS;
   setHudMessage('');
 }
