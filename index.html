@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
@@ -429,9 +429,9 @@
       <canvas id="gameCanvas"></canvas>
       <div id="hud">
         <div id="hudPrimary">
-          <button class="pill interactive" id="editBtn" aria-label="Editar pantalla">✎</button>
-          <div class="pill interactive" id="hudLevel">Nivel 1 ▾</div>
-          <button class="pill interactive" id="resetBtn" aria-label="Reiniciar nivel">
+          <button class="pill interactive" id="editBtn" aria-label="Edit level">✎</button>
+          <div class="pill interactive" id="hudLevel">Level 1 ▾</div>
+          <button class="pill interactive" id="resetBtn" aria-label="Restart level">
             <svg viewBox="0 0 24 24" role="img" aria-hidden="true" focusable="false">
               <path d="M20 8a9 9 0 0 0-15-2.3" />
               <polyline points="8 1.5 4.5 5.7 9.3 6" />
@@ -452,17 +452,17 @@
 
     </div>
     <div id="bottomPanel">
-      <div id="directionalControls" aria-label="Controles direccionales">
-        <button id="moveUpBtn" class="dir-btn" data-dx="0" data-dy="-1" aria-label="Mover arriba">➜</button>
-        <button id="moveLeftBtn" class="dir-btn" data-dx="-1" data-dy="0" aria-label="Mover izquierda">➜</button>
-        <button id="moveRightBtn" class="dir-btn" data-dx="1" data-dy="0" aria-label="Mover derecha">➜</button>
-        <button id="moveDownBtn" class="dir-btn" data-dx="0" data-dy="1" aria-label="Mover abajo">➜</button>
+      <div id="directionalControls" aria-label="Directional controls">
+        <button id="moveUpBtn" class="dir-btn" data-dx="0" data-dy="-1" aria-label="Move up">➜</button>
+        <button id="moveLeftBtn" class="dir-btn" data-dx="-1" data-dy="0" aria-label="Move left">➜</button>
+        <button id="moveRightBtn" class="dir-btn" data-dx="1" data-dy="0" aria-label="Move right">➜</button>
+        <button id="moveDownBtn" class="dir-btn" data-dx="0" data-dy="1" aria-label="Move down">➜</button>
       </div>
     </div>
     <div id="editorView" aria-hidden="true">
       <div class="editor-actions editor-primary-actions">
-        <button id="editorBackBtn">Volver al juego</button>
-        <button id="editorSaveBtn" class="editor-save">Guardar pantalla</button>
+        <button id="editorBackBtn">Back to game</button>
+        <button id="editorSaveBtn" class="editor-save">Save level</button>
       </div>
       <div class="editor-layout">
         <section class="editor-board-section">
@@ -470,12 +470,12 @@
         </section>
         <div id="paletteGrid" class="palette-grid"></div>
         <div class="editor-actions">
-          <button id="editorImportBtn">Cargar pantalla</button>
-          <button id="editorClearBtn">Borrar todo</button>
+          <button id="editorImportBtn">Load level</button>
+          <button id="editorClearBtn">Clear all</button>
         </div>
         <section class="editor-card">
-          <button id="editorCopyBtn" type="button">Copiar</button>
-          <small id="editorLevelLabel" class="editor-level-label">Nivel 1</small>
+          <button id="editorCopyBtn" type="button">Copy</button>
+          <small id="editorLevelLabel" class="editor-level-label">Level 1</small>
           <textarea id="editorText" spellcheck="false"></textarea>
         </section>
       </div>
@@ -483,7 +483,7 @@
   </div>
 
 <script>
-// Mapa actualizado: Retirada la Medusa y añadida la Ardilla (A) en el centro.
+// Mapa actualizado: Retirada la Medusa y añadida la Squirrel (A) en el centro.
 const LEVELS_RAW = [
 
 `######D######
@@ -605,13 +605,13 @@ function parseLevelRows(raw) {
   const rows = raw.trim().split('\n').map(r => r.trim());
   const h = rows.length;
   const w = rows[0]?.length ?? 0;
-  if (!h || !w) throw new Error('Nivel inválido: vacío.');
+  if (!h || !w) throw new Error('Invalid level: empty.');
   if (h !== LEVEL_SIZE || w !== LEVEL_SIZE) {
-    throw new Error(`Nivel inválido: debe ser de ${LEVEL_SIZE}x${LEVEL_SIZE}.`);
+    throw new Error(`Invalid level: must be ${LEVEL_SIZE}x${LEVEL_SIZE}.`);
   }
   for (const row of rows) {
-    if (row.length !== w) throw new Error('Nivel inválido: ancho inconsistente.');
-    for (const ch of row) if (!ALLOWED.has(ch)) throw new Error('Tile inválido: ' + ch);
+    if (row.length !== w) throw new Error('Invalid level: inconsistent width.');
+    for (const ch of row) if (!ALLOWED.has(ch)) throw new Error('Invalid tile: ' + ch);
   }
   return rows;
 }
@@ -707,37 +707,38 @@ const tutorialState = {
   convertedEnemyToEgg: false,
   allHeartsCollected: false,
   keyFromChestCollected: false,
+  shootEnemyPromptDueAt: 0,
 };
 
 const TILE_META = {
-  '#': { label: 'Muro lateral/inferior', color: '#8b4d1a', text: '#111' },
-  '=': { label: 'Muro superior', color: '#c97a31', text: '#111' },
-  'V': { label: 'VACIO', color: '#000', text: '#fff' },
-  '.': { label: 'Suelo', color: '#2b2b2b', text: '#fff' },
-  'P': { label: 'Jugador', color: '#206bff', text: '#fff' },
-  'H': { label: 'Corazón', color: '#ce1a1a', text: '#fff' },
-  'C': { label: 'Cofre', color: '#b0801a', text: '#111' },
-  'D': { label: 'Puerta', color: '#735124', text: '#fff' },
-  'B': { label: 'Bloque', color: '#c89f6f', text: '#111' },
-  '~': { label: 'Agua', color: '#0f4dd8', text: '#fff' },
-  'R': { label: 'Puente', color: '#9b632f', text: '#fff' },
-  'A': { label: 'Ardilla', color: '#2d962d', text: '#fff' },
+  '#': { label: 'Side/Bottom wall', color: '#8b4d1a', text: '#111' },
+  '=': { label: 'Top wall', color: '#c97a31', text: '#111' },
+  'V': { label: 'EMPTY', color: '#000', text: '#fff' },
+  '.': { label: 'Floor', color: '#2b2b2b', text: '#fff' },
+  'P': { label: 'Player', color: '#206bff', text: '#fff' },
+  'H': { label: 'Heart', color: '#ce1a1a', text: '#fff' },
+  'C': { label: 'Chest', color: '#b0801a', text: '#111' },
+  'D': { label: 'Door', color: '#735124', text: '#fff' },
+  'B': { label: 'Block', color: '#c89f6f', text: '#111' },
+  '~': { label: 'Water', color: '#0f4dd8', text: '#fff' },
+  'R': { label: 'Bridge', color: '#9b632f', text: '#fff' },
+  'A': { label: 'Squirrel', color: '#2d962d', text: '#fff' },
   'M': { label: 'Medusa', color: '#8742c8', text: '#fff' },
-  'I': { label: 'Don Medusa horizontal', color: '#ec4ca2', text: '#111' },
-  'J': { label: 'Don Medusa vertical', color: '#ec4ca2', text: '#111' },
+  'I': { label: 'Horizontal Don Medusa', color: '#ec4ca2', text: '#111' },
+  'J': { label: 'Vertical Don Medusa', color: '#ec4ca2', text: '#111' },
   'K': { label: 'Rocky', color: '#8f8f8f', text: '#111' },
-  'G': { label: 'Calavera', color: '#e6e6e6', text: '#111' },
+  'G': { label: 'Skull', color: '#e6e6e6', text: '#111' },
   'L': { label: 'Leeper', color: '#1ccf3a', text: '#111' },
-  'N': { label: 'Dragón Norte', color: '#d800d8', text: '#fff' },
-  'U': { label: 'Dragón Sur', color: '#d800d8', text: '#fff' },
-  'E': { label: 'Dragón Este', color: '#d800d8', text: '#fff' },
-  'O': { label: 'Dragón Oeste', color: '#d800d8', text: '#fff' },
-  'T': { label: 'Árbol', color: '#0c6515', text: '#fff' },
-  'S': { label: 'Piedra', color: '#8a8a8a', text: '#111' },
-  '>': { label: 'Flecha derecha', color: '#2b2b2b', text: '#ffd447' },
-  '<': { label: 'Flecha izquierda', color: '#2b2b2b', text: '#ffd447' },
-  '^': { label: 'Flecha arriba', color: '#2b2b2b', text: '#ffd447' },
-  'v': { label: 'Flecha abajo', color: '#2b2b2b', text: '#ffd447' },
+  'N': { label: 'North Dragon', color: '#d800d8', text: '#fff' },
+  'U': { label: 'South Dragon', color: '#d800d8', text: '#fff' },
+  'E': { label: 'East Dragon', color: '#d800d8', text: '#fff' },
+  'O': { label: 'West Dragon', color: '#d800d8', text: '#fff' },
+  'T': { label: 'Tree', color: '#0c6515', text: '#fff' },
+  'S': { label: 'Stone', color: '#8a8a8a', text: '#111' },
+  '>': { label: 'Right arrow', color: '#2b2b2b', text: '#ffd447' },
+  '<': { label: 'Left arrow', color: '#2b2b2b', text: '#ffd447' },
+  '^': { label: 'Up arrow', color: '#2b2b2b', text: '#ffd447' },
+  'v': { label: 'Down arrow', color: '#2b2b2b', text: '#ffd447' },
 };
 const PALETTE_ORDER = ['.','#','=','V','T','S','~','R','>','<','^','v','B','H','C','D','A','M','I','J','K','G','L','N','U','E','O','P'];
 let editorTile = null;
@@ -1497,26 +1498,26 @@ function makeTransparentFromPalette(source, targetCanvas, palette, tolerance = 2
   return targetCanvas;
 }
 
-function applyArdillaPreviewSprite() {
+function applySquirrelPreviewSprite() {
   if (!ARDILLA_PREVIEW.complete || !ARDILLA_PREVIEW.naturalWidth) return;
   sprites.ardilla = makeColorKeyTransparent(ARDILLA_PREVIEW, ARDILLA_PREVIEW_CANVAS) || ARDILLA_PREVIEW;
   refreshEditorVisualsIfVisible();
 }
 
-function rebuildArdillaSheetTransparency() {
+function rebuildSquirrelSheetTransparency() {
   if (!ARDILLA_SHEET.naturalWidth || !ARDILLA_SHEET.naturalHeight) return;
   makeColorKeyTransparent(ARDILLA_SHEET, ARDILLA_SHEET_CANVAS);
   ARDILLA_SHEET_READY = true;
   refreshEditorVisualsIfVisible();
 }
 
-ARDILLA_PREVIEW.addEventListener('load', applyArdillaPreviewSprite);
+ARDILLA_PREVIEW.addEventListener('load', applySquirrelPreviewSprite);
 ARDILLA_PREVIEW.src = ARDILLA_PREVIEW_SRC;
-if (ARDILLA_PREVIEW.complete) applyArdillaPreviewSprite();
+if (ARDILLA_PREVIEW.complete) applySquirrelPreviewSprite();
 
-ARDILLA_SHEET.addEventListener('load', rebuildArdillaSheetTransparency);
+ARDILLA_SHEET.addEventListener('load', rebuildSquirrelSheetTransparency);
 ARDILLA_SHEET.src = ARDILLA_SHEET_SRC;
-if (ARDILLA_SHEET.complete) rebuildArdillaSheetTransparency();
+if (ARDILLA_SHEET.complete) rebuildSquirrelSheetTransparency();
 
 
 const LEEPER_SHEET_SRC = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQ4AAAFPCAMAAACLa9BeAAAAFVBMVEVUbowAAAF0mtRmZmb///44hwD/bsxLV8hkAAAAhGVYSWZNTQAqAAAACAAFARIAAwAAAAEAAQAAARoABQAAAAEAAABKARsABQAAAAEAAABSASgAAwAAAAEAAgAAh2kABAAAAAEAAABaAAAAAAAAAEgAAAABAAAASAAAAAEAA6ABAAMAAAABAAEAAKACAAQAAAABAAABDqADAAQAAAABAAABTwAAAAAPV0BEAAAACXBIWXMAAAsTAAALEwEAmpwYAAAt2UlEQVR4Ae1di2LbuK5serr5/0++8wBAkKIt91j2JueG21okOAQxQ5CSY3fz69dPmRT4/fvjz58/H3zB68fvtfyiAb3s8euCEKCBAjtQBZApujtqBiQK1wQdAYjUATPq378nRk81OCtdh38F018UCuOCVO+VQ5S1Phs5hhhEPKXANJjUKYX1PqaH5fj4559/PvzStWK9YnX3EVQAosOJUGyzTAAaAqQ5bwC0gApbgInSMw3NDi2y0HsvjDX7dO2drCeZm6AEaOAONQGIWkHngGcUmMbGWmAlWBCIoh4vCEWL5f49wBQCcfDSycB/h3maDrCrBXQOmCg90/jdpmakRzlOAaIwWK5eOpmtrw7Y+joHPKPANPbjD8LHTiw6S378AoPojssK0BKvqKZqI0M1ujOjGgC+nD8TagdQvEb9+ZgYPdXAcaQQmx7mF4QgByZNkFDuSVUUq9VoqA/Qkp9+uDATZ2fCBNsYQMlm1McGkGoo+CvlYHroLqsZ8KIQsUYOj3KwGyH6koDcV0MO9BeKaxx6JBkYJMcEo2QG5ICQwyjO+Y/lqIgEYLBQVh4/rpdDhEMQ0tCcrPz6wJyKTRcQNs+M3mSYQuwnZYCpsGHFlh7xZ4FJsUkOYAbKU0sO2SsyguwLlzfIUXrckcPLH9mx8CT1SI9ie1eOxN+Qo9RwYD9ypLwS5tVy6LDUJLmosR6bs0Orzu6R6mgxPcbZcSs7FtjkofwOZ/KJzRLBYOtN2YHuqzdL3g5Ci2SZEWzuLBX2RGa+ZdyRQ8oHevJQfilHQ92SQyhJ99S9dRrMFaVfHXSSRCHWYQo53F0XJ0WtV5wd1S1fwNDXzPYfSez+8FmAcher31GzHJUeFdilzx0KhKFLi+SQWfnxize46lJFHGRjrU7KCcUsPsghY4fJkzwMuPsbCjeO0ZtxybuiwSwX3mj5fomBO37VMGXNGisT7BwWSTjcSQ49VtATnRggupU+YW2+FjmUTa07fVkO5xqm9twZMyK/9A0+/KGE0ohAYhRhkBG/ARLAeFYrOxRfeMoLfTU5kiqdccKdHKk0MZqZzz6KriJzk+NVALisJG9NWBGCRYQQcmQ3QyDHEWCTo0CRHKY75EC7mAi7l+OAWeQ4OrlMjSNbkkWJmLBZqm62prDKkfjEjP6WHascsdxjiu47tKUp5IhkWuKh9Vo54hhvC1ZTphyA8O6DopBTLMaKvyiwCCNU7j1hBcgBvBZO3faQ/eEqUZ7uthwM6hVyBFfSZZDJx2+f4k1t6sF3qwASC2jJESytx+jv2aF71MBt5CjfqZmmiOmW2Kzri+TIKSlIqzuT8a6MJVUw2UWOwCQo5ZrkkNG+gDvKAZchpEHGZHaga4pNmKvl4K0WxVvBwYxXbRb8hH+PmbPDmO5IfPtmoePwBdxOjpg6J7SHsTwjsnLEDL2scGd4JfpMWcctHYBEjB3l/sGWZ0csOi452nwXORqsyTEfxXW+6OMdxLDVw57o5DI1tBciwmIxKiFH6TF6WOtydD0SZbqSYxAqOTI5DruJwwOVHnZyNMilcgTZ3ZSrHDNmkeNweCQZJVhplDTuyVGuOPRGdhjjGC7TQ6Fqp7Ykr9DzxrE5PPIk9OJrt6yHx1aOw9Hh7ED6NK2no4OA1hfB+edNsZuulSMWo52CCo50gm0tF4NhJ/7rbIFMiG4tBghCDxRKgzA4d4uH1xQBEO/EBEQePG0u1J+AOIjL1DBb/ngTATPQIosK5wo5SJacGkDdAyA9CEEmhVxsCMBK0vXCwxuEcNEUA8CDg60BAYDD7RWvOlmMsJdL5eDc1sL7ZWITchSC0QAQBXxSL2WAVj7iTgjuC1HEx6ckLV2OBgFKbgYkPWi80kcAC0s3l8pR4WZMdW1sy9Yq4lNybN2EhzaoqhrNF3soe6sEhIBmnavycJ0eP566ArEAvAzVm3EsfjP26gFwNPT5vnhdzCzE559P7klc3FbXgVyXgnUBPpu1j5D9iyswhYec+P3x+fkBEVqBIrCxr5O7nz4pSY7I9oUH3RT5SxrQAiybElWlOeWgZmj29KFWmR1invQnOWh8SdwvcnpDC4uCTpJjphzTR/njzQLSKUbeKKhUmF8U+UvcMjnEXcfGXGN68J5PPXaldhN5f4K9NFF2qPUN5eBmIVU/2Mw1bRbqVQiLksqxQ+kDLVKMyg6Jw45vtVm4rihkiCdTVf2EKjPJQQvKsdGLPTprmRqRG10OWb+ZHLX0WGtlAa/gTjl8Z5HValivoQxOU+wNJQfl2GwWmF6yyV/kdOyVnRzYC5CEylCCY/rgYLEchCxy2PLN5BCPW2zR+etULx+jPoF4P/FRiqHIKiXOixbyJW69QbZHAxkhOyyYkuOwm4D4xeRRAvHa5Qj7t9os4yYKwsXcFZD1UcrmulkMIQC13/lQG3K4849k+l5ySI9IAbMIorj4pGQn/y56ycy9kblBw5CDLRo+v5UcyH/xyk1jEr7JoCseK1Bxx3iVpdjjXiQ/ZUALZ6/1eckuf41T8DNT3lhGEW128GDEdfSMmrKHJydgvi+3s0NOaf1mN9pID/GfX5gcvNGK2VAhawQTQDkEQRvaUR8ppH7JQQNM9WJENWMI21mEyAavB0PvvAjAfPPSM/S8u+SJShlwUpIpa4diEVKOOIYjcrlDymBg6oMe1JtgbgxDJ3hgD4OQHTTq6DqMGL2unQMkB56kvLg4KauQDpOD01CHG3Kgh3EAHGowZM5rOWQtOXiqogOvPn1JULbBpRhX7GnhLElwW6kRiVqv5wDLwZ8KktBUKId+ngEvFOOoh40Le8ageRd9RFxSlByUIiwegqEgaq6OvZo5iymucjADywWqPY89gq+XyRH502dRvlgwTsNk0B6redPgSJUEMCkPFVnURZjpoqJWLgJoDXmEgAPLRacovNDS5ZiDdEvgnMON3SuTw4Fg8afcQAPxakwA1v2CbmePA+WPyRBWBaY6THgQq5WlAvqLIaNeQ8CMVgea+mCEWGsWvuGmAPaqi9TQJ1gasRODNjoNl6x2GNsuTQ4+JMwl9kp4gRrTfmHgQ45xdAz2EoRbhoGQqQu9wMBLmtDrUIUi1vnjUWyhCCF3FEg2Vzh3ATrPXi8AKt3uOntR/k4OPlMxJVBY4Y/b7YXpyjxgkVu+qCUr5inqflT7/MXe8dPGDz3caN1h5pXs8cqJuhwwYgP9CRMuUKLnk6PbvSKizI5jN+NFKTnIcM4N5DmMAvHFAOkgnvyBSAPABjUoSI3opnwXSA0pA+UgUwmMa/xELTOo+2Cv2JMMvSMpcx50wQODZAcBR6ZpCcANDMwoQw5QW/SgpckRgPQO7TqAQTs/5JYvZUGoeVTU+UIDASRGYcxFJr4wNLtwzjEOrS27rKQqHgsL+gnI6HbX8HADQwcpB0czdacCA+2ehjH6J4YD41QxAAlMNWLZgooseZRGrwXwZrEaRDlUj4cPLjZ88IigR9jNFnzzB1DUkPmFXsRVy8aI9yU97DWjGClH8IL3wZXsORn00LGnakOwx+GMxzAtNRcq5BARDKQB1KQOmtz5NARTqhFHKTpVFBpfDgblBufVXHxhFIR61r0UtAaAwCOIVhRtlqBlfhZkkIWVPw3T7KsbBsu9y4Vk1atNt/hLg5c7lloAwRC/NkvqYcF4bHpAJhQVDFvkIGOGmrTXHxhcOOuGqqNmnwBbDHtRLIfYIvaZrsiJrX9AugcwV4O9gtdKaV4wKYuyw8xAgxPjb7UzO6QHhw0EGxjR15Y7hmmMDuqtfUIuZjtzGK0CCDqpZosA1ENsddMb4jpYxqd3tMrJo17KVMuh/DCRXAZSQXEg8MC9ThaRDKywKbu44I5J22Af+vDmmk4Vuz15sAx6icUfEoyaQQEYI9aasoNZipGOohDD6Ldwane9NIIzZhKS3zTvZCBvUoWogHGzaAWkB4YxVAbBNn3SwIoGTDtfU7CDyAoXlcaWI7MMSAMMY69Jjp+XSYGmTyo6yd5F/QtA89E9ZIK1WaeFbdu6QbqHfQwTpWcaOSum+U8VNNJeocA27sQ3AOUAlYKUB2phF60X8xTg76aoCeDhsiLa8AwCg21j41inQI3LaIKM1ZxcQBF6H2xHL2rRW4DTKe4FeakcpDKFymg7mVzVGdTZbjykj9TrMAXuW0Ov0ynuBnmlHFsqIhNL9yEmLX+i+h+yEVsjZrXYIsKAttMarOS450Ae7gd5oRyQvQXYqsoPkNHCoZHro52vQVxds23DehXQBDQ1GyI87HODuALcDfJKOTxRCzersbZkDjX+g/8OVcvxgb21DzfkwNpKziZEVC3orRWp/DoBXC3HdvFTDqsBxsyP9oq1CzlukeURxPSxlrscsF77rSTFQq+jkGkh4LKCSOGXRI+Lz62Pp1IlB1Y/lJAm5Cm7NzbH7sjSs+QIHTe0c4pkt14rhrUj2wRcVoLtvOwmrky1HDw3MD05s6BK/gHg4mvEhmzKwb3EkfQyF+q1MRfoX5GDfLwNtPis5+KzYh4EiBNJoT7JoY4iMSqRHcDK/+jI2kNyJHh3vTI7tDCgYjXENuuYGktXACkgjaxUJImPBg+nTGuxHMwOirlBxBTruGpnDGVYKwBcVoIt6YzFdx3TZigplyNpLQD4PiMGb8gKgPTKo2flgi4rfuwIS8ZwD3C1HEHIaxjkMH+FAsb8j9uGVv6nkyIAHAFLyDGpYrbD/4HVV5TDdBxqLvYshzOdu8lpX3KQvIenHJ0x9WJqDAV7L+tfSg6f6jcWn6d6cpQOujuQgsVw+rCtdMmsyCs6kDP8gZtGKJ1QXcoDcpzeei7bLCkHCIIFXvviP3STm0aIapeDgi780ZwQX+pGG8p7vS1HLj7U0GNYBs/jkAtebLD2YOvFT5AAVkVb6PcvbqWjImlB+pwuPp9sEr9eFeR12XE2U4UCTiBO8nyLoqgUyhof2WfRGzCOgKHjqiFBa4oOibqXBEHWkBlEB1c+leqZklNgQs4ZF1YwEZ/BFQpa1CHkIL9AcPHxp6JNJTCAYsBDDFSHuSQaJiXgGVu968lBXQ47uFYOPDjQ7cIWbEQmQtGNlXuJhaqQnfTKgTSoGOPhkiNG4JKQvAoUD3KdZtZjCgbCwWnOK7od5IWbxXN5E9TiI3TalR0KJTmOa4aSclRPBmkHyq/qi0rK1qY4ks0E1btEIKVmKsHOiODizcKZ4HkuWnn0cOlQ7gDmcXzG8Jp6YAmaMPa7PgF+/8awwZU1GAzJGDAMtir0EoBLs0PT0PkoCplztVBGr2sV69RBTqmlEKsHADZ63V18+tEkyN5R3GDfZWogVvnPFcvJoj3WdpM+sW8rVo/VsrJKO8tGDgpW/QZ4cK08KraEBzeQHPW/zmA9IRfKYZe4iebpwXMSt9KY6iG9gNfxiheWjHOrlxHpfma7WXz60LtEx6PzlLuqxID9yuyIacYtNGolhyt9elqyzbVFM+/Bixzo0eJzhIv20tBrZssnG8NQKdAkRx4f6Y/XF8jBhYXq/qME0YQVyu30IQ7PqXkQMt81NF9ybeXB02SXrjUFmTIIlr78DTANrMYr5IhE1/KOpB2h3EwfRsU1V1mkYF/IEQ82pEvrKGMKrzx7qEghOqCMvXKlHD5Ku/dW7/sWdJ07yoME8T3L/RJyUIe+5jXoAbZx3teQuYIgLys8y2bvozWfc9v06XqNgb0GtpqACdSWvCD0cDMCogS4DVGQl8qxVYTToCBWlAp+qqhLgMlcDfXf8eD+OwBqgeIYdlGkh8vk+HE0KRD64lKLisqw5sp8bcBE6ZlGEvdpzhOdZQhScnxpwDMKTGMtx8y1CxJyfHHAROmZhuTQfX7c6KOpLsvxNoByc7z0o/ReDM8oMI0FZ608Dgw/SPEVjdwxlONdAMw5YrAm2rXnMUyUnmmQLc8KxDEWRYrAik6F8haAtcggqAvrj8XwjALTWKvRpKh4qJLkYOVZAN/WHAqycEwR7Ov+RrQe3B6JYaL0TMNyHCKFYZLjacDOAW2luN/BDhh10U/OSo7RN2oR5DMKTGO1VYb7XtNUeMchZXpH1v8CkEOOV/4EAI6wXzd96jBg080BMF/7Bv8KtndjFVuFXjtBS2/6lmMnhoeQ7emSTCv8TEP6Y+L1KIVJXfiM1rXnALqLk98oKQk/o70hJ8HoPI/hGQWmsQgEf3iOozhW19FgH0O5AAAXu8KkwBQ3ej2C/4jkLIaJ0jON05kuANyjixzR4ov6tJlKo7fLoXzgsweD8o+9mCtUwivzLMDrvH+1HFJiBqTpgRieSYhprBb/Wbbxw8Hbgs485xbYosy20WLf+ZJMlJ5pvEOO22SRfn2zDBV67a1ycGVuZYdifR4g0nCzK9qPN3ODqlAvlLtBPpMQ01hGMt68cXppwxd16Zx7HkDHNwoX/3b+oEfZcT/IidIzja8hh/Nn1UtJofRBz90leUaBaSzVr6mUtDmvOpioFwBWoq2tveD2upnSeh7DROmZhn6YMRRABK2BnzbwU5LJNjUeBUjnpkFVoUBMUaalUoAW1yGGZxSYxvoNhX7eQd4srRHvFybb1HgUEHnvCeLVNnu4rVe+Z5mmnRrwcFnRG3xuhxTDgnCHYM58c30BgAzmIlVyij59yMUAEMcjMVwpx6REDwWRIJMh2K1YzwEmU+9ph/eolQepNXdr2gBQyLnXLdoR5GUFXPlUvp0KSkiOW2wY6h2APd8BKP3CgwIguVFk8hS3gswpLpRDb1QOgjgqxerqKtgZwB7xz8OYX0ywg+S0mS0Bq3+3A+AfLa4uxhQXyhHHRp+LgfInc3mqx1dPRsQPAACmk5DjNxuH4q/CSS/dwMYEIYbUgKB5ts1BjimulINeOX3OpahpgAoKJfIHdlpF09XbAMH04uzg6tf48AELkyMBPr3ZF4UaBMDx0T5iUEsv154ddOkbSS6fLLJKjmxmd4bEYXsAezRK+aWtokE0tgodtv1IQXKOUSUgZvRwQ6YprsuOsa0zksE2N4uYkUiWMMAyYhXTCcAGyKTt1vUc0M6e4UQxsIkpLivKxpqDrWpoKq5MK38HkPPFQ3PmqgQ9WJsBgGnaQ+NqOTRdvfRIGMrUnmLRymwA5YoVkmkuluqjAHq6WS5Ljh9HswI3FY8ObuzbGHQ6kycIE2AYNgD9OrVC/DdT1GBVLvAQqsx+jy3+8tNOriP0u9qObPGYizEFbADqhA7/Ds5C/BdTlHNXLvAQckwLuczCLa/fBRuRk4yLgfwVbcfsiN89ONiGV4yETvi1q/nLCRNxPgWGrqGNNjov8JBynC2+fi0dwiEb/74+vDI+5sYsB6y0e/ErP5wdQKed+aZfhhgcRYYpiNH7KTjihiDOUIfyjIchR84lNnqh9Mk2Ik+S4oEXKGJKuRfIBYsfv1GSfclWzkILmjlfDNYaW46RNfKLlzEF0eFtDhJhsusCD10OBTivjOPNmSrBM9QKNjYL+OXiH9hSjjGONXKSRRwzO4ZigQ49gu1J+tDrEx4mOQ6elpWJ+JaLV2ZZfGCSrRcU6bOoUQAvueRYITGVp3DnM0GeeuhybGORUSujGj5pGGpEAx3KjmV8yhFs78ghBOVYPIyZNIV6D2q0DH3eQ5PjRiw0Uw5184OXFGTU0Xm++JEcOZpeJ8FyiqFBr3EKRdKNoz4FOcy99pCHIUfSHS6CODoQSnavcihZ9BgmxBi9spUcQ0IAVzlWB80XwQ+kz9MeSo5G12GMyKVr6/cCu991yuFQ7i0+/MYgz/D3ctyhW0EmRtfekKBpmKSOcLDqKYdgU7Ct4ZUpMrMcTg/L4TEx1coW5vCZxw8QEQkOYu2FGLq7ZIbu+mjLIJOwrnMjcvyOh50cirZHnjPZFiRwGeydHX2MAlzZTmNaVLz5XCUHdNHcdt8bDwiacnBwspnkiMUXMQFASQ1eZeBQbexyQEsvxXYaMxB61nxAjjFiV3MM7IkIDRqNAdgN57jaLARYjhiOi9vsCUdnckxjOM4FZvy4zGvWJMxuuMfD7yPZMUbsag+w1Truxtq2kYOxs5PXZfFDsAGo/tBrGjNmpUPHmj7z8AjMAIxBh9oVbM0sZ+U1BXLPMTtISbgMXY3IZOfLfJSyf7AdEsquPvozmT6++mOzX7hZPCsnM5eYKgSdFcg+jZnk8G4Zcih4wWtlgg+NrZpsU8F58aVG7IVpkFzjpQPSdrxWDMcuWzoAkWhheC18AmRKe2/MmyUZTkepnIUjegah9O+qpjMgyBaAQE+bR4MR6UDXGTB1TY0kk8aJKY0dwE7ONYEGAOZ0wwizsciRehAa1DwqHeW44Ss2XwCmQQJ5xDgpgWiDUQ3AQzfaNjLZdtPYblSh5Kigk0UbM1dnOTiuheuqnJWjcp1+wjDJkX115Y10xFrmUdkASGgAUKsHX1n9Ll4/VglUJiCbHDxKAKb0Sdt0LTn8iD3PL6RMmCmewSP300lGXKE0NRODq587Nt4TI0BOQWOubQLoo2Jgf3ZUZQIMKVgL7OyBTkafIABEiVByZE5WqdxCKR9Vcaw15lg5sA1ITsf+ie0/28VvPyLIkU2X7oFER8nZ5ikihVq0TY78KWDNQ5iFVSYjlNHlmcqRAaO7OqKSbI+IsARgTFHIrEQMPYHmWax4ehhSsCbkYywyO0r5HE7xPGPMdBZKRj6HyVayzWAHIvRmcmDpKoa25oHNGI4uBCDXyQNVyGIX6WGE6f4KRoAhx5hpwo2ZBqBcsJKAVG/q7ADSHcEIxpnCgeQ4AOwspyDnDcTdliO6TWEQaR4qhtGLWQIwycHgpqIRjCF+UL4DsDtWpkZ3XASbHug/u7WmegkPIJN9FYdMOQWvRIyZ6IxWFE0huOeYqgeAwrAfAQUoOWDyI0GbCV71JDNmQrviVG9GY7aWMz15Qk6DEnJwy6HfTpJHAkYMEYT9LTHwIyvqwU7mlj/v8RTDQ4YpT8PDCSDkqAjhxTH4VU7xbAcyHZJzZXdjW/OpbxAuOQDw8FpVqYEHk1QJ3Tdi8IdZNT784KJf4HPu4XSKlGMsuj7EQszt6MT/WxVyNAi6k1TEkmwnHHmZ69ArAJxgLvifEpqeXjVD8JahxWAzxkeF/fp/tZ96OAWEHJqRL4qSsSDWxhhsC0IQSzNMbJt9LwczfBUDHuZxZNun+OefHkM46FEcPaB38bBMcQRkdrBHpS9Z2mKzjCZBo0VuLTt6x6A9ABjZJ8k6Ur2XdYo5hhzUwkAMfbwnmS3ngJDj5zIpgG9b3Cla/Dv9+K1sWPw3AEZS7GqPxLAbN2ypCbjk1wCP1z9/wPYrAEbc29oDQW7HDWPKcY8s/yHYr68AOE3A0yBPPYQe4Ygnz8iOag05ylRf51TlPYDTDPVPvxqDwQU1BHnqoctBrix24rpaybaZgGmtNwImhr2hGCKmbq96BlmGtQLA95JDbFcW0X5MjhMPTY5cbadHb4Wu3TSSg/B3ASKCrSBdju1+6YBbHlY5RJNgzByUZ7b/KuBUjgj5KjksRH9dFr93uf5OQOYnZ15LZKiPtLWT7Z4dt/RasoPDyG+8vpOt17bP7voSgwNkVy+PyXGSPt9NjpPFhz7KoK5T1h/Ra5HD5wUdfMmzw3E9lx139VrlKG1zmx4SlR2hV2Dms1bGlwHukuHDpGPi/Gv5y+wIT6l9cCX1yRHsnuhfBKxM2VaQLaYDZmJx6LWHlh3fQg7zvUEm/ilnrteCCjnueuhyONOGEw5UK3X91wGmsqeLIHOrRPoOJoPFiYdZjsVBNoccaVmu7wIEmWV2N4cc2+55N20h8LCVgz/I6QMObP8dwAOL36OOf7RapqHXPr14+nxDOYrfXOGaTZaV9JBjgo3GLMd+x1FjzsR72BjZa28FtImXcBBkHgz7PRUs7npo2bGq6XG0phxLAG8HNCbcOFOTQc5yzN1mMdk2HpocdaM9eE1d545sYYr3AHLCuE7UFAM+ZJv3ywJZ9Fr0JIsux1YPeky2/zJglmOh6uy4q8Z/Fjk2HkKOtWdt45Z+v7wD8MDi3w0SX2A7S5+QI4W/4Y6OXG4DbvSEGR5uANLzA4Dd/ym5eWWQrblW+Q8Nzjwscii21Q/2SMlxB3AY1gzy0NquphK6Yoq/B/QRS5CTczd2U6QHx9Dl0Mdo9awzubMcp4BpzNyYBY0+Hksoaj0EyOA3V36IO0+5tvQh7makj0R01BcpOZL/w2mV1Q3aivUUsBlYph3bmM/vvB4BQLr9cnGa9rG5dUG8SQmM8VkbprD0FVVWHEl9kRLmiI2XBNV11ZUdM55kZsvSPAcc13Z2iA+N0lCBjQq6pi8JtOXlKMtBD2NI1dLtf2KvMNaay7+MqrCo+LsCC6B8aIZztvAzD1lmBJk+J+vzjE0O8etoeWYMrbTZQgR7aBBWRwaNzYJI2mhJOT7IZZqtgMWnAIttau4A84xtbT31GhJiaCPaMtv6yNmRHnpopTmMmR1cmZoL9kkLybEAukOlz3FtO0TfeOgG1duMAsyzAjIDuiHVSAT9bfKL5izO8RyAqzvCoEbK8XOdFJjX5diC8Lol3njR2t7ok/kxwHHebpkCfm2jT7urn38V4PS7AueA3cTN9loFJu+ni3//rWK9x2s7c6o+AjiNYYr4pY3TpXuHHPfm4Bey3lfuRdLe4E8r3hqPLP7zU/zIMSSH4u8rzy/dGzz8yPGTHUOBqfazWX7kmBSYGj/Z8SPHpMDU+MmOHzkmBabGT3b8yDEpMDV+suNHjkmBqfGTHT9yTApMja+VHVNohwZiPdgWw8m/psNnaKc/IvhCb/AXckvzf02Ohd6hefPLF4k8A3ycpc8poD5AfUOSjM+7kp+u+QEWP8GfOrJxCghgfAdA8Bw7XU8B4wPUd8ixsC2aUVk+DV67O5ljnyx/72GSC58gvkGGnGLHoRYWnVsyp4Du1R76kN5bU9wDZLCvvy6hsRmB+ZNdkilDfNhbbaI3gOoXXnKUiUMWhxuAUPXyehVqhpqzKhV5kZktGzKXAyoYVSrY11fmidmauWnpZtApYIZv0udvAa+XIWfAtzeWMrF95Msqy/il+dgXZqZJDx4y2NdfN19WqdBufZvlFND46AsNLeVal6uPAF4vw88MWwXiaxT8gh1Wi7nymzW8uOiLW2gLgC8jokKAmvo1d4dvdm0M+FJa+7rGVGXXMgLYBb6N/CVGx8bzU3/xQqokCuooDFUW2nmvgSQC8Ot9RPAZnMAqMzn0/vrN7+jtFAn7PIJazB7f+I0GshBNyyDSbNPIPoQq4tAghECFehgJQH0VKmQxufhaMTsfl4Mz/sdyuMoIUF6SCFunmCyohRJsyYILVp9fYlQ+pJE64A9/DzoAyPQHsuP3n02CRGr4/6aEMCCANYAF+GF5rxxmW2KYvZrcDJRD1HOTSI3QCz0ALHpMqc8+GMwQ+yX2DC/8KzsBJo8mTDK6KlXeKkes+mAJqtZGPfqaLWoSQNeQIkzgUrsFJwT4kFzbKvyfS53LgYGWZpEDRnRt8/olRsRuYubLHcA/EgSv+E56KEGT/sRFECzw49lBwkgJHasYGPxhhF7V/Lfl0KEZnCUEOeMvWePwwP8f0QJJpSGFarBFMoBOFqe+Wt5GmR335HBq4JVyILeI5V//eUkibJ2KZeSDJHAKWBB04h1HKBMdQxHbyb62C3cL19r/WoVm9HY59myTNtD79NmG/gpj3lfMkrrEulsi3DgyD6QQu9PgrKEczgJUWGiIUtlxshe+jhzYKyIoIVBtiaI9w7NjAEKSVITaNPYWYWd4TA7ea/gXJavv3iyY2WxBPgpFkSzUQc8dpN+KARyXcrAzMmJkRxqtjxXhZmEucBNxa2gQADKmBv+iHOQ0ky3e7Ih/Zla2qQKAj9I6PA5nB+mWHCQfzxqudjmgRWQGx7CEBUq94pTY++ReWRY/KNMutvcAQZZDzCHZk04Ya/dYA7zqQTy0APD8KX4f+wus8YzO0JdCFUTOcjAVUGOJagEoRNxc0Mun9mixo+njpuRwNV6/mhzB0HRFNqopBwGgmIBRLbLQoMgF7bRUdoSd2TEVyTFZWoM76AVpcMNlPJR6xUnXaoAdj8qQQ+bUAICoJoDB35PjxtRf0XzYLLEhqEbJoXpskSZcAigHFGKBKsfN8hV534hJcjAXspQcMGR2ZJ/OXO8YmwwYpyaFqb1BiAw3pv6KZsjRBYAEo+mfd5wDKjeQHJKjzlI+Xrxx5z8vMMLlrqj1LzloJZdHAHVPBfi7ZwdWv2XEkAPWlOMMQBWq1GZJy/Nr9j4Pjjn1oDLOFGmBziB3HxCHhH01OWx/H5nnZ5rl4G3D+2Yrh9QKSAf4rqIbiwQcZwcPj+eDfJ8HyVEi9COEWyWzw4A6YViBqQDOAjVzhBq2v4/M8zMxbLBbBEEThX1K/fuASYxJDj+dPR/k+zxYDeQ5+YMYCmsuIQfs9wC1VXSflYBtt7z1n8E+rZvkINmmQqpRdxapcRMABeGlSjtKv2d26D3InBfmDook5zcptwCLGnkvCnnQ+/SSvdEBowbd2CcIPtKEerDPZ8c9QO2VSBJnR9sub2Tz9FSkzAcxrv1U2o3jPgCj5CRfps3C59WnY3yjgyBRx0VVoiPJlb0qCyDVWDYLzG9k8zPVtQrUosbmULvVMzu4YQrb6wlA1oz+XnsE8PHxqTv9n096wYiDoXuME62brhIlfGJ6RcJmr1fqe48Y3esJaOPDZV5Cjg74/MxOXgkgfRTHsDUQWePCJ20ul8oxCQD/re2Jeav9/APFODmIoYHVVCS/0vb54W5Z28sRgMGf+PFZYjRFykHj3oCOGlNypEAXyiGuc6prsWTixAJg4RLDGiSxIPgQlxB2lxyfGSV6+P+lmwFMgw/+NJG9KMGeItnD3oDkoIxjCGqwhOEiPUR2bBQ7pxF8yQOhQQ3wUxJkN/kngEKomSAqxREB/rUC0E2B9dsgiRF7eMAgT3LD8CY5RHZla7qWA9QoWIMoPWgEwMOFZ1tigCwVkSAHAL8iATnKnRRXPnISuuQSLAa6olO5DAVlsOWi5OCXe8hny5bpQQD7WRiji9u08Asg4QAnCqCMuQoFOQDgQomHi8hhCjqHM46HpBsDgXIdEmsgfvknin1cpAdcBrekymuY9NUvNThvGHXJtuVAi+sNBO29AEw5UBqABuwvvCqBfmEG/tG8rBwNorzIkS4uloP0GK9oxku2c6UWSHZrKQ9s2ZsFA3dyIKskD2Zl+lgOaOTK0SDK9mn22jly8vFbKXhZdlgBzhVaNHFSjsgXQwIom7ODA9F8cLMwU1DMTnIoLzCt3MQ/KUJ9GKiBwoKJdZwuHK4zRqaL1PA2rSQnL4dpbYYcYsBuFjVSjiABs+4M5QB2Rr45ayUF5etnR6gD53F2TAb4WeSgIEwywCjpRcXHGLJ0Lck2AEOBFCMBbAsED7pbSBA0JAYiPQLENLq11PKlCOCLa38wpBpODyAUhk8k6HGRGnGIm2wqMqhrpbijldqwE4IL+bCB4A9PWVzI0gKNDUALnXKRvbJenlnfGjJrtVt+UR2G4VBeI0exLXVSjtLDcqQalkNsKJOTg81ejg/pzPMmmNhrM4RCe8O8WdgKPTjquuw4WXzkrRBaipEdafVSYnWVKl2GrAe5CdDEiGT4Wzm0eZinH9LwMjm0TZ1zmR25+G0fO18S4JYFCLZULQWYrw8CtPhOD484M+Dg5qaNIRfpgdBvLz46GVrmhNXQFg9hCHi+wIuSo7iVAdPw7vOAPs9HIQ+YzHJoxX001OJHJJKDXWthPuTio9rLSJbHAPPJAE+f8dZGt1F7Bsa5kJM2w6VytBVv1WRLvVYlZEpA6VBnArMnNs9ejhWwysH303HjwH3j7XIc6ZoPI3lMDjxU1WrlmzEO3sqxAkINL79uo3XjQEbIBfINIfmEOhouzY77i68w/JhaqmHxhl5cPJxq4x0m2KKf6YFHbva6YHTUVsANOeCFdw644HQu7YBvhrfLEdmbObzKwVOefSQcofMt1sdnyoHYeSOQIEdA6KFejGBT79D0HO+HRZhQ4Gb3GH+tHPU234Jz547FZxVM429VBkBLrq3u5wC+m9MYSmA55rcyR8BRDkyXb9TwYKvssBioHw1Xy3Fn8S0HQ5pKlwOjmdCSDHa+m1MGYI0pR5D1+kKqA8DE6z0dRmDnwSdzDpuFEeAPvLlyNFwmh/Jgv/igSDKMYVNgRafYRm4jdsYPvqypCjmYIkuZAUouYbRXfHLmftFzR6iAIGY5huEqOcgz6Yp1ULfNctwEWA6z5VpiRUl8ZvtfykFH1FtzIALkByJVBVGthovk4Aypx/gkLCzowuI7CMnGzYBjRnWFp+yIxaeVajDwv98s8fMcs+cr5dBBqjk0JXzzujNcJYezAOIvRfPj55axV5ZeNCWZNwtjRxvh08gR0ISR4/XBo1Tni/dKbBb6pCwo3JDyillUPRoukwMxO/CJsUzIHMlByNRLsvzjhVKEsZxiEOC/udGeywGnyjzOJjkmw1VyiBYFWYoJx2Yh86VIjy5HOwuRHkBrJR98DCPH3BqZHfXMluy5e5weIUczXCSHnpRADbcwHIOkjAtuaWbLBx4iyC0g1S1zJjLpcPV4RSEceqqq0GVtLztA0T+MoAEhmD29Hg1XyWG24nZ8yYmPPbZEZMmzCDF4q9H1Shiv9wA7OagG58Q6OSUXw0VyPO+mkxx1RB6NAznbG+D5GH48vEaBsZ772o21HeAJkLef0Y3N8p1KD5x7k6XbJrbuvgVILXwtJ99JjcEWVHlys3RFDgA/bA3JEiARPJ6PByghyHeUY2hhRpUBybYAIdoKAH2MlAxVtR7fUI5KjFzeeNyp2+QAZG26j0oBauHxruGVgnw/OZJiiYF1jneTzo4GyDSZANChtChFYPqWcjSyXRCdD5JjAlRjPC9LjTZUVRm/YXYUv5mQHyspxwyoVgG2avAgUX58t81S/GY5fHwc5Gh3IKUHAOS9jHV+WA7uGH6oj6LqV9ZnXftGS6sPtpNcPDrq+KAe+FCEWdDGVdXpQUGhBK0W5H9IDkpDQUQ59CJrtQ8v2i1OH0oBFBPkm8qh3bJkh5KjaI/sKNNUCTmUJexQ5WvL4YWeWGSDq48f0maTVzaGQYAi23Guq4sfMVb2oPo/JIeVKD1KjqMSoQcSAh8sTHJ8funNUtyOlNbsaDeVXH2kT2e7+uBu+dXUwH75813lwNk3bZb4EGVQNuD/ixxY2S4H0mjNpAc3y9gr3yA76pgby55bwXIMQD5wBPL/V3asm4XJMeXHo3K0w0OHyRc+S/mJ2b6A7JwdkxQYEwDdTW+54FH6rW6083PFoGWy+pwljbMeBbh9ljIX+lO8lPvazx230qPYngJO5eC7GuUSX7/8QzqDXQvFwFbhOzTIcR9AOTYIcif9b/YWbrf6UiPlOAWQ9qon21JDcnyjN/jH1bcYlR2ngBvp4eT40kfF4R7HH8jw4+Va3dTCanhtzwBbPUKN7yeH9BgyRM0fpXDnW7B7AFEfknKjpBrfUI6dHvHZk+U4A5A8FQhFXMMrpTwk5Fc2MGAUfr+gF4jBojvLQwAMdk7Ii6sa+C3l0Lc8Ug9LITXiviDBhmQ7QMqgQ0gNq/E95ZAeRVMV0YnNEnrcBaSavoYY33OzMPjOdZCp2gOA+PjAZ0YO/MpHxU9sPwr8KPCjwAUK/B/GH5tjikU3UAAAAABJRU5ErkJggg==';
@@ -1807,7 +1808,7 @@ const ARDILLA_SPRITE = {
   cycle: [0, 1, 2, 3, 4, 5, 4, 3, 2, 1],
 };
 
-function getArdillaFrameRect(index) {
+function getSquirrelFrameRect(index) {
   return {
     sx: index * ARDILLA_SPRITE.frameW,
     sy: 0,
@@ -1816,26 +1817,26 @@ function getArdillaFrameRect(index) {
   };
 }
 
-function getArdillaFrameIndex(now = performance.now()) {
+function getSquirrelFrameIndex(now = performance.now()) {
   const cycle = ARDILLA_SPRITE.cycle;
   const step = Math.floor(now / ARDILLA_SPRITE.frameMs) % cycle.length;
   return cycle[step];
 }
 
-function drawArdillaSprite(ardilla, now = performance.now()) {
+function drawSquirrelSprite(ardilla, now = performance.now()) {
   if (!ARDILLA_SHEET_READY) {
     if (!ARDILLA_SHEET.complete || !ARDILLA_SHEET.naturalWidth) {
       drawSprite('ardilla', ardilla.x, ardilla.y);
       return;
     }
-    rebuildArdillaSheetTransparency();
+    rebuildSquirrelSheetTransparency();
     if (!ARDILLA_SHEET_READY) {
       drawSprite('ardilla', ardilla.x, ardilla.y);
       return;
     }
   }
 
-  const frame = getArdillaFrameRect(getArdillaFrameIndex(now));
+  const frame = getSquirrelFrameRect(getSquirrelFrameIndex(now));
   const px = board.x + ardilla.x * board.t;
   const py = board.y + ardilla.y * board.t;
 
@@ -2002,23 +2003,23 @@ function maybeShowTutorialStep(step){
   tutorialState.shownSteps.add(step);
   tutorialState.activeStep = step;
   if (step === 'collect_hearts') {
-    showTutorialPopup(['Recoge todos los ', { type:'icon', sprite:'heart', alt:'corazón' }]);
+    showTutorialPopup(['Collect all ', { type:'icon', sprite:'heart', alt:'hearts' }]);
     return;
   }
   if (step === 'shoot_enemy') {
-    showTutorialPopup(['Haz clic en ', { type:'icon', sprite:'crosshair', alt:'mirilla' }, ' y convierte al enemigo en un ', { type:'icon', sprite:'egg', alt:'huevo' }]);
+    showTutorialPopup(['Tap ', { type:'icon', sprite:'crosshair', alt:'crosshair' }, ' to turn the enemy into an ', { type:'icon', sprite:'egg', alt:'egg' }]);
     return;
   }
   if (step === 'push_egg') {
-    showTutorialPopup(['Puedes empujar un ', { type:'icon', sprite:'egg', alt:'huevo' }]);
+    showTutorialPopup(['You can push an ', { type:'icon', sprite:'egg', alt:'egg' }]);
     return;
   }
   if (step === 'collect_key') {
-    showTutorialPopup(['Recoge la llave del ', { type:'icon', sprite:'chest_open', alt:'cofre' }]);
+    showTutorialPopup(['Collect the key from the ', { type:'icon', sprite:'chest_open', alt:'chest' }]);
     return;
   }
   if (step === 'exit_room') {
-    showTutorialPopup(['Sal por ', { type:'icon', sprite:'door', alt:'puerta' }, ' y pasa al siguiente nivel']);
+    showTutorialPopup(['Exit through ', { type:'icon', sprite:'door', alt:'door' }, ' to reach the next level']);
   }
 }
 
@@ -2029,8 +2030,15 @@ function evaluateTutorialProgress(){
     maybeShowTutorialStep('collect_hearts');
     return;
   }
-  if (!tutorialState.shownSteps.has('shoot_enemy') && hasAdjacentShootableEnemy()) {
-    maybeShowTutorialStep('shoot_enemy');
+  if (!tutorialState.shownSteps.has('shoot_enemy')) {
+    if (!hasAdjacentShootableEnemy()) {
+      tutorialState.shootEnemyPromptDueAt = 0;
+      return;
+    }
+    if (tutorialState.shootEnemyPromptDueAt && performance.now() >= tutorialState.shootEnemyPromptDueAt) {
+      maybeShowTutorialStep('shoot_enemy');
+      tutorialState.shootEnemyPromptDueAt = 0;
+    }
     return;
   }
   if (tutorialState.convertedEnemyToEgg && !tutorialState.shownSteps.has('push_egg')) {
@@ -2185,7 +2193,7 @@ function triggerEnemyExplosion(){
   state.medusaFocus = null;
   state.fireballs = [];
   state.frozenUntil = 0;
-  setHudMessage('¡La llave destruyó a todos los enemigos!');
+  setHudMessage('The key destroyed all enemies!');
   navigator.vibrate?.([20, 20, 45]);
 }
 
@@ -2236,7 +2244,7 @@ function killPlayer(player = state.player){
 function winLevel(){
   if (isTutorialEnabledForCurrentLevel()) tutorialState.played = true;
   state.won = true;
-  setHudMessage('¡Pantalla completada!');
+  setHudMessage('Level complete!');
   navigator.vibrate?.([30,30,60]);
   window.setTimeout(() => {
     currentLevelIndex = (currentLevelIndex + 1) % LEVELS_RAW.length;
@@ -2300,7 +2308,7 @@ function tryMoveSinglePlayer(player, dx, dy, animate = false){
     state.hearts.delete(heartKey);
     state.shots += 1;
     if (state.hearts.size === 0) tutorialState.allHeartsCollected = true;
-    setHudMessage('¡Ganaste 1 disparo!');
+    setHudMessage('You gained 1 shot!');
     evaluateTutorialProgress();
   }
   if (!state.doorOpen && chestOpen() && state.chest && tx === state.chest.x && ty === state.chest.y) {
@@ -2311,13 +2319,16 @@ function tryMoveSinglePlayer(player, dx, dy, animate = false){
       evaluateTutorialProgress();
     }
     state.doorOpen = true;
-    setHudMessage('¡Puerta abierta!');
+    setHudMessage('Door opened!');
   }
   if (state.doorOpen && state.door && tx === state.door.x && ty === state.door.y) return winLevel(), true;
   if (state.fireballs.some(fireball => isFireballTouchingAnyPlayer(fireball))) killPlayer(player);
   const now = performance.now();
   updateDragonThreat(now);
-  // La amenaza de medusa se resuelve en tick(), después del movimiento enemigo del turno.
+  if (isTutorialEnabledForCurrentLevel() && !tutorialState.played && !tutorialState.shownSteps.has('shoot_enemy') && hasAdjacentShootableEnemy()) {
+    tutorialState.shootEnemyPromptDueAt = now + 1000;
+  }
+  // Medusa threat is resolved in tick(), after enemy movement in the turn.
   return true;
 }
 
@@ -2348,7 +2359,7 @@ function shootFromPlayer(player){
     state.eggTimers.set(eggPos, performance.now() + EGG_HATCH_MS);
     state.shots -= 1;
     tutorialState.convertedEnemyToEgg = true;
-    setHudMessage('¡Enemigo convertido en huevo!');
+    setHudMessage('Enemy turned into an egg!');
     evaluateTutorialProgress();
     navigator.vibrate?.(20);
     return true;
@@ -2358,7 +2369,7 @@ function shootFromPlayer(player){
     state.eggs.delete(eggPos);
     state.eggTimers.delete(eggPos);
     state.shots -= 1;
-    setHudMessage('¡Huevo eliminado!');
+    setHudMessage('Egg removed!');
     navigator.vibrate?.(15);
     return true;
   }
@@ -2368,7 +2379,7 @@ function shootFromPlayer(player){
 function shoot(){
   if (isPlayerFrozen() || !hasPlayersAlive()) return false;
   if (state.shots <= 0) {
-    setHudMessage('Sin disparos: recoge corazones');
+    setHudMessage('No shots left: collect hearts');
     return false;
   }
   let acted = false;
@@ -2377,14 +2388,14 @@ function shoot(){
     if (shootFromPlayer(player)) acted = true;
   }
   syncPrimaryPlayer();
-  if (!acted) setHudMessage('Acércate a una ardilla, leeper, calavera, dragón o huevo para disparar');
+  if (!acted) setHudMessage('Get next to a squirrel, leeper, skull, dragon, or egg to shoot');
   return acted;
 }
 
 function interactAdjacent(dx,dy){
   if (isPlayerFrozen() || !hasPlayersAlive()) return false;
   if (state.shots <= 0) {
-    setHudMessage('Sin disparos: recoge corazones');
+    setHudMessage('No shots left: collect hearts');
     return false;
   }
   let acted = false;
@@ -3573,7 +3584,7 @@ function draw(){
   ctx.fillRect(0, 0, w, h);
   const now = getRenderNow();
 
-  // Capa 0: Suelo en todas partes
+  // Capa 0: Floor en todas partes
   for (let y=0; y<H; y++) {
     for (let x=0; x<W; x++) {
       drawSprite('floor', x, y);
@@ -3661,7 +3672,7 @@ function draw(){
       continue;
     }
     if (e.type === 'ardilla') {
-      drawArdillaSprite(e, now);
+      drawSquirrelSprite(e, now);
       continue;
     }
     if (e.type === 'medusa' || e.type === 'don_medusa') {
@@ -3880,9 +3891,9 @@ function draw(){
   applyMedusaFreezeFilter(now);
 
   hudShots.textContent = `✦ ${state.shots}`;
-  hudLevel.textContent = `Nivel ${currentLevelIndex + 1} ▾`;
+  hudLevel.textContent = `Level ${currentLevelIndex + 1} ▾`;
   if (!state.won && state.hearts.size === 0 && !state.doorOpen) {
-    setHudMessage('¡Pasa por el cofre abierto para abrir la puerta!');
+    setHudMessage('Walk through the open chest to open the door!');
   }
 }
 
@@ -3937,7 +3948,7 @@ function buildPaletteSpritePreview(tile){
   }
 
   if (tile === 'A' && ARDILLA_SHEET_READY) {
-    const frame = getArdillaFrameRect(getArdillaFrameIndex());
+    const frame = getSquirrelFrameRect(getSquirrelFrameIndex());
     previewCtx.drawImage(ARDILLA_SHEET_CANVAS, frame.sx, frame.sy, frame.sw, frame.sh, 0, 0, previewSize, previewSize);
     return previewCanvas.toDataURL();
   }
@@ -4142,7 +4153,7 @@ function setEditorStatus(message, isError=false) {
 
 function updateEditorLevelLabel(){
   if (!editorLevelLabel) return;
-  editorLevelLabel.textContent = `Nivel ${currentLevelIndex + 1}`;
+  editorLevelLabel.textContent = `Level ${currentLevelIndex + 1}`;
 }
 
 function editorToRaw(rows){
@@ -4152,8 +4163,8 @@ function editorToRaw(rows){
 function validateEditorRows(rows){
   const players = rows.flat().filter(ch => ch === 'P').length;
   const chests = rows.flat().filter(ch => ch === 'C').length;
-  if (players < 1) throw new Error('Debe existir al menos 1 jugador (P).');
-  if (chests > 1) throw new Error('Solo puede haber 1 cofre (C).');
+  if (players < 1) throw new Error('At least 1 player (P) is required.');
+  if (chests > 1) throw new Error('Only 1 chest (C) is allowed.');
 }
 
 function paintEditorCell(x, y){
@@ -4267,7 +4278,7 @@ function renderPalette(){
 function loadEditorFromRaw(raw){
   const rows = parseLevelRows(raw).map(r => r.split(''));
   if (rows.length !== H || rows[0].length !== W) {
-    throw new Error(`La pantalla debe mantener tamaño ${W}x${H}.`);
+    throw new Error(`The level must keep size ${W}x${H}.`);
   }
   validateEditorRows(rows);
   editorRows = rows;
@@ -4283,7 +4294,7 @@ function openEditor(){
   updateEditorLevelLabel();
   editorTile = null;
   renderPalette();
-  setEditorStatus('Editor abierto. Ninguna pieza seleccionada. Arrastra una pieza del tablero para moverla o elige una en la paleta.');
+  setEditorStatus('Editor opened. No tile selected. Drag a tile on the board to move it, or choose one from the palette.');
 }
 
 function closeEditor(){
@@ -4337,11 +4348,13 @@ function startLevel(){
   tutorialState.convertedEnemyToEgg = false;
   tutorialState.allHeartsCollected = false;
   tutorialState.keyFromChestCollected = false;
+  tutorialState.shootEnemyPromptDueAt = 0;
   if (isTutorialEnabledForCurrentLevel() && !tutorialState.played) {
     tutorialState.shownSteps.clear();
     maybeShowTutorialStep('collect_hearts');
   } else {
     tutorialState.shownSteps.clear();
+    tutorialState.shootEnemyPromptDueAt = 0;
     hideTutorialPopup();
   }
   state.initialSnapshot = snapshot();
@@ -4353,6 +4366,7 @@ function resetLevel({ fromDeath = false } = {}){
     tutorialState.running = false;
     tutorialState.activeStep = null;
     tutorialState.shownSteps.clear();
+    tutorialState.shootEnemyPromptDueAt = 0;
     hideTutorialPopup();
   }
   restore(state.initialSnapshot);
@@ -4457,11 +4471,11 @@ function releaseEditorPalettePointer(e){
     if (editorTile === tile) {
       editorTile = null;
       clearEditorHoverTarget();
-      setEditorStatus('Ninguna pieza seleccionada. Arrastra una pieza del tablero para moverla.');
+      setEditorStatus('No tile selected. Drag a tile on the board to move it.');
     } else {
       editorTile = tile;
       const meta = TILE_META[tile] ?? { label: tile };
-      setEditorStatus(`Pieza activa: ${meta.label} (${tile}).`);
+      setEditorStatus(`Active tile: ${meta.label} (${tile}).`);
     }
     renderPalette();
   } else if (target) {
@@ -4507,16 +4521,16 @@ document.getElementById('editorSaveBtn').onclick = () => {
     resize();
     closeEditor();
   } catch (err) {
-    setEditorStatus(`No se pudo guardar: ${err.message}`, true);
+    setEditorStatus(`Could not save: ${err.message}`, true);
   }
 };
 
 document.getElementById('editorImportBtn').onclick = () => {
   try {
     loadEditorFromRaw(editorText.value);
-    setEditorStatus('Pantalla importada correctamente. Revisa y guarda para aplicarla.');
+    setEditorStatus('Level imported successfully. Review and save to apply it.');
   } catch (err) {
-    setEditorStatus(`Importación inválida: ${err.message}`, true);
+    setEditorStatus(`Invalid import: ${err.message}`, true);
   }
 };
 
@@ -4530,16 +4544,16 @@ editorCopyBtn?.addEventListener('click', async () => {
       editorText.select();
       document.execCommand('copy');
     }
-    setEditorStatus('Definición copiada al portapapeles.');
+    setEditorStatus('Definition copied to clipboard.');
   } catch (err) {
-    setEditorStatus(`No se pudo copiar: ${err.message}`, true);
+    setEditorStatus(`Could not copy: ${err.message}`, true);
   }
 });
 
 document.getElementById('editorClearBtn').onclick = () => {
   editorRows = editorRows.map(row => row.map(() => '.'));
   renderEditorGrid();
-  setEditorStatus('Pantalla vaciada. Coloca al menos 1 jugador (P) antes de guardar.');
+  setEditorStatus('Level cleared. Place at least 1 player (P) before saving.');
 };
 
 
@@ -4549,7 +4563,7 @@ function renderLevelDropdown(){
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'level-option';
-    btn.textContent = `Nivel ${idx + 1}`;
+    btn.textContent = `Level ${idx + 1}`;
     btn.onclick = () => {
       currentLevelIndex = idx;
       currentLevelRaw = LEVELS_RAW[currentLevelIndex];
