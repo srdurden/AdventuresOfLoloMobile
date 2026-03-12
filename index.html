@@ -351,6 +351,63 @@
       outline-offset: -2px;
       box-shadow: inset 0 0 0 2px rgba(255, 224, 102, 0.2);
     }
+
+    #tutorialOverlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 6;
+      pointer-events: auto;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(1.5px);
+      padding: 16px;
+    }
+    #tutorialOverlay.visible {
+      display: flex;
+    }
+    .tutorial-popup {
+      width: min(560px, 100%);
+      border: 3px solid #f6c96f;
+      background: linear-gradient(180deg, rgba(35, 16, 5, 0.95), rgba(7, 6, 6, 0.96));
+      box-shadow: 0 0 0 2px rgba(255, 246, 196, 0.35), 0 12px 30px rgba(0, 0, 0, 0.7);
+      padding: 14px 16px 12px;
+    }
+    .tutorial-title {
+      color: #ffd992;
+      font-size: 13px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      text-shadow: 0 1px 0 #000;
+    }
+    .tutorial-message {
+      color: #fff;
+      font-size: clamp(14px, 3.8vw, 19px);
+      line-height: 1.35;
+      font-weight: 700;
+      text-shadow: 1px 1px 0 #000;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .tutorial-icon {
+      width: 1.3em;
+      height: 1.3em;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      vertical-align: middle;
+      flex: 0 0 auto;
+    }
+    .tutorial-hint {
+      margin-top: 10px;
+      color: #9bd5ff;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
     #editorText {
       width: 100%;
       min-height: 150px;
@@ -386,6 +443,14 @@
         <div class="pill" id="hudShots">✦ 0</div>
       </div>
       <div id="levelDropdown" aria-hidden="true"></div>
+      <div id="tutorialOverlay" aria-hidden="true">
+        <div class="tutorial-popup" role="dialog" aria-live="polite" aria-label="Tutorial">
+          <div class="tutorial-title">Tutorial</div>
+          <div id="tutorialMessage" class="tutorial-message"></div>
+          <div class="tutorial-hint">Pulsa cualquier tecla o toca la pantalla para continuar</div>
+        </div>
+      </div>
+
     </div>
     <div id="bottomPanel">
       <div id="directionalControls" aria-label="Controles direccionales">
@@ -579,6 +644,8 @@ const moveDownBtn = document.getElementById('moveDownBtn');
 const moveLeftBtn = document.getElementById('moveLeftBtn');
 const moveRightBtn = document.getElementById('moveRightBtn');
 const directionalControls = document.getElementById('directionalControls');
+const tutorialOverlay = document.getElementById('tutorialOverlay');
+const tutorialMessage = document.getElementById('tutorialMessage');
 const setHudMessage = () => {};
 
 const TICK = 100;
@@ -597,6 +664,7 @@ const DRAGON_FIREBALL_STEP_MS = 100;
 const DRAGON_FIRE_COOLDOWN_MS = 1000;
 const DEATH_RESET_FLASH_MS = 320;
 const EXPLOSION_FLASH_MS = 420;
+const ENABLE_LEVEL1_FIRST_TIME_TUTORIAL = true;
 const ROCKY_BLOCK_DISTANCE = 2;
 const ROCKY_DIRS = [[1,0],[0,1],[-1,0],[0,-1]];
 const ROCKY_PATROL_STEP_MS = KEYBOARD_HALF_STEP_INTERVAL * 2;
@@ -631,6 +699,16 @@ let directionalPointerStart = null;
 let directionalPointerMoved = false;
 let directionalPointerTriggered = false;
 let isEditorOpen = false;
+
+const tutorialState = {
+  played: false,
+  running: false,
+  activeStep: null,
+  shownSteps: new Set(),
+  convertedEnemyToEgg: false,
+  allHeartsCollected: false,
+  keyFromChestCollected: false,
+};
 
 const TILE_META = {
   '#': { label: 'Muro lateral/inferior', color: '#8b4d1a', text: '#111' },
@@ -1820,6 +1898,122 @@ function chestOpen(){ return state.hearts.size === 0; }
 function enemyAt(x,y){ return state.enemies.find(e => e.x===x && e.y===y); }
 function fireballAt(x,y){ return state.fireballs.find(f => Math.round(f.x)===x && Math.round(f.y)===y); }
 
+function isTutorialEnabledForCurrentLevel(){
+  return ENABLE_LEVEL1_FIRST_TIME_TUTORIAL && currentLevelIndex === 0;
+}
+
+function isTutorialBlockingInput(){
+  return tutorialState.running && tutorialState.activeStep !== null;
+}
+
+function createTutorialIcon(name, alt){
+  const src = sprites[name]?.src;
+  if (src) {
+    const icon = document.createElement('img');
+    icon.className = 'tutorial-icon';
+    icon.alt = alt;
+    icon.src = src;
+    return icon;
+  }
+  const fallback = document.createElement('span');
+  fallback.textContent = name === 'crosshair' ? '◎' : `(${alt})`;
+  fallback.style.color = '#ffd992';
+  fallback.style.fontWeight = '900';
+  fallback.style.fontSize = '1.1em';
+  return fallback;
+}
+
+function showTutorialPopup(parts){
+  if (!tutorialOverlay || !tutorialMessage) return;
+  tutorialState.running = true;
+  tutorialOverlay.classList.add('visible');
+  tutorialOverlay.setAttribute('aria-hidden', 'false');
+  tutorialMessage.innerHTML = '';
+  for (const part of parts) {
+    if (!part) continue;
+    if (typeof part === 'string') {
+      tutorialMessage.appendChild(document.createTextNode(part));
+      continue;
+    }
+    if (part.type === 'icon') tutorialMessage.appendChild(createTutorialIcon(part.sprite, part.alt));
+  }
+}
+
+function hideTutorialPopup(){
+  if (!tutorialOverlay) return;
+  tutorialOverlay.classList.remove('visible');
+  tutorialOverlay.setAttribute('aria-hidden', 'true');
+  tutorialState.activeStep = null;
+}
+
+function hasAdjacentShootableEnemy(){
+  if (!state.player || state.shots <= 0) return false;
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+  for (const [dx,dy] of dirs) {
+    const x = state.player.x + dx;
+    const y = state.player.y + dy;
+    if (!inBounds(x,y)) continue;
+    const hit = enemyAt(x,y);
+    if (hit && (hit.type === 'ardilla' || hit.type === 'leeper' || hit.type === 'skull' || hit.type === 'dragon')) return true;
+  }
+  return false;
+}
+
+function maybeShowTutorialStep(step){
+  if (!isTutorialEnabledForCurrentLevel() || tutorialState.played || tutorialState.shownSteps.has(step)) return;
+  tutorialState.shownSteps.add(step);
+  tutorialState.activeStep = step;
+  if (step === 'collect_hearts') {
+    showTutorialPopup(['Recoge todos los ', { type:'icon', sprite:'heart', alt:'corazón' }, '.']);
+    return;
+  }
+  if (step === 'shoot_enemy') {
+    showTutorialPopup(['Haz clic en ', { type:'icon', sprite:'crosshair', alt:'mirilla' }, ' y convierte al enemigo en un ', { type:'icon', sprite:'egg', alt:'huevo' }, '.']);
+    return;
+  }
+  if (step === 'push_egg') {
+    showTutorialPopup(['Puedes empujar un ', { type:'icon', sprite:'egg', alt:'huevo' }, '.']);
+    return;
+  }
+  if (step === 'collect_key') {
+    showTutorialPopup(['Recoge la llave del ', { type:'icon', sprite:'chest_open', alt:'cofre' }, '.']);
+    return;
+  }
+  if (step === 'exit_room') {
+    showTutorialPopup(['Sal de la habitación y pasa al siguiente nivel.']);
+  }
+}
+
+function evaluateTutorialProgress(){
+  if (!isTutorialEnabledForCurrentLevel() || tutorialState.played || state.won) return;
+  if (tutorialState.activeStep) return;
+  if (!tutorialState.shownSteps.has('collect_hearts')) {
+    maybeShowTutorialStep('collect_hearts');
+    return;
+  }
+  if (!tutorialState.shownSteps.has('shoot_enemy') && hasAdjacentShootableEnemy()) {
+    maybeShowTutorialStep('shoot_enemy');
+    return;
+  }
+  if (tutorialState.convertedEnemyToEgg && !tutorialState.shownSteps.has('push_egg')) {
+    maybeShowTutorialStep('push_egg');
+    return;
+  }
+  if (tutorialState.allHeartsCollected && !tutorialState.shownSteps.has('collect_key')) {
+    maybeShowTutorialStep('collect_key');
+    return;
+  }
+  if (tutorialState.keyFromChestCollected && !tutorialState.shownSteps.has('exit_room')) {
+    maybeShowTutorialStep('exit_room');
+  }
+}
+
+function dismissTutorialIfVisible(){
+  if (!isTutorialBlockingInput()) return;
+  hideTutorialPopup();
+  evaluateTutorialProgress();
+}
+
 function setPlayerAnimation(fromX, fromY, toX, toY){
   playerAnim = { fromX, fromY, toX, toY, startedAt: performance.now(), duration: PLAYER_MOVE_MS };
 }
@@ -2002,6 +2196,7 @@ function killPlayer(player = state.player){
 }
 
 function winLevel(){
+  if (isTutorialEnabledForCurrentLevel()) tutorialState.played = true;
   state.won = true;
   setHudMessage('¡Pantalla completada!');
   navigator.vibrate?.([30,30,60]);
@@ -2066,12 +2261,16 @@ function tryMoveSinglePlayer(player, dx, dy, animate = false){
   if (state.hearts.has(heartKey)) {
     state.hearts.delete(heartKey);
     state.shots += 1;
+    if (state.hearts.size === 0) tutorialState.allHeartsCollected = true;
     setHudMessage('¡Ganaste 1 disparo!');
+    evaluateTutorialProgress();
   }
   if (!state.doorOpen && chestOpen() && state.chest && tx === state.chest.x && ty === state.chest.y) {
     if (!state.keyCollected) {
       state.keyCollected = true;
+      tutorialState.keyFromChestCollected = true;
       triggerEnemyExplosion();
+      evaluateTutorialProgress();
     }
     state.doorOpen = true;
     setHudMessage('¡Puerta abierta!');
@@ -2110,7 +2309,9 @@ function shootFromPlayer(player){
     state.eggs.add(eggPos);
     state.eggTimers.set(eggPos, performance.now() + EGG_HATCH_MS);
     state.shots -= 1;
+    tutorialState.convertedEnemyToEgg = true;
     setHudMessage('¡Enemigo convertido en huevo!');
+    evaluateTutorialProgress();
     navigator.vibrate?.(20);
     return true;
   }
@@ -2433,6 +2634,10 @@ function processQueuedMove(){
 }
 
 canvas.addEventListener('pointerdown', e => {
+  if (isTutorialBlockingInput()) {
+    dismissTutorialIfVisible();
+    return;
+  }
   if (state.won || isEditorOpen || isPlayerFrozen()) return;
   const t = tapToTile(e.clientX, e.clientY);
   if (t.x === state.player.x && t.y === state.player.y) {
@@ -2485,6 +2690,11 @@ canvas.addEventListener('pointerup', handlePointerEnd);
 canvas.addEventListener('pointercancel', handlePointerEnd);
 
 document.addEventListener('keydown', (e) => {
+  if (isTutorialBlockingInput()) {
+    e.preventDefault();
+    dismissTutorialIfVisible();
+    return;
+  }
   if (e.key === ' ' || e.code === 'Space') {
     e.preventDefault();
     if (isEditorOpen || state.won || state.deadUntil || isPlayerFrozen()) return;
@@ -3883,6 +4093,7 @@ function frame(ts){
     tick();
     acc -= TICK;
   }
+  evaluateTutorialProgress();
   draw();
   requestAnimationFrame(frame);
 }
@@ -4083,10 +4294,29 @@ function startLevel(){
   dragPath = [];
   activePointerId = null;
   setHudMessage('');
+  tutorialState.running = false;
+  tutorialState.activeStep = null;
+  tutorialState.convertedEnemyToEgg = false;
+  tutorialState.allHeartsCollected = false;
+  tutorialState.keyFromChestCollected = false;
+  if (isTutorialEnabledForCurrentLevel() && !tutorialState.played) {
+    tutorialState.shownSteps.clear();
+    maybeShowTutorialStep('collect_hearts');
+  } else {
+    tutorialState.shownSteps.clear();
+    hideTutorialPopup();
+  }
   state.initialSnapshot = snapshot();
 }
 
 function resetLevel({ fromDeath = false } = {}){
+  if (!fromDeath && isTutorialEnabledForCurrentLevel()) {
+    tutorialState.played = true;
+    tutorialState.running = false;
+    tutorialState.activeStep = null;
+    tutorialState.shownSteps.clear();
+    hideTutorialPopup();
+  }
   restore(state.initialSnapshot);
   state.undo = [];
   queuedMoves = [];
@@ -4108,6 +4338,10 @@ document.getElementById('editBtn').onclick = () => openEditor();
 });
 
 directionalControls?.addEventListener('pointerdown', (e) => {
+  if (isTutorialBlockingInput()) {
+    dismissTutorialIfVisible();
+    return;
+  }
   const button = e.target.closest('.dir-btn');
   e.preventDefault();
   directionalControls.setPointerCapture(e.pointerId);
@@ -4298,7 +4532,16 @@ hudLevel.addEventListener('click', (e) => {
   levelDropdown.setAttribute('aria-hidden', willShow ? 'false' : 'true');
 });
 
+tutorialOverlay?.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  dismissTutorialIfVisible();
+});
+
 document.addEventListener('pointerdown', (e) => {
+  if (isTutorialBlockingInput()) {
+    dismissTutorialIfVisible();
+    return;
+  }
   if (e.target === hudLevel || levelDropdown.contains(e.target)) return;
   levelDropdown.classList.remove('visible');
   levelDropdown.setAttribute('aria-hidden', 'true');
