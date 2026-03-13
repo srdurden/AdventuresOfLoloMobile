@@ -8,7 +8,6 @@
     :root {
       color-scheme: dark;
       --controls-space: clamp(180px, 28vh, 250px);
-      --board-top-inset: 72px;
       --hud-row-height: 44px;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -30,7 +29,7 @@
     }
     #boardWrap {
       position: absolute;
-      inset: var(--board-top-inset) 12px calc(env(safe-area-inset-bottom) + var(--controls-space));
+      inset: 0;
       overflow: hidden;
       background: transparent;
       border: 0;
@@ -135,7 +134,6 @@
     @media (hover: hover) and (pointer: fine) {
       :root {
         --controls-space: clamp(210px, 30vh, 290px);
-        --board-top-inset: 52px;
         --hud-row-height: 34px;
       }
     }
@@ -730,6 +728,12 @@ let lastTs = 0;
 let acc = 0;
 let moveAcc = 0;
 let board = { x: 0, y: 0, t: 20 };
+const SCENE_SCALE = 3;
+const MIN_CANVAS_ZOOM = 0.55;
+const MAX_CANVAS_ZOOM = 4;
+let baseTileSize = 20;
+let camera = { zoom: 1, x: 0, y: 0 };
+let cameraInitialized = false;
 let activePointerId = null;
 let dragPath = [];
 let queuedMoves = [];
@@ -756,6 +760,7 @@ let directionalPointerStart = null;
 let directionalPointerMoved = false;
 let directionalPointerTriggered = false;
 let isEditorOpen = false;
+let touchGesture = null;
 
 const tutorialState = {
   played: false,
@@ -2516,6 +2521,41 @@ function tapToTile(clientX, clientY){
   };
 }
 
+function getWorldSize(){
+  return { width: W * board.t, height: H * board.t };
+}
+
+function syncBoardFromCamera(){
+  board.x = -camera.x;
+  board.y = -camera.y;
+}
+
+function clampCamera(){
+  const world = getWorldSize();
+  const viewW = canvas.width / (Math.min(window.devicePixelRatio || 1, 2));
+  const viewH = canvas.height / (Math.min(window.devicePixelRatio || 1, 2));
+  const maxX = Math.max(0, world.width - viewW);
+  const maxY = Math.max(0, world.height - viewH);
+  camera.x = Math.max(0, Math.min(maxX, camera.x));
+  camera.y = Math.max(0, Math.min(maxY, camera.y));
+  syncBoardFromCamera();
+}
+
+function setCanvasZoom(nextZoom, anchorClientX, anchorClientY){
+  const rect = canvas.getBoundingClientRect();
+  const anchorScreenX = anchorClientX - rect.left;
+  const anchorScreenY = anchorClientY - rect.top;
+  const worldX = camera.x + anchorScreenX;
+  const worldY = camera.y + anchorScreenY;
+  const oldTile = board.t;
+  camera.zoom = Math.max(MIN_CANVAS_ZOOM, Math.min(MAX_CANVAS_ZOOM, nextZoom));
+  board.t = baseTileSize * SCENE_SCALE * camera.zoom;
+  const scaleRatio = board.t / oldTile;
+  camera.x = worldX * scaleRatio - anchorScreenX;
+  camera.y = worldY * scaleRatio - anchorScreenY;
+  clampCamera();
+}
+
 function canDragThrough(fromX,fromY,x,y){
   if (!state.player) return false;
   if (x === state.player.x && y === state.player.y) return true;
@@ -2797,6 +2837,61 @@ function handlePointerEnd(e){
 
 canvas.addEventListener('pointerup', handlePointerEnd);
 canvas.addEventListener('pointercancel', handlePointerEnd);
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (e.ctrlKey) {
+    const zoomFactor = Math.exp(-e.deltaY * 0.0025);
+    setCanvasZoom(camera.zoom * zoomFactor, e.clientX, e.clientY);
+    return;
+  }
+  camera.x += e.deltaX;
+  camera.y += e.deltaY;
+  clampCamera();
+}, { passive: false });
+
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length >= 2) {
+    const a = e.touches[0];
+    const b = e.touches[1];
+    const centerX = (a.clientX + b.clientX) * 0.5;
+    const centerY = (a.clientY + b.clientY) * 0.5;
+    touchGesture = {
+      startZoom: camera.zoom,
+      startDist: Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY),
+      lastCenterX: centerX,
+      lastCenterY: centerY,
+    };
+    clearPathInput();
+    queuedMoves = [];
+    e.preventDefault();
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  if (!touchGesture || e.touches.length < 2) return;
+  const a = e.touches[0];
+  const b = e.touches[1];
+  const centerX = (a.clientX + b.clientX) * 0.5;
+  const centerY = (a.clientY + b.clientY) * 0.5;
+  const dist = Math.max(10, Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY));
+  const zoomRatio = dist / Math.max(10, touchGesture.startDist);
+  setCanvasZoom(touchGesture.startZoom * zoomRatio, centerX, centerY);
+  camera.x -= centerX - touchGesture.lastCenterX;
+  camera.y -= centerY - touchGesture.lastCenterY;
+  touchGesture.lastCenterX = centerX;
+  touchGesture.lastCenterY = centerY;
+  clampCamera();
+  e.preventDefault();
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  if (e.touches.length < 2) touchGesture = null;
+}, { passive: false });
+
+canvas.addEventListener('touchcancel', () => {
+  touchGesture = null;
+}, { passive: false });
 
 document.addEventListener('keydown', (e) => {
   if (isTutorialBlockingInput()) {
@@ -3462,11 +3557,14 @@ function resize(){
 
   const w = r.width;
   const h = r.height;
-  const hudReserved = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hud-row-height')) || 44;
-  const playableHeight = Math.max(120, h - hudReserved);
-  board.t = Math.max(12, Math.floor(Math.min((w - 4) / W, (playableHeight - 4) / H)));
-  board.x = Math.floor((w - W * board.t) / 2);
-  board.y = hudReserved + Math.floor((playableHeight - H * board.t) / 2);
+  baseTileSize = Math.max(12, Math.floor(Math.min((w - 4) / W, (h - 4) / H)));
+  board.t = baseTileSize * SCENE_SCALE * camera.zoom;
+  if (!cameraInitialized) {
+    camera.x = Math.max(0, (W * board.t - w) / 2);
+    camera.y = Math.max(0, (H * board.t - h) / 2);
+    cameraInitialized = true;
+  }
+  clampCamera();
 }
 window.addEventListener('resize', resize);
 
