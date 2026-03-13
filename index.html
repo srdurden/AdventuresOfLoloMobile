@@ -339,6 +339,11 @@
       border: 0;
       box-shadow: none;
     }
+    .palette-tile:active {
+      transform: none;
+      box-shadow: none;
+      background-color: #000;
+    }
     #editorGrid {
       display: grid;
       grid-template-columns: repeat(13, var(--editor-cell-size));
@@ -350,7 +355,7 @@
       touch-action: none;
     }
     .editor-cell {
-      border: 0;
+      border: 1px solid #555;
       min-height: var(--editor-cell-size);
       height: var(--editor-cell-size);
       width: var(--editor-cell-size);
@@ -729,11 +734,12 @@ let acc = 0;
 let moveAcc = 0;
 let board = { x: 0, y: 0, t: 20 };
 const SCENE_SCALE = 3;
-const MIN_CANVAS_ZOOM = 0.55;
+const MIN_CANVAS_ZOOM = 0.25;
 const MAX_CANVAS_ZOOM = 4;
 let baseTileSize = 20;
-let camera = { zoom: 1, x: 0, y: 0 };
+let camera = { zoom: 1 / SCENE_SCALE, x: 0, y: 0 };
 let cameraInitialized = false;
+let panPointer = null;
 let activePointerId = null;
 let dragPath = [];
 let queuedMoves = [];
@@ -2525,6 +2531,10 @@ function getWorldSize(){
   return { width: W * board.t, height: H * board.t };
 }
 
+function getDefaultCanvasZoom(){
+  return Math.max(MIN_CANVAS_ZOOM, Math.min(MAX_CANVAS_ZOOM, 1 / SCENE_SCALE));
+}
+
 function syncBoardFromCamera(){
   board.x = -camera.x;
   board.y = -camera.y;
@@ -2553,6 +2563,17 @@ function setCanvasZoom(nextZoom, anchorClientX, anchorClientY){
   const scaleRatio = board.t / oldTile;
   camera.x = worldX * scaleRatio - anchorScreenX;
   camera.y = worldY * scaleRatio - anchorScreenY;
+  clampCamera();
+}
+
+function resetCameraToDefaultView(){
+  camera.zoom = getDefaultCanvasZoom();
+  board.t = baseTileSize * SCENE_SCALE * camera.zoom;
+  const rect = canvas.getBoundingClientRect();
+  const viewW = rect.width;
+  const viewH = rect.height;
+  camera.x = Math.max(0, (W * board.t - viewW) / 2);
+  camera.y = Math.max(0, (H * board.t - viewH) / 2);
   clampCamera();
 }
 
@@ -2789,6 +2810,18 @@ canvas.addEventListener('pointerdown', e => {
   }
   if (state.won || isEditorOpen || isPlayerFrozen()) return;
   const t = tapToTile(e.clientX, e.clientY);
+  const defaultZoom = getDefaultCanvasZoom();
+  if (camera.zoom > defaultZoom + 0.001 && !(t.x === state.player.x && t.y === state.player.y)) {
+    panPointer = {
+      id: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startCameraX: camera.x,
+      startCameraY: camera.y,
+    };
+    canvas.setPointerCapture(e.pointerId);
+    return;
+  }
   if (t.x === state.player.x && t.y === state.player.y) {
     activePointerId = e.pointerId;
     queuedMoves = [];
@@ -2822,6 +2855,12 @@ canvas.addEventListener('pointerdown', e => {
 });
 
 canvas.addEventListener('pointermove', e => {
+  if (panPointer && e.pointerId === panPointer.id) {
+    camera.x = panPointer.startCameraX - (e.clientX - panPointer.startX);
+    camera.y = panPointer.startCameraY - (e.clientY - panPointer.startY);
+    clampCamera();
+    return;
+  }
   if (e.pointerId !== activePointerId || !dragPath.length) return;
   const tile = tapToTile(e.clientX, e.clientY);
   activePointerTile = tile;
@@ -2830,6 +2869,10 @@ canvas.addEventListener('pointermove', e => {
 });
 
 function handlePointerEnd(e){
+  if (panPointer && e.pointerId === panPointer.id) {
+    panPointer = null;
+    return;
+  }
   if (e.pointerId !== activePointerId) return;
   queuedMoves = [];
   clearPathInput();
@@ -2864,6 +2907,7 @@ canvas.addEventListener('touchstart', e => {
     };
     clearPathInput();
     queuedMoves = [];
+    panPointer = null;
     e.preventDefault();
   }
 }, { passive: false });
@@ -3560,8 +3604,7 @@ function resize(){
   baseTileSize = Math.max(12, Math.floor(Math.min((w - 4) / W, (h - 4) / H)));
   board.t = baseTileSize * SCENE_SCALE * camera.zoom;
   if (!cameraInitialized) {
-    camera.x = Math.max(0, (W * board.t - w) / 2);
-    camera.y = Math.max(0, (H * board.t - h) / 2);
+    resetCameraToDefaultView();
     cameraInitialized = true;
   }
   clampCamera();
@@ -4633,6 +4676,7 @@ function startLevel(){
   tutorialState.allHeartsCollected = false;
   tutorialState.keyFromChestCollected = false;
   tutorialState.shootEnemyPromptDueAt = 0;
+  if (cameraInitialized) resetCameraToDefaultView();
   if (isTutorialEnabledForCurrentLevel() && !tutorialState.played) {
     tutorialState.shownSteps.clear();
     maybeShowTutorialStep('collect_hearts');
